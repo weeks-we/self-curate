@@ -1,0 +1,1 @@
+{"accepted_history_policy":"exclude","backend":"fixture","input_path":"../tests/fixtures/m1_trajectories.jsonl","max_context_tokens":10000,"oversize_policy":"reject","rejected_history_policy":"exclude","schema_version":"1","skills":["failure_recovery","regression_check"]}
