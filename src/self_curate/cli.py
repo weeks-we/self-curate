@@ -10,7 +10,7 @@ from self_curate.data.pool import build_pool, load_config, read_pool
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="self-curate",
-        description="Self-Curate M1: normalize and inspect trajectory pools",
+        description="Self-Curate: data contracts and deterministic selection",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     check = commands.add_parser(
@@ -24,6 +24,15 @@ def main(argv=None):
         "inspect-pool", help="Verify checksums and recompute record metrics"
     )
     inspect.add_argument("--pool", required=True)
+    validate = commands.add_parser(
+        "validate-program", help="Validate operator schemas and DAG dependencies"
+    )
+    validate.add_argument("--program", required=True)
+    select = commands.add_parser("select", help="Execute a frozen selection program")
+    select.add_argument("--pool", required=True)
+    select.add_argument("--program", required=True)
+    select.add_argument("--context", required=True)
+    select.add_argument("--output", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "validate-config":
@@ -38,6 +47,23 @@ def main(argv=None):
             result = {"status": "valid", "config": config.to_dict()}
         elif args.command == "normalize":
             result = build_pool(load_config(args.config), args.output)
+        elif args.command == "validate-program":
+            from self_curate.operators import load_program
+
+            program = load_program(args.program)
+            result = {
+                "status": "valid",
+                "recipe_hash": program.recipe_hash,
+                "nodes": len(program.nodes),
+            }
+        elif args.command == "select":
+            from self_curate.operators import select_to_directory
+
+            result = select_to_directory(
+                args.pool, args.program, args.context, args.output
+            )
+            print(canonical_json(result.to_dict()))
+            return 0 if result.status == "feasible" else 3
         else:
             snapshot = read_pool(args.pool)
             result = {

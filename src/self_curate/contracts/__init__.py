@@ -1,4 +1,19 @@
 from .errors import ContractError, ErrorCode
+from .program import (
+    OPERATOR_NAMES,
+    OPERATOR_VERSION,
+    NodeSpec,
+    ProgramSpec,
+    parse_program,
+)
+from .selection import (
+    BatchManifest,
+    BatchMember,
+    NodeTrace,
+    SelectionResult,
+    parse_batch_manifest,
+    verify_batch,
+)
 from .features import (
     AnnotationRecord,
     ComputeCost,
@@ -47,6 +62,17 @@ from .parsing import (
 )
 
 __all__ = [
+    "OPERATOR_NAMES",
+    "OPERATOR_VERSION",
+    "NodeSpec",
+    "ProgramSpec",
+    "parse_program",
+    "BatchManifest",
+    "BatchMember",
+    "NodeTrace",
+    "SelectionResult",
+    "parse_batch_manifest",
+    "verify_batch",
     "SCHEMA_VERSION",
     "AnnotationRecord",
     "ComputeCost",

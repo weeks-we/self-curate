@@ -1,98 +1,51 @@
-# M1 交付与后续开发计划
+# 当前进度：M2/P1 已实现并复查（0.2.1）
 
-日期：2026-11-01。对应用户技术蓝图的 **M1：数据与标注**，不是整个 Agent 系统。
+日期：2026-11-02。本轮按用户要求先分析依赖，再完成 M2 八类算子与公共交接接口。
 
-## 三轮复核后的数据与 operator 接口（0.1.2）
+随后按用户要求复查，修正批次修整性能、历史暴露报告、混合 tokenizer 边界和预算数值边界，补充预期模型交接检查。
+本轮说明见 [M2_REVIEW_ZH.md](M2_REVIEW_ZH.md)，当前算子语义为 m2-v2。
+新验收与交付包位于 `runs/m2-review/`；旧 `runs/m2-acceptance/` 保留为 0.2.0 的历史证据。
 
-按新提供的 `data_centric_rsi_architecture.md` 对齐，并遵守用户澄清：不增加持久化 operator 索引。
+- 实现前设计：[m2_design.md](m2_design.md)；公共入口和完整参数：[m2_interfaces.md](m2_interfaces.md)。
+- 上游复用 M1 的 ID 保序、版本化内存 MetricView，不增加持久化 operator 索引。
+- ProgramSpec 严格 DAG、固定 QualityGate/BudgetPack、八类算子、精确 BatchManifest 与节点追踪均已实现。
+- NLL/entropy 读取外部预计算结果；语义去重读取外部成对相似度；本轮不运行模型、不生成梯度或训练曝光。
+- CPU 全量测试和合成 CLI 验收覆盖 M1 回归、八算子、图校验、版本匹配、缺失请求、混合唯一归属、token/batch 约束和精确清单交接。
+- 合成示例：12 条输入 → 8 条完整轨迹/64 个监督 token，两个分支各 32 token；有效 batch=8。
+- 组批为版本化确定性贪心，不能将未找到合法批次解释为所有组合均无解。
 
-- 每条数据可匹配来源、质量、长度、技能证据、任务/仓库/重复组/其他标签，以及使用状态。
-- 外部 AnnotationRecord/MetadataRecord 绑定 ID、内容、来源和 token 版本。
-- NLL/entropy 延续模型/spec/CDF 版本；样本梯度新增完整版本契约、引用、norm、有效性和声明成本。
-- MetricView 提供单/多指标的 ID 保序读取、原位缺失、内容版本与 feature_keys；构建后不重扫 token。
-- 新增使用状态的无损更新与 pending→accept/reject；拒绝仍保留候选训练历史。
-- m1-v3 与旧 m1-v1/m1-v2 只读兼容；不更改旧证据。
+当前证据与源码交付包位于忽略的 `runs/m2-review/`，不纳入 Git；实际测试统计和各项检查以其中 verification.json 为准。
 
-新目录最终完整测试为 **96 passed、0 failed、0 skipped**。三轮复核、CLI、版本化梯度/信号/标签的落盘往返、使用状态、旧数据兼容、规模取值、代码检查和 0.1.2 wheel 均通过。证据与更新交付包位于 `runs/m1-three-pass/`。
-三轮范围、发现与边界见 [M1_THREE_PASS_REVIEW_ZH.md](M1_THREE_PASS_REVIEW_ZH.md)；
-实际调用见 [m1_operator_data_contract.md](m1_operator_data_contract.md)。
+## 后续按这份计划执行
 
-## 外部结果接口增补（0.1.1）
-
-数据模块现已预留并实现外部结果的接入位置：
-
-- `annotations` + `AnnotationProvider` + `attach_annotations()`：接入外部标签并重算证据统计。
-- `signals` + `SignalProvider`：按模型/范围/计算配置保存 NLL、entropy 及可选百分位。
-- `make_signal()` / `attach_signals()` / `get_signal()`：包装传入值、挂接、精确查询，不执行模型前向。
-- ModelRef、SignalBinding、SignalSpec、PercentileReference：绑定数据、权重、token/mask、统计口径与参考版本。
-- 允许 NLL/entropy 分批补齐；同身份数值冲突报错，缺失值不填 0。
-- 外部标签变化使相关技能范围信号失效；默认拒绝，显式失效策略才丢弃新对象中的过期值。
-- 新输出为 m1-v2；初版 m1-v1 池继续只读可验，不改旧证据。
-
-详细接口与示例见 [enrichment_interfaces.md](enrichment_interfaces.md)。
-新仓库完整测试 **67 passed、0 failed、0 skipped**。CLI 的未计算/外部已计算值两条路径、标签挂接、旧池只读兼容、代码检查与 0.1.1 wheel 构建/独立导入均通过。
-本次证据与更新交付包位于 `runs/acceptance-signals/`；旧 `runs/acceptance/` 保留为初版证据。
-NLL/entropy/CDF 计算算法、自动标注器和真实模型后端仍由后续阶段实现。
-
-## 本次完成范围
-
-- 独立 Python 包、严格 JSON 配置、CLI、统一错误类型和 M1 公共契约。
-- source/messages/quality/annotations/usage 的严格导入及工具调用关系校验。
-- 分词 adapter、assistant-only mask、可供训练使用的 labels。
-- 技能证据的监督交集、重复区间并集、share/density/绝对量、缺失与零分母处理。
-- assistant 回合、结构化工具调用、工具观察、上下文与监督 token 分别计数。
-- 独立保留前向、梯度、候选训练和已接受训练历史；显式排除/复用政策。
-- 不裁剪超长轨迹；输出稳定排序的数据池、排除清单、审计、内容及文件 checksum。
-- 完整产物发布后，下游可验证读取，坏记录或坏 checksum 不悄悄回退。
-- 三条小型合成 fixture：重叠技能证据、缺失标注、工具长输出。
-
-原始 `docs/self_curate_codex_blueprint.md` 保留原样。没有导入相邻项目，没有接模型/GPU、
-下载数据、运行容器或训练，也没有 Git 提交/推送。
-
-## 验收状态
-
-初版 M1 已完成全量验收：**44 passed、0 failed、0 skipped**，包括独立手算 token 对齐，以及 100 组随机区间的逐 token 集合对照；本次接口增补状态见上节。
-CLI、三条 fixture 导入、重复只读校验、black、flake8 F/E9、compileall、wheel 构建/CRC/独立导入均通过。
-证据位于忽略的 `runs/acceptance/`：pytest.xml、verification.json、demo/、各命令日志与源码交付 zip。
-打包初次在受管暂存环境遇到临时目录 ACL 限制；在获授权的新目录以正常权限构建通过，未修改构建算法或全局环境。
-
-| 层次 | 状态 |
-|---|---|
-| M1 结构、数据和数值语义 | 已实现，CPU 测试通过 |
-| fixture CLI 导入与池读取 | 已通过测试，显式 synthetic |
-| 外部预计算 token 接口 | 已实现并通过手工独立对齐样例；不等于真实 tokenizer 已实测 |
-| 模型专用 tokenizer/chat template adapter | 尚未实现，后续接入 |
-| 真实原始来源/证据真实性校验 | 未执行，audit 明确标 false |
-| M2 算子、Agent、梯度、训练与实验结论 | 本次范围之外 |
-
-## 近期按轮推进
-
-| 轮次 | 交付目标 | 验收标准 |
+| 轮次 | 具体交付 | 验收重点 |
 |---|---|---|
-| 下一轮 A | M2/P1 的 ProgramSpec、执行上下文、算子注册与固定质量门禁；先做 Skill/Evidence/Length/Dedup | 直接读 M1 池；缺失政策明确；不改轨迹；纯过滤交换顺序不凭空产生差异 |
-| 下一轮 B | 完成 NLL/Entropy/Sample/Mix 与 BudgetPack | 先使用显式 fixture 信号；分支重叠只计一次；token 配额与残差可复核；不可行明确返回 |
-| 随后 C | P2 模拟内外层循环与恢复 | 先升后降仍返回历史最佳的精确批次；接受切身份、拒绝留参数；恢复不重复提交 |
-| 随后 D | P3 小模型真实 tokenizer、mask、前向与样本梯度 | 真实模板对齐；参数不更新；按样本缓存与身份失效有独立对照 |
+| 下一轮 P2 | 显式 mock 内外层搜索循环、历史最优清单、恢复状态 | 上升后下降仍保留真实最佳 manifest；拒绝保留证据；恢复不重复训练/接受；只消费本轮 M2 公共接口 |
+| 随后真实输入后端 | 专用 tokenizer/template 与外部 NLL/entropy 服务 | 独立 token/mask 对照；模型/spec/CDF 精确绑定；缺失请求与回填闭环；禁止隐式 fixture 回退 |
+| M5/M6 | 最终清单上的按需梯度与确定性估值 | 完整缓存身份、仅计算缺失最终成员、同一批次评估、零/无效梯度处理 |
+| M8 | 候选训练、验证、接受/拒绝及曝光记账 | verify_batch 后按原 training_order 训练；拒绝也保留曝光；不按测试集调参 |
 
-先做确定性算子，再让 Agent 调用这些工具。三角色 prompt/记忆与真实训练在相应阶段接入，
-不为了“先搭大框架”提前创建不能使用的空模块。
-
-## 下一轮可以直接给 Codex 的任务
+可直接交给下一轮执行的任务：
 
 ```text
 阅读 AGENTS.md、docs/self_curate_codex_blueprint.md、docs/decisions.md、
-docs/m1_interfaces.md、docs/progress.md。
-
-本次执行 M2/P1 的第一小步：ProgramSpec 与纯筛选算子。
-以已交付 M1 的 read_pool() 为输入，不重写数据规范化、证据分母或监督 mask。
-实现严格 DAG schema/算子注册、固定 QualityGate，以及 SkillSelect、EvidenceSelect、
-LengthSelect、基于精确内容/已标注组的 DedupSelect。
-明确 EvidenceSelect 缺失策略，并区分缺失与已标注零证据。
-拒绝未知字段、环、未知依赖和任意代码执行。
-保存节点输入输出 ID、理由、程序 hash；相同输入和配置结果一致。
-本轮不接真实模型、语义去重服务、NLL/entropy 计算或训练。
-测试输入不变性、缺失、重叠、质量门禁、过滤换序等；跑全量项目测试。
-同步公共接口、决策与进度，交付可运行命令与下一小步输入。
+docs/m2_design.md、docs/m2_interfaces.md、docs/progress.md。
+实现 P2 的显式 mock 搜索循环，复用 execute_program/SelectionResult/BatchManifest。
+先定义状态和接口，不重写 M1/M2，不引入真实模型或训练后端。
+测试历史最优与当前候选分离、精确清单传递、拒绝保留证据、接受后的模型身份切换、恢复幂等。
+mock 指标必须标注 synthetic；训练曝光只在模拟训练事件中通过 M1 usage 接口记录。
+完成后跑全量测试、更新公共接口/决策/进度，交付可运行命令和证据，不执行 Git 提交。
 ```
 
-完整 M2/P1 验收后，再执行下一轮 B；不能把部分算子完成标成八算子全阶段完成。
+## M1 已交付历史
+
+| 版本 | 完成内容 | 当时验收 |
+|---|---|---|
+| 0.1.0 / m1-v1 | 文本与工具轨迹规范化、assistant-only mask、技能证据统计、使用历史、不可覆盖数据池 | 44 passed；证据位于 runs/acceptance/ |
+| 0.1.1 / m1-v2 | 外部标签和 NLL/entropy 接入、精确模型/scope/spec/CDF 绑定与信号合并 | 67 passed；证据位于 runs/acceptance-signals/ |
+| 0.1.2 / m1-v3 | ID 保序内存 MetricView、外部标签/元数据封装、版本化梯度引用、无损使用状态更新及三轮复核 | 96 passed；证据位于 runs/m1-three-pass/ |
+
+旧 m1-v1/m1-v2 数据池继续只读兼容，不改写旧文件恢复。旧产物、交付包与研究文档保留。
+M1 数据取值见 [m1_operator_data_contract.md](m1_operator_data_contract.md)，外部计算结果接入见 [enrichment_interfaces.md](enrichment_interfaces.md)，三轮复核见 [M1_THREE_PASS_REVIEW_ZH.md](M1_THREE_PASS_REVIEW_ZH.md)。
+
+真实 tokenizer、自动标注、NLL/entropy/CDF 计算、模型后端、梯度计算和训练尚未实现；fixture 验收不能作为研究结论。

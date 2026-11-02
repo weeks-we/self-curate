@@ -3,8 +3,8 @@
 Model-driven, feedback-guided data curation across learning stages.
 
 这是独立的新项目，不依赖相邻项目的代码、配置或实验流程。架构依据为用户提供的
-[技术蓝图](docs/self_curate_codex_blueprint.md)。本次实现其第 6 节 **M1：数据与标注**，
-同时补齐 M1 所需的最小包、配置、CLI 和测试；没有提前实现 Agent、梯度或训练模块。
+[技术蓝图](docs/self_curate_codex_blueprint.md)。目前实现 **M1：数据与标注** 和
+**M2：八算子与确定性批次选择**，包含必要公共契约、配置、CLI 和测试。
 
 ## 本次可使用的能力
 
@@ -18,6 +18,8 @@ Model-driven, feedback-guided data curation across learning stages.
 - 保存版本化样本梯度 artifact 引用，记录参数坐标、loss、投影、精度、优化器与配置。
 - 外部标签封装绑定数据/来源版本；训练使用状态支持可审计的 pending→accept/reject 更新。
 - 发布带 checksum 的数据池，下游读取时重新验证 mask、指标与清单。
+- 执行严格 JSON DAG，支持八类算子、系统固定质量门禁与完整轨迹组批。
+- 按监督 token 混合分支，保存精确成员、训练顺序、版本和排除原因；缺失或不可行明确返回。
 
 ## 本地运行
 
@@ -36,19 +38,33 @@ python -m pytest -q
 不是模型 tokenizer、真实测试报告或研究成绩。`inspect-pool` 可重复执行且不改写产物。
 
 输出为 `trajectories.jsonl`、`excluded.jsonl`、`audit.json`、`manifest.json`。
-下一模块从 `read_pool()` 读取完整数据与指标，不重新分词或修改原轨迹。
+M2 从 `read_pool()` 读取完整数据与指标，不重新分词或修改原轨迹。
+
+八算子端到端示例：
+
+```powershell
+python -m self_curate normalize --config configs/m2.data.fixture.json --output runs/m2-demo/pool
+python -m self_curate validate-program --program configs/programs/m2.fixture.json
+python -m self_curate select --pool runs/m2-demo/pool --program configs/programs/m2.fixture.json --context configs/m2.fixture.json --output runs/m2-demo/selection
+```
+
+12 条合成轨迹中选出 8 条、64 个监督 fixture token，两分支各 32 token。
+退出码 0/3/2 分别表示可行、预算或配额不可行、契约或 IO 错误。
+选择结果保存在新目录内，输入池不变；详细接口与组批边界见 [M2 接口](docs/m2_interfaces.md)。
+当前复查版为 0.2.1/m2-v2，修正与验证说明见 [M2 第二次复查](docs/M2_REVIEW_ZH.md)。
 
 ## 接下来怎么模块化开发
 
 先读 [M1 接口与数据格式](docs/m1_interfaces.md)、[实现决策](docs/decisions.md)
-和 [交付与近期计划](docs/progress.md)。下一步是 M2/P1 算子执行器。
+和 [交付与近期计划](docs/progress.md)。M2 的依赖分析见 [实现前设计](docs/m2_design.md)，
+下一步是 P2 显式 mock 搜索循环，使用本模块的精确批次清单。
 
 外部结果接入示例见 [标注与信号接口](docs/enrichment_interfaces.md)。当前提供存储、校验、查询与
 provider 契约，NLL/entropy、CDF 和自动标注算法在后续实现；未计算的值保持缺失。
 
 **operator 应优先使用 [M1 数据取值契约](docs/m1_operator_data_contract.md)**。
 这次按 [框架文档](docs/data_centric_rsi_architecture.md) 做了
-[三轮复核](docs/M1_THREE_PASS_REVIEW_ZH.md)，没有引入持久化查询索引或提前实现筛选算法。
+[三轮复核](docs/M1_THREE_PASS_REVIEW_ZH.md)；筛选算法现由 M2 实现，仍使用 M1 内存指标视图。
 
 无需先搭一整套 Agent 基础框架。每轮实现一个可运行、可测试的垂直模块，
 只补齐它依赖的公共契约；确定性选择器稳定后，再接模拟循环、梯度与真实角色。
