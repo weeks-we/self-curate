@@ -2,6 +2,38 @@
 
 日期：2026-11-01。对应用户技术蓝图的 **M1：数据与标注**，不是整个 Agent 系统。
 
+## 三轮复核后的数据与 operator 接口（0.1.2）
+
+按新提供的 `data_centric_rsi_architecture.md` 对齐，并遵守用户澄清：不增加持久化 operator 索引。
+
+- 每条数据可匹配来源、质量、长度、技能证据、任务/仓库/重复组/其他标签，以及使用状态。
+- 外部 AnnotationRecord/MetadataRecord 绑定 ID、内容、来源和 token 版本。
+- NLL/entropy 延续模型/spec/CDF 版本；样本梯度新增完整版本契约、引用、norm、有效性和声明成本。
+- MetricView 提供单/多指标的 ID 保序读取、原位缺失、内容版本与 feature_keys；构建后不重扫 token。
+- 新增使用状态的无损更新与 pending→accept/reject；拒绝仍保留候选训练历史。
+- m1-v3 与旧 m1-v1/m1-v2 只读兼容；不更改旧证据。
+
+新目录最终完整测试为 **96 passed、0 failed、0 skipped**。三轮复核、CLI、版本化梯度/信号/标签的落盘往返、使用状态、旧数据兼容、规模取值、代码检查和 0.1.2 wheel 均通过。证据与更新交付包位于 `runs/m1-three-pass/`。
+三轮范围、发现与边界见 [M1_THREE_PASS_REVIEW_ZH.md](M1_THREE_PASS_REVIEW_ZH.md)；
+实际调用见 [m1_operator_data_contract.md](m1_operator_data_contract.md)。
+
+## 外部结果接口增补（0.1.1）
+
+数据模块现已预留并实现外部结果的接入位置：
+
+- `annotations` + `AnnotationProvider` + `attach_annotations()`：接入外部标签并重算证据统计。
+- `signals` + `SignalProvider`：按模型/范围/计算配置保存 NLL、entropy 及可选百分位。
+- `make_signal()` / `attach_signals()` / `get_signal()`：包装传入值、挂接、精确查询，不执行模型前向。
+- ModelRef、SignalBinding、SignalSpec、PercentileReference：绑定数据、权重、token/mask、统计口径与参考版本。
+- 允许 NLL/entropy 分批补齐；同身份数值冲突报错，缺失值不填 0。
+- 外部标签变化使相关技能范围信号失效；默认拒绝，显式失效策略才丢弃新对象中的过期值。
+- 新输出为 m1-v2；初版 m1-v1 池继续只读可验，不改旧证据。
+
+详细接口与示例见 [enrichment_interfaces.md](enrichment_interfaces.md)。
+新仓库完整测试 **67 passed、0 failed、0 skipped**。CLI 的未计算/外部已计算值两条路径、标签挂接、旧池只读兼容、代码检查与 0.1.1 wheel 构建/独立导入均通过。
+本次证据与更新交付包位于 `runs/acceptance-signals/`；旧 `runs/acceptance/` 保留为初版证据。
+NLL/entropy/CDF 计算算法、自动标注器和真实模型后端仍由后续阶段实现。
+
 ## 本次完成范围
 
 - 独立 Python 包、严格 JSON 配置、CLI、统一错误类型和 M1 公共契约。
@@ -19,7 +51,7 @@
 
 ## 验收状态
 
-新项目目录已完成全量验收：**44 passed、0 failed、0 skipped**，包括独立手算 token 对齐，以及 100 组随机区间的逐 token 集合对照。
+初版 M1 已完成全量验收：**44 passed、0 failed、0 skipped**，包括独立手算 token 对齐，以及 100 组随机区间的逐 token 集合对照；本次接口增补状态见上节。
 CLI、三条 fixture 导入、重复只读校验、black、flake8 F/E9、compileall、wheel 构建/CRC/独立导入均通过。
 证据位于忽略的 `runs/acceptance/`：pytest.xml、verification.json、demo/、各命令日志与源码交付 zip。
 打包初次在受管暂存环境遇到临时目录 ACL 限制；在获授权的新目录以正常权限构建通过，未修改构建算法或全局环境。

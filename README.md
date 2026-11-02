@@ -13,6 +13,10 @@ Model-driven, feedback-guided data curation across learning stages.
 - 保留全部上下文，仅监督 assistant 内容与动作，导出训练 labels。
 - 计算技能证据占比、密度与绝对量；处理重叠、缺失与零分母。
 - 保存质量验证来源和四类使用历史；显式处理超长与已训练数据。
+- 预留外部标签与 NLL/entropy 的类型化接入；按模型、token、scope、计算配置与 CDF 保存信号。
+- 提供按 ID 保序的内存 MetricView，供 operator 读取一个或多个指标；缺失值留在原位置。
+- 保存版本化样本梯度 artifact 引用，记录参数坐标、loss、投影、精度、优化器与配置。
+- 外部标签封装绑定数据/来源版本；训练使用状态支持可审计的 pending→accept/reject 更新。
 - 发布带 checksum 的数据池，下游读取时重新验证 mask、指标与清单。
 
 ## 本地运行
@@ -38,6 +42,13 @@ python -m pytest -q
 
 先读 [M1 接口与数据格式](docs/m1_interfaces.md)、[实现决策](docs/decisions.md)
 和 [交付与近期计划](docs/progress.md)。下一步是 M2/P1 算子执行器。
+
+外部结果接入示例见 [标注与信号接口](docs/enrichment_interfaces.md)。当前提供存储、校验、查询与
+provider 契约，NLL/entropy、CDF 和自动标注算法在后续实现；未计算的值保持缺失。
+
+**operator 应优先使用 [M1 数据取值契约](docs/m1_operator_data_contract.md)**。
+这次按 [框架文档](docs/data_centric_rsi_architecture.md) 做了
+[三轮复核](docs/M1_THREE_PASS_REVIEW_ZH.md)，没有引入持久化查询索引或提前实现筛选算法。
 
 无需先搭一整套 Agent 基础框架。每轮实现一个可运行、可测试的垂直模块，
 只补齐它依赖的公共契约；确定性选择器稳定后，再接模拟循环、梯度与真实角色。

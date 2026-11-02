@@ -3,9 +3,12 @@
 from dataclasses import asdict, dataclass
 import hashlib
 import json
-import math
 import re
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from .signals import SignalRecord
+    from .features import AnnotationRecord, DataLabels, GradientFeature, MetadataRecord
 
 from .errors import ContractError, ErrorCode
 
@@ -270,9 +273,7 @@ class SkillAnnotation(Record):
             )
         if self.confidence is not None:
             require(
-                type(self.confidence) in {int, float}
-                and math.isfinite(self.confidence)
-                and 0 <= self.confidence <= 1,
+                type(self.confidence) in {int, float} and 0 <= self.confidence <= 1,
                 "confidence must be finite and between 0 and 1",
             )
 
@@ -424,12 +425,7 @@ class EvidenceMetrics(Record):
         for name in ("share", "density"):
             value = getattr(self, name)
             require(
-                value is None
-                or (
-                    type(value) in {int, float}
-                    and math.isfinite(value)
-                    and 0 <= value <= 1
-                ),
+                value is None or (type(value) in {int, float} and 0 <= value <= 1),
                 "Invalid evidence ratio",
             )
 
@@ -475,10 +471,23 @@ class TrajectoryRecord(Record):
     evidence_metrics: tuple[EvidenceMetrics, ...]
     stats: TrajectoryStats
     usage: UsageHistory
-    normalization_version: str = "m1-v1"
+    signals: tuple["SignalRecord", ...] = ()
+    metadata: "DataLabels | None" = None
+    gradients: tuple["GradientFeature", ...] = ()
+    annotation_record: "AnnotationRecord | None" = None
+    metadata_record: "MetadataRecord | None" = None
+    normalization_version: str = "m1-v3"
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self):
+        from .signals import SignalRecord
+        from .features import (
+            AnnotationRecord,
+            DataLabels,
+            GradientFeature,
+            MetadataRecord,
+        )
+
         text(self.data_id, "data_id")
         sha256(self.content_hash, "content_hash")
         require(
@@ -509,10 +518,117 @@ class TrajectoryRecord(Record):
             "Trajectory content hash mismatch",
         )
         require(
+            self.stats.context_tokens == len(self.tokenization.input_ids)
+            and self.stats.supervised_tokens == sum(self.tokenization.assistant_mask)
+            and self.stats.assistant_turns
+            == sum(m.role == "assistant" for m in self.messages)
+            and self.stats.tool_calls == sum(len(m.tool_calls) for m in self.messages)
+            and self.stats.tool_observations
+            == sum(m.role == "tool" for m in self.messages),
+            "Trajectory length/count labels do not match actual data",
+        )
+        require(
             self.schema_version == SCHEMA_VERSION
-            and self.normalization_version == "m1-v1",
+            and self.normalization_version in {"m1-v1", "m1-v2", "m1-v3"},
             "Unsupported trajectory version",
         )
+        require(
+            type(self.signals) is tuple
+            and all(isinstance(s, SignalRecord) for s in self.signals),
+            "Invalid signal records",
+        )
+        require(
+            len({s.cache_key for s in self.signals}) == len(self.signals),
+            "Duplicate signal identity",
+        )
+        require(
+            self.normalization_version != "m1-v1" or not self.signals,
+            "Legacy records cannot contain signals",
+        )
+        require(
+            self.metadata is None or isinstance(self.metadata, DataLabels),
+            "Invalid static metadata",
+        )
+        require(
+            type(self.gradients) is tuple
+            and all(isinstance(g, GradientFeature) for g in self.gradients),
+            "Invalid gradient references",
+        )
+        require(
+            len({g.cache_key for g in self.gradients}) == len(self.gradients),
+            "Duplicate gradient identity",
+        )
+        require(
+            self.normalization_version == "m1-v3"
+            or (
+                self.metadata is None
+                and not self.gradients
+                and self.annotation_record is None
+                and self.metadata_record is None
+            ),
+            "Legacy records cannot contain v3 fields",
+        )
+        token_hash = (
+            digest(self.tokenization.to_dict())
+            if self.signals
+            or self.gradients
+            or self.annotation_record
+            or self.metadata_record
+            else None
+        )
+        for signal in (*self.signals, *self.gradients):
+            require(
+                signal.binding.data_id == self.data_id
+                and signal.binding.content_hash == self.content_hash
+                and signal.binding.tokenization_hash == token_hash
+                and signal.model_ref.tokenizer == self.tokenization.identity,
+                "Signal is bound to another trajectory or tokenization",
+                ErrorCode.STALE_CACHE,
+            )
+        for envelope, expected in (
+            (self.annotation_record, AnnotationRecord),
+            (self.metadata_record, MetadataRecord),
+        ):
+            require(
+                envelope is None or isinstance(envelope, expected),
+                "Invalid data-bound label envelope",
+            )
+            if envelope is not None:
+                require(
+                    envelope.binding.data_id == self.data_id
+                    and envelope.binding.content_hash == self.content_hash
+                    and envelope.source_hash == digest(self.source.to_dict())
+                    and envelope.binding.tokenization_hash == token_hash
+                    and envelope.binding.selection_hash
+                    == digest(list(self.tokenization.assistant_mask))
+                    and envelope.binding.token_count == self.stats.supervised_tokens,
+                    "Labels belong to another data record",
+                    ErrorCode.STALE_CACHE,
+                )
+        require(
+            self.annotation_record is None
+            or self.annotation_record.annotations == self.annotations,
+            "Annotation envelope and active labels disagree",
+        )
+        require(
+            self.metadata_record is None
+            or self.metadata_record.labels == self.metadata,
+            "Metadata envelope and active labels disagree",
+        )
+
+    def to_dict(self):
+        result = super().to_dict()
+        if self.normalization_version == "m1-v1":
+            result.pop("signals")
+        if self.normalization_version in {"m1-v1", "m1-v2"}:
+            for name in (
+                "metadata",
+                "gradients",
+                "annotation_record",
+                "metadata_record",
+            ):
+                result.pop(name)
+        return result
 
     @property
     def record_hash(self):

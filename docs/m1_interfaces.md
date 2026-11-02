@@ -30,13 +30,14 @@ snapshot.excluded                   # 精确排除原因和记录身份
 不可变 dataclass 用 tuple 保存嵌套序列。对象与大文件按内容 hash 关联，不以路径充当身份。
 来源、质量、标注和使用历史通过 record_hash 单独绑定；同一内容的多个来源仍可由 M2 发现重复。
 
-当前提供的是 M1 的完整公共契约；ProgramSpec、BatchManifest、ModelRef 等属于后续模块，
-本次不发布只有占位字段的假接口。
+当前提供 M1 公共契约，以及供外部模型信号绑定身份的 ModelRef。
+ProgramSpec、BatchManifest 仍由后续模块定义。
 
 ## 2. 原始输入：一行一个对象
 
 必填：`schema_version="1"`、`data_id`、`source`、`messages`、`quality`。
-可选：`annotations`、`usage`、`tokenization`。具体小样本见 `tests/fixtures/m1_trajectories.jsonl`。
+可选：`annotations`、`usage`、`tokenization`、`signals`、`metadata`、`gradients`、
+`annotation_record`、`metadata_record`。具体小样本见 `tests/fixtures/m1_trajectories.jsonl`。
 
 | 字段 | 约定 |
 |---|---|
@@ -48,6 +49,7 @@ snapshot.excluded                   # 精确排除原因和记录身份
 | annotations | tokenizer_hash、template_hash、skills；缺失整个字段表示未提供技能证据 |
 | usage | 四类曝光历史，见下节；省略表示源记录声明无使用历史，并非已经核验它从未使用 |
 | tokenization | precomputed 模式必填；fixture 模式禁止携带，防止覆盖真实 token |
+| signals | 可省略，规范化新记录保存为空数组；外部 SignalRecord 支持 NLL/entropy 与可选百分位，详见 enrichment_interfaces.md |
 
 缺字段、未知字段、重复 JSON key、错误类型、NaN/Infinity、坏 span、未配对工具调用均明确失败。
 空行也视为 JSONL 数据错误，错误携带输入行号。
@@ -150,3 +152,21 @@ CLI 成功返回 0；业务/输入错误返回 2，并在 stderr 输出 JSON，�
 
 M2 可直接读取 records 的 quality、stats、evidence_metrics、usage 与 source.family_ids；
 不要再计算一份有不同分母的 share，也不要修改原规范化记录。
+
+## 8. 外部标注与信号扩展
+
+新增接口与完整调用示例见 [enrichment_interfaces.md](enrichment_interfaces.md)。
+`attach_annotations()` 接受外部 AnnotationSet 并重算证据统计；`make_signal()` 包装已经计算的标量；
+`attach_signals()` 将它们挂接到新记录；`get_signal()` 仅查询精确模型/范围/配置/CDF。
+没有任何接口会自动调用模型、生成标签、计算 NLL、entropy 或百分位。
+
+新记录的 normalization_version 为 m1-v3；旧 m1-v1/m1-v2 数据池仍可校验读取并保持原 checksum。
+旧记录经显式挂接产生新版本对象，原文件不变；请为扩展后的数据另写新输出目录。
+
+## 9. 单指标/多指标 operator 入口
+
+详见 [m1_operator_data_contract.md](m1_operator_data_contract.md)。
+`pool.metric_view()` 或 `MetricView(records)` 构建一次进程内只读快照，
+随后按 data_id/模型/spec/CDF 从字典读取。批次保留请求 ID 顺序、content_hashes、缺失位置及版本上下文。
+skill 名称来自实际标注，不把配置里的技能注册表误作所有样本的标签。
+梯度仅是有版本的样本级 artifact 引用；计算、真实向量文件验真与开发目标梯度属于后续模块。

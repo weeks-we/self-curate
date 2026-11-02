@@ -2,6 +2,16 @@
 
 import json
 import math
+from .features import (
+    AnnotationRecord,
+    ComputeCost,
+    DataLabels,
+    DataTag,
+    GradientFeature,
+    GradientSpec,
+    MetadataRecord,
+    ProjectionSpec,
+)
 
 from .errors import ContractError, ErrorCode
 from .types import (
@@ -21,6 +31,243 @@ from .types import (
     canonical_json,
     require,
 )
+from .signals import (
+    ModelRef,
+    PercentileReference,
+    SignalBinding,
+    SignalRecord,
+    SignalSpec,
+)
+
+
+def feature_binding(value):
+    return SignalBinding(
+        **fields(
+            value,
+            (
+                "data_id",
+                "content_hash",
+                "tokenization_hash",
+                "selection_hash",
+                "token_count",
+            ),
+            ("schema_version",),
+        )
+    )
+
+
+def data_labels(value):
+    if value is None:
+        return None
+    row = fields(
+        value,
+        (),
+        ("task_type", "repository", "duplicate_groups", "tags", "schema_version"),
+    )
+    return DataLabels(
+        **{
+            **row,
+            "duplicate_groups": tuple(
+                sequence(row.get("duplicate_groups", []), "duplicate_groups")
+            ),
+            "tags": tuple(
+                DataTag(**fields(t, ("name", "value")))
+                for t in sequence(row.get("tags", []), "tags")
+            ),
+        }
+    )
+
+
+def annotation_record(value):
+    if value is None:
+        return None
+    row = fields(
+        value,
+        ("binding", "source_hash", "annotations", "provenance"),
+        ("schema_version",),
+    )
+    return AnnotationRecord(
+        **{
+            **row,
+            "binding": feature_binding(row["binding"]),
+            "annotations": annotations(row["annotations"]),
+            "provenance": tuple(
+                artifact(r) for r in sequence(row["provenance"], "provenance")
+            ),
+        }
+    )
+
+
+def metadata_record(value):
+    if value is None:
+        return None
+    row = fields(
+        value, ("binding", "source_hash", "labels", "provenance"), ("schema_version",)
+    )
+    return MetadataRecord(
+        **{
+            **row,
+            "binding": feature_binding(row["binding"]),
+            "labels": data_labels(row["labels"]),
+            "provenance": tuple(
+                artifact(r) for r in sequence(row["provenance"], "provenance")
+            ),
+        }
+    )
+
+
+def gradient_spec(value):
+    row = fields(
+        value,
+        (
+            "parameter_coordinates_hash",
+            "parameter_count",
+            "loss_id",
+            "reduction",
+            "normalization_id",
+            "normalization_hash",
+            "compute_dtype",
+            "transform_id",
+            "transform_hash",
+            "implementation_id",
+            "implementation_hash",
+            "computation_hash",
+        ),
+        (
+            "projection",
+            "optimizer_state_hash",
+            "scope",
+            "skill",
+            "storage_dtype",
+            "schema_version",
+        ),
+    )
+    projection = row.get("projection")
+    if projection is not None:
+        projection = ProjectionSpec(
+            **fields(
+                projection,
+                ("method", "dimension", "seed", "config_hash"),
+                ("schema_version",),
+            )
+        )
+    return GradientSpec(**{**row, "projection": projection})
+
+
+def gradient_feature(value):
+    row = fields(
+        value,
+        (
+            "binding",
+            "model_ref",
+            "spec",
+            "vector",
+            "dimension",
+            "dtype",
+            "norm",
+            "provenance",
+        ),
+        ("cost", "schema_version"),
+    )
+    cost = ComputeCost(
+        **fields(
+            row.get("cost", {}),
+            (),
+            ("wall_seconds", "gpu_seconds", "processed_tokens", "schema_version"),
+        )
+    )
+    return GradientFeature(
+        **{
+            **row,
+            "binding": feature_binding(row["binding"]),
+            "model_ref": model_ref(row["model_ref"]),
+            "spec": gradient_spec(row["spec"]),
+            "vector": artifact(row["vector"]),
+            "cost": cost,
+            "provenance": tuple(
+                artifact(r) for r in sequence(row["provenance"], "provenance")
+            ),
+        }
+    )
+
+
+def model_ref(value):
+    row = fields(
+        value,
+        ("base_model_id", "revision", "weights_hash", "tokenizer", "parameterization"),
+        ("adapter_hash", "schema_version"),
+    )
+    return ModelRef(**{**row, "tokenizer": tokenizer_ref(row["tokenizer"])})
+
+
+def signal_spec(value):
+    return SignalSpec(
+        **fields(
+            value,
+            ("scope", "reduction", "log_base", "computation_id", "computation_hash"),
+            ("skill", "schema_version"),
+        )
+    )
+
+
+def percentile_reference(value):
+    if value is None:
+        return None
+    row = fields(
+        value,
+        (
+            "reference_group",
+            "reference_ids_hash",
+            "cdf_version",
+            "artifact",
+            "model_hash",
+            "spec_hash",
+        ),
+        ("schema_version",),
+    )
+    return PercentileReference(**{**row, "artifact": artifact(row["artifact"])})
+
+
+def signal_record(value):
+    row = fields(
+        value,
+        ("binding", "model_ref", "spec", "provenance"),
+        (
+            "nll",
+            "entropy",
+            "nll_percentile",
+            "entropy_percentile",
+            "percentile_reference",
+            "schema_version",
+        ),
+    )
+    binding = SignalBinding(
+        **fields(
+            row["binding"],
+            (
+                "data_id",
+                "content_hash",
+                "tokenization_hash",
+                "selection_hash",
+                "token_count",
+            ),
+            ("schema_version",),
+        )
+    )
+    return SignalRecord(
+        **{
+            **row,
+            "binding": binding,
+            "model_ref": model_ref(row["model_ref"]),
+            "spec": signal_spec(row["spec"]),
+            "provenance": tuple(
+                artifact(r) for r in sequence(row["provenance"], "provenance")
+            ),
+            "percentile_reference": percentile_reference(
+                row.get("percentile_reference")
+            ),
+        }
+    )
 
 
 def load_json(text):

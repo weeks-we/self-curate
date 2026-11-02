@@ -24,6 +24,11 @@ do not import neighboring projects or inherit their experiment configuration.
 - Keep scoring, gradient, candidate-SFT, and accepted-SFT histories distinct.
 - Do not truncate complete trajectories to fit budgets. Record explicit exclusion reasons.
 - A precomputed tokenizer declaration is not proof of source authenticity.
+- Use ID-keyed, version-scoped in-memory metric views for operators; do not introduce persistent operator indexes without a new request.
+- Batch columns must preserve requested ID order, label missing cells, and carry matching content/feature versions.
+- External label envelopes bind data ID, content, source, and tokenization; never join labels by row position.
+- Store sample gradient references with full model/data/coordinate/loss/projection/precision/optimizer identities; do not calculate gradients in M1.
+- Keep usage transitions lossless; terminal training decisions cannot be reversed.
 
 ## Implementation and delivery
 

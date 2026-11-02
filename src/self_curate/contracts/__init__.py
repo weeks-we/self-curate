@@ -1,4 +1,14 @@
 from .errors import ContractError, ErrorCode
+from .features import (
+    AnnotationRecord,
+    ComputeCost,
+    DataLabels,
+    DataTag,
+    GradientFeature,
+    GradientSpec,
+    MetadataRecord,
+    ProjectionSpec,
+)
 from .types import (
     SCHEMA_VERSION,
     AnnotationSet,
@@ -20,9 +30,36 @@ from .types import (
     canonical_json,
     digest,
 )
+from .signals import (
+    ModelRef,
+    PercentileReference,
+    SignalBinding,
+    SignalRecord,
+    SignalSpec,
+)
+from .parsing import (
+    annotation_record as parse_annotation_record,
+    data_labels as parse_data_labels,
+    gradient_feature as parse_gradient_feature,
+    metadata_record as parse_metadata_record,
+    annotations as parse_annotations,
+    signal_record as parse_signal_record,
+)
 
 __all__ = [
     "SCHEMA_VERSION",
+    "AnnotationRecord",
+    "ComputeCost",
+    "DataLabels",
+    "DataTag",
+    "GradientFeature",
+    "GradientSpec",
+    "MetadataRecord",
+    "ProjectionSpec",
+    "parse_annotation_record",
+    "parse_data_labels",
+    "parse_gradient_feature",
+    "parse_metadata_record",
     "AnnotationSet",
     "ArtifactRef",
     "ContractError",
@@ -43,4 +80,11 @@ __all__ = [
     "UsageHistory",
     "canonical_json",
     "digest",
+    "ModelRef",
+    "PercentileReference",
+    "SignalBinding",
+    "SignalRecord",
+    "SignalSpec",
+    "parse_annotations",
+    "parse_signal_record",
 ]

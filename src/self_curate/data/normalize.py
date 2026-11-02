@@ -16,7 +16,12 @@ from self_curate.contracts.parsing import (
     quality_check,
     sequence,
     source_ref,
+    signal_record,
     usage_history,
+    annotation_record,
+    metadata_record,
+    data_labels,
+    gradient_feature,
 )
 from self_curate.contracts.types import require, text
 from .tokenization import TokenizationBackend, validate_alignment
@@ -134,7 +139,16 @@ def normalize_trajectory(
     fields(
         raw,
         ("schema_version", "data_id", "source", "messages", "quality"),
-        ("annotations", "usage", "tokenization"),
+        (
+            "annotations",
+            "usage",
+            "tokenization",
+            "signals",
+            "metadata",
+            "gradients",
+            "annotation_record",
+            "metadata_record",
+        ),
     )
     require(raw["schema_version"] == "1", "Unsupported trajectory schema")
     text(raw["data_id"], "data_id")
@@ -161,7 +175,7 @@ def normalize_trajectory(
     )
     validate_alignment(encoded, messages)
     metrics, union = evidence_metrics(encoded, annotation_set, declared_skills)
-    return TrajectoryRecord(
+    record = TrajectoryRecord(
         data_id=raw["data_id"],
         content_hash=digest({"messages": [m.to_dict() for m in messages]}),
         source=source,
@@ -179,4 +193,41 @@ def normalize_trajectory(
             evidence_union_tokens=union,
         ),
         usage=usage,
+        metadata=data_labels(raw.get("metadata")),
+    )
+    from .enrichment import attach_signals
+    from .features import (
+        attach_annotation_record,
+        attach_metadata_record,
+        attach_gradients,
+    )
+
+    envelope = annotation_record(raw.get("annotation_record"))
+    if envelope is not None:
+        if "annotations" in raw:
+            require(
+                record.annotations == envelope.annotations,
+                "Inline annotations and envelope disagree",
+            )
+        record = attach_annotation_record(
+            record, envelope, declared_skills=declared_skills
+        )
+    envelope = metadata_record(raw.get("metadata_record"))
+    if envelope is not None:
+        if "metadata" in raw:
+            require(
+                record.metadata == envelope.labels,
+                "Inline metadata and envelope disagree",
+            )
+        record = attach_metadata_record(record, envelope)
+
+    record = attach_signals(
+        record,
+        tuple(signal_record(s) for s in sequence(raw.get("signals", []), "signals")),
+    )
+    return attach_gradients(
+        record,
+        tuple(
+            gradient_feature(g) for g in sequence(raw.get("gradients", []), "gradients")
+        ),
     )

@@ -1,6 +1,6 @@
 """Config validation, immutable pool publication and checked downstream reads."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import os
 from pathlib import Path
@@ -321,6 +321,10 @@ def build_pool(config: ImportConfig, output: str | Path) -> dict:
             },
             "supervised_tokens": sum(r.stats.supervised_tokens for r in records),
             "context_tokens": sum(r.stats.context_tokens for r in records),
+            "signal_records": sum(len(r.signals) for r in records),
+            "records_with_signals": sum(bool(r.signals) for r in records),
+            "gradient_features": sum(len(r.gradients) for r in records),
+            "records_with_metadata": sum(r.metadata is not None for r in records),
             "missing_skill_annotations": {
                 s: sum(
                     any(
@@ -379,6 +383,11 @@ class PoolSnapshot:
     records: tuple[TrajectoryRecord, ...]
     excluded: tuple[dict, ...]
 
+    def metric_view(self):
+        from .view import MetricView
+
+        return MetricView(self.records)
+
 
 def _read_pool(path: str | Path) -> PoolSnapshot:
     """M2 entry point: verify every artifact and recompute all derived M1 fields."""
@@ -431,9 +440,18 @@ def _read_pool(path: str | Path) -> PoolSnapshot:
                 "tokenization",
             )
         }
+        if "signals" in row:
+            raw["signals"] = row["signals"]
+        for field in ("metadata", "gradients", "annotation_record", "metadata_record"):
+            if field in row:
+                raw[field] = row[field]
         record = normalize_trajectory(
             raw, StoredBackend(), tuple(manifest["config"]["skills"])
         )
+        # Keep old evidence readable and byte-identical; enrichment explicitly
+        # upgrades a returned record, never rewrites the original pool.
+        if row.get("normalization_version") in {"m1-v1", "m1-v2"}:
+            record = replace(record, normalization_version=row["normalization_version"])
         require(
             canonical_json(record.to_dict()) == canonical_json(row),
             "Derived record fields are inconsistent",
@@ -470,6 +488,21 @@ def _read_pool(path: str | Path) -> PoolSnapshot:
         ErrorCode.ARTIFACT_MISMATCH,
     )
     audit = load_json((root / "audit.json").read_text(encoding="utf-8"))
+    if "gradient_features" in audit:
+        require(
+            audit["gradient_features"] == sum(len(r.gradients) for r in records)
+            and audit["records_with_metadata"]
+            == sum(r.metadata is not None for r in records),
+            "Gradient/metadata audit totals are inconsistent",
+            ErrorCode.ARTIFACT_MISMATCH,
+        )
+    if "signal_records" in audit:
+        require(
+            audit["signal_records"] == sum(len(r.signals) for r in records)
+            and audit["records_with_signals"] == sum(bool(r.signals) for r in records),
+            "Signal audit totals are inconsistent",
+            ErrorCode.ARTIFACT_MISMATCH,
+        )
     require(
         audit["status"] == "passed"
         and audit["included_records"] == len(records)

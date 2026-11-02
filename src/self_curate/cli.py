@@ -46,6 +46,8 @@ def main(argv=None):
                 "synthetic": snapshot.manifest["synthetic"],
                 "records": len(snapshot.records),
                 "excluded_records": len(snapshot.excluded),
+                "signal_records": sum(len(r.signals) for r in snapshot.records),
+                "gradient_features": sum(len(r.gradients) for r in snapshot.records),
             }
         print(canonical_json(result))
         return 0
