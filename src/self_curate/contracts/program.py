@@ -6,7 +6,7 @@ import re
 
 from .errors import ContractError, ErrorCode
 from .parsing import fields, load_json, sequence
-from .types import Record, canonical_json, digest, integer, require, text
+from .types import Record, canonical_json, digest, integer, require, text, sha256
 
 OPERATOR_VERSION = "m2-v2"
 OPERATOR_NAMES = (
@@ -504,3 +504,24 @@ def parse_program(value):
         return ProgramSpec(**{**value, "nodes": tuple(nodes)})
     except ContractError as exc:
         raise ContractError(ErrorCode.INVALID_PROGRAM, str(exc), **exc.details) from exc
+
+
+def selection_identity(program, policy_hash, context_hash, snapshot_hash):
+    """Shared M2/P0 receipt identity. Keep this formula in one place."""
+    require(isinstance(program, ProgramSpec), "Expected ProgramSpec")
+    for name, value in (
+        ("policy_hash", policy_hash),
+        ("context_hash", context_hash),
+        ("snapshot_hash", snapshot_hash),
+    ):
+        sha256(value, name)
+    program_hash = digest(
+        {
+            "recipe_hash": program.recipe_hash,
+            "policy_hash": policy_hash,
+            "context_hash": context_hash,
+        }
+    )
+    return program_hash, digest(
+        {"program_hash": program_hash, "snapshot_hash": snapshot_hash}
+    )

@@ -13,6 +13,11 @@ do not import neighboring projects or inherit their experiment configuration.
 - Compute missing sample gradients only after selecting data, and bind caches to complete identities.
 - Keep final test data outside optimization and agent context.
 - Preserve rejected attempts, exposure history, evidence, and costs.
+- Read `docs/p0_interfaces.md` before implementing workflow consumers. Reuse the versioned task/report/round contracts and validate handoffs with `validate_workflow(bundle, view)`.
+- Declared mock contract records are not executed search/training events. Keep P0 validation distinct from the P2 state machine and later real backends.
+- For P1-to-workflow handoffs, reuse `prepare_selection`/`prepare_to_directory`; read `docs/p1_handoff_interfaces.md`. Keep downstream outputs empty until they execute.
+- Bind workflow consumption to system-owned expected model/objective/context values. Distinguish original-snapshot selection replay from consuming a fixed batch after feature enrichment.
+- When consuming a historical best selection, pin `expected_batch_id` from the system's saved BatchManifest. A self-consistent alternative batch or training order is not the original selection.
 
 ## M1 contracts
 

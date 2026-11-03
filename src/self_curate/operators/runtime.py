@@ -3,7 +3,11 @@
 from fractions import Fraction
 
 from self_curate.contracts import ContractError, ErrorCode, canonical_json, digest
-from self_curate.contracts.program import OPERATOR_NAMES, ProgramSpec
+from self_curate.contracts.program import (
+    OPERATOR_NAMES,
+    ProgramSpec,
+    selection_identity,
+)
 from self_curate.contracts.selection import (
     BatchManifest,
     BatchMember,
@@ -235,15 +239,8 @@ def execute_program(program: ProgramSpec, context: ExecutionContext) -> Selectio
         ErrorCode.INVALID_PROGRAM,
     )
     ordered = program.ordered_nodes()
-    program_hash = digest(
-        {
-            "recipe_hash": program.recipe_hash,
-            "policy_hash": context.policy_hash,
-            "context_hash": context.context_hash,
-        }
-    )
-    execution_hash = digest(
-        {"program_hash": program_hash, "snapshot_hash": context.snapshot_hash}
+    program_hash, execution_hash = selection_identity(
+        program, context.policy_hash, context.context_hash, context.snapshot_hash
     )
     initial, gate = quality_gate(context)
     traces, values = [gate], {"eligible_pool": initial}

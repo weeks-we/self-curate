@@ -12,8 +12,18 @@ from .context import (
 )
 from .runtime import execute_program
 from .io import load_program, load_batch, select_to_directory
+from .preparation import (
+    PreparedSelection,
+    prepare_selection,
+    prepare_to_directory,
+    verify_preparation,
+)
 
 __all__ = [
+    "PreparedSelection",
+    "prepare_selection",
+    "prepare_to_directory",
+    "verify_preparation",
     "BudgetPolicy",
     "ExecutionContext",
     "QualityPolicy",

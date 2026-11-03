@@ -4,7 +4,7 @@ Model-driven, feedback-guided data curation across learning stages.
 
 这是独立的新项目，不依赖相邻项目的代码、配置或实验流程。架构依据为用户提供的
 [技术蓝图](docs/self_curate_codex_blueprint.md)。目前实现 **M1：数据与标注** 和
-**M2：八算子与确定性批次选择**，包含必要公共契约、配置、CLI 和测试。
+**M2：八算子与确定性批次选择**，以及 **P0 契约与 P1 正式交接**（0.4.1）。
 
 ## 本次可使用的能力
 
@@ -51,7 +51,26 @@ python -m self_curate select --pool runs/m2-demo/pool --program configs/programs
 12 条合成轨迹中选出 8 条、64 个监督 fixture token，两分支各 32 token。
 退出码 0/3/2 分别表示可行、预算或配额不可行、契约或 IO 错误。
 选择结果保存在新目录内，输入池不变；详细接口与组批边界见 [M2 接口](docs/m2_interfaces.md)。
-当前复查版为 0.2.1/m2-v2，修正与验证说明见 [M2 第二次复查](docs/M2_REVIEW_ZH.md)。
+M2 最近语义复查为 0.2.1/m2-v2，修正与验证说明见 [M2 第二次复查](docs/M2_REVIEW_ZH.md)。
+
+P0 的任务、rollout、目标梯度、两类报告、成本与轮次记录见 [P0 接口](docs/p0_interfaces.md)。
+可验证完整的声明式 mock 契约链：
+
+```powershell
+python -m self_curate validate-workflow --workflow configs/p0.fixture.json
+```
+
+该命令只验证记录关系；P2 的模拟搜索、训练事件、接受/拒绝和恢复尚未执行。
+
+P1 已提供从数据池直接产生未估值工作流的入口，保留原批次和选择成本：
+
+```powershell
+python -m self_curate prepare-selection --pool runs/m2-demo/pool --program configs/programs/m2.fixture.json --context configs/m2.fixture.json --objective configs/p1.objective.fixture.json --backend mock --attempt-id demo-attempt --invocation-id select-001 --output runs/p1-demo/prepared
+python -m self_curate inspect-preparation --prepared runs/p1-demo/prepared --pool runs/m2-demo/pool
+```
+
+接口与重放约定见 [P1 交接说明](docs/p1_handoff_interfaces.md)，本轮发现与修复见 [P0/P1 适配复查](docs/P0_P1_INTEGRATION_REVIEW_ZH.md)。
+最新逐条需求核对与边界修正见 [P0/P1 文档对齐复查](docs/P0_P1_REQUIREMENTS_ALIGNMENT_ZH.md)。
 
 ## 接下来怎么模块化开发
 

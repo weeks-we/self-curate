@@ -1,4 +1,4 @@
-"""Local M1 CLI; no downloading, model initialization, training or benchmarks."""
+"""Local data/selection/contracts CLI; no model initialization or training."""
 
 import argparse
 import sys
@@ -33,6 +33,45 @@ def main(argv=None):
     select.add_argument("--program", required=True)
     select.add_argument("--context", required=True)
     select.add_argument("--output", required=True)
+    workflow = commands.add_parser(
+        "validate-workflow", help="Validate P0 record identities without running models"
+    )
+    workflow.add_argument("--workflow", required=True)
+    workflow.add_argument("--pool", help="Optionally verify exact M1 token/mask inputs")
+    workflow.add_argument("--expected-model", help="System-owned ModelRef JSON")
+    workflow.add_argument(
+        "--expected-batch", help="System-owned exact selected BatchManifest JSON"
+    )
+    workflow.add_argument(
+        "--expected-objective", help="System-owned ObjectiveSpec JSON"
+    )
+    workflow.add_argument(
+        "--expected-context",
+        help="System-owned selection context JSON (requires --pool)",
+    )
+    prepare = commands.add_parser(
+        "prepare-selection", help="Run P1 and publish an unvalued P0 handoff"
+    )
+    for flag in (
+        "pool",
+        "program",
+        "context",
+        "objective",
+        "output",
+        "attempt-id",
+        "invocation-id",
+    ):
+        prepare.add_argument("--" + flag, required=True)
+    prepare.add_argument("--backend", choices=("mock", "real"), required=True)
+    prepared = commands.add_parser(
+        "inspect-preparation",
+        help="Verify and replay a P1 preparation on its original pool",
+    )
+    prepared.add_argument("--prepared", required=True)
+    prepared.add_argument("--pool", required=True)
+    prepared.add_argument("--expected-model")
+    prepared.add_argument("--expected-batch")
+    prepared.add_argument("--expected-objective")
     args = parser.parse_args(argv)
     try:
         if args.command == "validate-config":
@@ -56,6 +95,121 @@ def main(argv=None):
                 "recipe_hash": program.recipe_hash,
                 "nodes": len(program.nodes),
             }
+        elif args.command == "validate-workflow":
+            from self_curate.contracts import load_workflow, validate_workflow
+            from self_curate.operators import load_batch
+            from self_curate.contracts.parsing import load_json, model_ref
+            from self_curate.contracts import parse_contract
+            from pathlib import Path
+
+            view = None if args.pool is None else read_pool(args.pool).metric_view()
+            expected_model = (
+                None
+                if args.expected_model is None
+                else model_ref(
+                    load_json(Path(args.expected_model).read_text(encoding="utf-8"))
+                )
+            )
+            expected_objective = (
+                None
+                if args.expected_objective is None
+                else parse_contract(
+                    "ObjectiveSpec",
+                    load_json(
+                        Path(args.expected_objective).read_text(encoding="utf-8")
+                    ),
+                )
+            )
+            expected_context_hash = None
+            expected_batch_id = (
+                None
+                if args.expected_batch is None
+                else load_batch(args.expected_batch).batch_id
+            )
+            if args.expected_context is not None:
+                if view is None:
+                    raise ContractError(
+                        ErrorCode.INVALID_CONFIG, "--expected-context requires --pool"
+                    )
+                from self_curate.operators import load_context
+
+                expected_context_hash = load_context(
+                    args.expected_context, view
+                ).context_hash
+            bundle = load_workflow(
+                args.workflow,
+                view=view,
+                expected_model=expected_model,
+                expected_objective=expected_objective,
+                expected_selection_context_hash=expected_context_hash,
+                expected_batch_id=expected_batch_id,
+            )
+            result = validate_workflow(
+                bundle,
+                view,
+                expected_model=expected_model,
+                expected_objective=expected_objective,
+                expected_selection_context_hash=expected_context_hash,
+                expected_batch_id=expected_batch_id,
+            )
+        elif args.command == "prepare-selection":
+            from self_curate.operators import prepare_to_directory
+
+            prepared = prepare_to_directory(
+                args.pool,
+                args.program,
+                args.context,
+                args.objective,
+                args.output,
+                backend=args.backend,
+                attempt_id=args.attempt_id,
+                invocation_id=args.invocation_id,
+            )
+            print(
+                canonical_json(
+                    {
+                        **prepared.to_dict(),
+                        "error": prepared.error,
+                        "output": args.output,
+                    }
+                )
+            )
+            return {"feasible": 0, "infeasible": 3, "failed": 2}[prepared.status]
+        elif args.command == "inspect-preparation":
+            from self_curate.operators import verify_preparation
+            from self_curate.operators import load_batch
+            from self_curate.contracts import parse_contract
+            from self_curate.contracts.parsing import load_json, model_ref
+            from pathlib import Path
+
+            expected_model = (
+                None
+                if args.expected_model is None
+                else model_ref(
+                    load_json(Path(args.expected_model).read_text(encoding="utf-8"))
+                )
+            )
+            expected_objective = (
+                None
+                if args.expected_objective is None
+                else parse_contract(
+                    "ObjectiveSpec",
+                    load_json(
+                        Path(args.expected_objective).read_text(encoding="utf-8")
+                    ),
+                )
+            )
+            result = verify_preparation(
+                args.prepared,
+                read_pool(args.pool).metric_view(),
+                expected_model=expected_model,
+                expected_objective=expected_objective,
+                expected_batch_id=(
+                    None
+                    if args.expected_batch is None
+                    else load_batch(args.expected_batch).batch_id
+                ),
+            )
         elif args.command == "select":
             from self_curate.operators import select_to_directory
 
