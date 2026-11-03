@@ -1,6 +1,6 @@
 # P1 正式入口：筛选并交接给 P0
 
-包版本 0.4.1。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。
+包版本 0.5.1。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。
 原 `execute_program` / `select` 保留。需要后续工作流消费时使用本接口，无需手工拼装批次。
 
 ## Python API
@@ -26,6 +26,8 @@ if prepared.status == "feasible":
 | prepare_to_directory(pool, program, context, objective, output, *, backend, attempt_id, invocation_id) | 加载四个路径、执行一次候选、完整后发布新目录；拒绝覆盖 |
 | verify_preparation(path, original_view, *, expected_model=None, expected_objective=None, expected_batch_id=None) | 核验固定文件/checksum，并在原始视图上重放 CPU 算子；可独立核对已保存清单；只返回验证回执 |
 | prepared.validate_workflow() | 用实际传入的 context/model/objective 与视图核对 P0 包；无可行包时报 INSUFFICIENT_POOL |
+| load_preparation(path, original_view, *, expected_model=None, expected_objective=None, expected_batch_id=None) | 完成文件、锚点和重放检查后返回 PreparedSelection，沿用已保存的执行成本 |
+| publish_preparation(prepared, output) | 发布已经执行的 PreparedSelection；不重跑、不新增选择事件，拒绝覆盖 |
 
 PreparedSelection 是本次调用的只读内存对象；持久化边界为下列 JSON 文件。
 status 为 feasible/infeasible/failed。捕获的算子 ContractError 在 prepared.error 中保留结构化 details/requests；不转换为零分或空批次。

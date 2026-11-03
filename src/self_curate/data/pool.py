@@ -424,6 +424,45 @@ def _read_pool(path: str | Path) -> PoolSnapshot:
         def encode(self, messages, provided=None):
             return tokenization(provided)
 
+    try:
+        stored_config = fields(
+            manifest["config"],
+            (
+                "schema_version",
+                "input_path",
+                "backend",
+                "skills",
+                "max_context_tokens",
+                "oversize_policy",
+                "rejected_history_policy",
+            ),
+            ("accepted_history_policy", "tokenizer"),
+        )
+        config = ImportConfig(
+            **{
+                **stored_config,
+                "input_path": Path(stored_config["input_path"]),
+                "skills": tuple(sequence(stored_config["skills"], "skills")),
+                "tokenizer": (
+                    None
+                    if stored_config.get("tokenizer") is None
+                    else tokenizer_ref(stored_config["tokenizer"])
+                ),
+            }
+        )
+        require(
+            manifest["backend"] == config.backend
+            and config.tokenization_backend().identity == StoredBackend.identity,
+            "Pool configuration and tokenizer identity disagree",
+            ErrorCode.ARTIFACT_MISMATCH,
+        )
+    except ContractError as exc:
+        raise ContractError(
+            ErrorCode.ARTIFACT_MISMATCH,
+            "Malformed stored pool configuration",
+            reason=str(exc),
+        ) from exc
+
     records = []
     for line in (root / "trajectories.jsonl").read_text(encoding="utf-8").splitlines():
         row = load_json(line)
@@ -488,6 +527,46 @@ def _read_pool(path: str | Path) -> PoolSnapshot:
         ErrorCode.ARTIFACT_MISMATCH,
     )
     audit = load_json((root / "audit.json").read_text(encoding="utf-8"))
+    expected_audit = {
+        "schema_version": "1",
+        "status": "passed",
+        "scope": "m1_structural_validation",
+        "source_authenticity_verified": False,
+        "backend": config.backend,
+        "synthetic": True if StoredBackend.identity.backend == "fixture" else None,
+        "input_records": len(records) + len(excluded),
+        "included_records": len(records),
+        "excluded_records": len(excluded),
+        "duplicate_content_records": len(records)
+        - len({r.content_hash for r in records}),
+        "quality_counts": {
+            s: sum(r.quality.status == s for r in records)
+            for s in ("pass", "fail", "unknown")
+        },
+        "supervised_tokens": sum(r.stats.supervised_tokens for r in records),
+        "context_tokens": sum(r.stats.context_tokens for r in records),
+        "signal_records": sum(len(r.signals) for r in records),
+        "records_with_signals": sum(bool(r.signals) for r in records),
+        "gradient_features": sum(len(r.gradients) for r in records),
+        "records_with_metadata": sum(r.metadata is not None for r in records),
+        "missing_skill_annotations": {
+            s: sum(
+                any(m.skill == s and m.status == "missing" for m in r.evidence_metrics)
+                for r in records
+            )
+            for s in config.skills
+        },
+    }
+    require(
+        type(audit) is dict
+        and set(audit).issubset(expected_audit)
+        and all(
+            canonical_json(value) == canonical_json(expected_audit[key])
+            for key, value in audit.items()
+        ),
+        "Pool audit labels are inconsistent with actual records/configuration",
+        ErrorCode.ARTIFACT_MISMATCH,
+    )
     if "gradient_features" in audit:
         require(
             audit["gradient_features"] == sum(len(r.gradients) for r in records)

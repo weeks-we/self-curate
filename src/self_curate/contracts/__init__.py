@@ -188,3 +188,27 @@ __all__ += [
     "rollout_set_hash",
     "validate_workflow",
 ]
+
+from .feedback import (
+    ValidationRequest,
+    ValidationResult,
+    FeedbackFact,
+    EditHint,
+    LevalFeedback,
+    EditPolicy,
+    ProgramChange,
+    LoptProposal,
+    parse_feedback_contract,
+)
+
+__all__ += [
+    "ValidationRequest",
+    "ValidationResult",
+    "FeedbackFact",
+    "EditHint",
+    "LevalFeedback",
+    "EditPolicy",
+    "ProgramChange",
+    "LoptProposal",
+    "parse_feedback_contract",
+]

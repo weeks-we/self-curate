@@ -61,17 +61,20 @@ _EXISTING = {
 }
 
 
-def _decode(cls, value, name):
+def _decode(cls, value, name, *, registry=None):
+    registry = CONTRACT_TYPES if registry is None else registry
     origin, args = get_origin(cls), get_args(cls)
     if origin in (Union, UnionType):
         if value is None and type(None) in args:
             return None
         for option in args:
             if option is not type(None):
-                return _decode(option, value, name)
+                return _decode(option, value, name, registry=registry)
         require(False, f"Invalid optional {name}")
     if origin is tuple:
-        return tuple(_decode(args[0], v, name) for v in sequence(value, name))
+        return tuple(
+            _decode(args[0], v, name, registry=registry) for v in sequence(value, name)
+        )
     if cls in _EXISTING:
         return _EXISTING[cls](value)
     if cls in (str, int, float, bool):
@@ -80,9 +83,7 @@ def _decode(cls, value, name):
             f"Invalid scalar type for {name}",
         )
         return value
-    require(
-        cls in CONTRACT_TYPES.values() or cls is ComputeCost, "Unknown decoder type"
-    )
+    require(cls in registry.values() or cls is ComputeCost, "Unknown decoder type")
     definitions = tuple(f for f in dataclass_fields(cls) if f.init)
     required = [
         f.name
@@ -94,7 +95,9 @@ def _decode(cls, value, name):
     optional = [f.name for f in definitions if f.name not in required]
     row = fields(value, required, optional)
     hints = get_type_hints(cls)
-    return cls(**{k: _decode(hints[k], v, k) for k, v in row.items()})
+    return cls(
+        **{k: _decode(hints[k], v, k, registry=registry) for k, v in row.items()}
+    )
 
 
 def parse_contract(kind, value):

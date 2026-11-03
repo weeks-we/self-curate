@@ -346,6 +346,30 @@ class ExecutionContext:
             )
         return match.spec, reference
 
+    def role_summary(self):
+        """Frozen controls and artifact identities, excluding the feature table."""
+        return {
+            "schema_version": "1",
+            "context_hash": self.context_hash,
+            "snapshot_hash": self.snapshot_hash,
+            "quality_gate": self.quality.to_dict(),
+            "budget_pack": self.budget.to_dict(),
+            "model_ref": None if self.model_ref is None else self.model_ref.to_dict(),
+            "signal_contexts": [s.to_dict() for s in self.signals],
+            "similarities": (
+                None
+                if self.similarities is None
+                else {
+                    "identity": self.similarities.identity.to_dict(),
+                    "pair_count": len(self.similarities.pairs),
+                }
+            ),
+            "training_seed": self.training_seed,
+            "training_order": self.training_order,
+            "max_nodes": self.max_nodes,
+            "operator_version": OPERATOR_VERSION,
+        }
+
 
 def parse_context(value, view):
     try:

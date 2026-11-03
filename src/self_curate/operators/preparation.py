@@ -76,12 +76,18 @@ def _domain(context, objective, backend):
             "Fixture cannot be prepared as real",
             ErrorCode.INVALID_CONFIG,
         )
+        references = [objective.estimator, objective.acceptance_policy]
+        references.extend(
+            r.artifact for signal in context.signals for r in signal.references
+        )
+        if context.similarities is not None:
+            references.append(context.similarities.identity)
         require(
             all(
                 not ref.uri.strip().lower().startswith(("fixture://", "mock://"))
-                for ref in (objective.estimator, objective.acceptance_policy)
+                for ref in references
             ),
-            "Mock objective cannot be prepared as real",
+            "Mock objective/reference context cannot be prepared as real",
             ErrorCode.INVALID_CONFIG,
         )
 
@@ -335,14 +341,27 @@ def prepare_to_directory(
         attempt_id=attempt_id,
         invocation_id=invocation_id,
     )
+    return publish_preparation(result, output)
+
+
+def publish_preparation(result, output):
+    """Publish an already executed P1 result without rerunning or recharging it."""
+    require(isinstance(result, PreparedSelection), "Expected PreparedSelection")
+    output = Path(output).resolve()
+    require(
+        not output.exists(),
+        "Preparation output already exists",
+        ErrorCode.OUTPUT_EXISTS,
+        path=str(output),
+    )
     output.parent.mkdir(parents=True, exist_ok=True)
     staging = output.parent / f".{output.name}.{uuid.uuid4().hex}.staging"
     staging.mkdir()
     payloads = {
         "prepared.json": result.to_dict(),
-        "program.json": program.to_dict(),
-        "context.json": context.to_dict(),
-        "objective.json": objective.to_dict(),
+        "program.json": result.program.to_dict(),
+        "context.json": result.context.to_dict(),
+        "objective.json": result.objective.to_dict(),
         "outcome.json": result.outcome,
         "ledger.json": result.ledger.to_dict(),
         "trace.json": (
@@ -524,21 +543,13 @@ def _verify_preparation(
             "Preparation differs from the exact selected batch",
             ErrorCode.ARTIFACT_MISMATCH,
         )
-    return {
-        "status": "verified",
-        "selection_status": result.status,
-        "backend": result.backend,
-        "replayed": True,
-        "batch_id": meta["batch_id"],
-        "expected_model_verified": expected_model is not None,
-        "expected_objective_verified": expected_objective is not None,
-        "expected_batch_verified": expected_batch_id is not None,
-    }
+    return result
 
 
-def verify_preparation(
+def load_preparation(
     path, view, *, expected_model=None, expected_objective=None, expected_batch_id=None
 ):
+    """Load a typed P1 handoff after checksums, exact anchors and CPU replay."""
     try:
         return _verify_preparation(
             path,
@@ -555,3 +566,25 @@ def verify_preparation(
             "Missing or malformed preparation artifact",
             reason=type(exc).__name__,
         ) from exc
+
+
+def verify_preparation(
+    path, view, *, expected_model=None, expected_objective=None, expected_batch_id=None
+):
+    result = load_preparation(
+        path,
+        view,
+        expected_model=expected_model,
+        expected_objective=expected_objective,
+        expected_batch_id=expected_batch_id,
+    )
+    return {
+        "status": "verified",
+        "selection_status": result.status,
+        "backend": result.backend,
+        "replayed": True,
+        "batch_id": None if result.workflow is None else result.workflow.batch.batch_id,
+        "expected_model_verified": expected_model is not None,
+        "expected_objective_verified": expected_objective is not None,
+        "expected_batch_verified": expected_batch_id is not None,
+    }

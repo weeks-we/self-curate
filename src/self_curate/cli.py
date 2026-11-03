@@ -72,9 +72,102 @@ def main(argv=None):
     prepared.add_argument("--expected-model")
     prepared.add_argument("--expected-batch")
     prepared.add_argument("--expected-objective")
+    feedback_check = commands.add_parser(
+        "validate-feedback",
+        help="Check external evidence binding and arithmetic; no verification run",
+    )
+    feedback_check.add_argument("--request", required=True)
+    feedback_check.add_argument("--result", required=True)
+    feedback_step = commands.add_parser(
+        "feedback-step", help="Leval -> Lopt -> P1 -> next validation request"
+    )
+    for flag in (
+        "prepared",
+        "pool",
+        "request",
+        "result",
+        "policy",
+        "output",
+        "attempt-id",
+        "invocation-id",
+    ):
+        feedback_step.add_argument("--" + flag, required=True)
+    request_validation = commands.add_parser(
+        "request-validation",
+        help="Create an external-verifier request from a verified P1 handoff",
+    )
+    for flag in ("prepared", "pool", "protocol", "request-id", "output"):
+        request_validation.add_argument("--" + flag, required=True)
+    request_validation.add_argument(
+        "--measure", choices=("predicted_gain", "reward_delta"), required=True
+    )
     args = parser.parse_args(argv)
     try:
-        if args.command == "validate-config":
+        if args.command == "request-validation":
+            from pathlib import Path
+            from self_curate.agents import request_from_preparation
+            from self_curate.contracts.parsing import load_json, artifact
+
+            request = request_from_preparation(
+                args.prepared,
+                args.pool,
+                request_id=args.request_id,
+                measure=args.measure,
+                protocol=artifact(
+                    load_json(Path(args.protocol).read_text(encoding="utf-8"))
+                ),
+            )
+            output = Path(args.output)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with output.open("x", encoding="utf-8") as handle:
+                handle.write(canonical_json(request.to_dict()) + "\n")
+            result = {
+                "status": "awaiting_external_validation",
+                "request_hash": request.request_hash,
+                "output": str(output),
+            }
+        elif args.command == "validate-feedback":
+            from pathlib import Path
+            from self_curate.contracts import parse_feedback_contract
+            from self_curate.contracts.parsing import load_json
+            from self_curate.agents import check_external_result
+
+            request = parse_feedback_contract(
+                "ValidationRequest",
+                load_json(Path(args.request).read_text(encoding="utf-8")),
+            )
+            external = parse_feedback_contract(
+                "ValidationResult",
+                load_json(Path(args.result).read_text(encoding="utf-8")),
+            )
+            check_external_result(request, external)
+            result = {
+                "status": "consistent",
+                "validation_status": external.status,
+                "request_hash": request.request_hash,
+                "result_hash": external.record_hash,
+                "validation_implemented": False,
+            }
+        elif args.command == "feedback-step":
+            from self_curate.agents import feedback_step_to_directory
+
+            step = feedback_step_to_directory(
+                args.prepared,
+                args.pool,
+                args.request,
+                args.result,
+                args.policy,
+                args.output,
+                attempt_id=args.attempt_id,
+                invocation_id=args.invocation_id,
+            )
+            print(canonical_json({**step.to_dict(), "output": args.output}))
+            return (
+                0
+                if step.status == "awaiting_validation"
+                else (2 if step.status == "candidate_failed" else 3)
+            )
+        elif args.command == "validate-config":
             config = load_config(args.config)
             if not config.input_path.is_file():
                 raise ContractError(

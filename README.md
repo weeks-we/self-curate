@@ -4,7 +4,9 @@ Model-driven, feedback-guided data curation across learning stages.
 
 这是独立的新项目，不依赖相邻项目的代码、配置或实验流程。架构依据为用户提供的
 [技术蓝图](docs/self_curate_codex_blueprint.md)。目前实现 **M1：数据与标注** 和
-**M2：八算子与确定性批次选择**，以及 **P0 契约与 P1 正式交接**（0.4.1）。
+**M2：八算子与确定性批次选择**，以及 **P0 契约与 P1 正式交接**（0.5.1）。
+
+最新全模块检查、修复和接口适配矩阵见 [连贯性复查](docs/COHERENCE_REVIEW_ZH.md)。Leval/Lopt 的候选现在能直接通过标准 P1 目录承接下一次外部验证结果。
 
 ## 本次可使用的能力
 
@@ -87,3 +89,7 @@ provider 契约，NLL/entropy、CDF 和自动标注算法在后续实现；未�
 
 无需先搭一整套 Agent 基础框架。每轮实现一个可运行、可测试的垂直模块，
 只补齐它依赖的公共契约；确定性选择器稳定后，再接模拟循环、梯度与真实角色。
+
+## Leval / Lopt 本轮交付
+
+已实现外部验证结果到反馈、完整候选程序、P1 重跑和下一次验证请求的单步链路。支持本地规则优化和可注入的共享模型客户端；验证算法与真实 LLM 服务留待后续。接口、命令和近期计划见 [Leval / Lopt 接口](docs/feedback_lopt_interfaces.md)。候选明确标记 `improvement_verified=false`。
