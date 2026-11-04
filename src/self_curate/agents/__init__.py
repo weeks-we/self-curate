@@ -28,3 +28,42 @@ __all__ = [
     "feedback_step_to_directory",
     "request_from_preparation",
 ]
+
+from .prompts import PromptTemplate, default_prompts, load_prompts, ROLES
+from .history import HistoryEvent
+from .runtime import RoleRuntime, RoleReply
+from .roles import (
+    ExecutionAgent,
+    EvaluationAgent,
+    OptimizationAgent,
+    RoleEvaluation,
+    RoleCycle,
+    RoleTeam,
+)
+
+__all__ += [
+    "PromptTemplate",
+    "default_prompts",
+    "load_prompts",
+    "ROLES",
+    "HistoryEvent",
+    "RoleRuntime",
+    "RoleReply",
+    "ExecutionAgent",
+    "EvaluationAgent",
+    "OptimizationAgent",
+    "RoleEvaluation",
+    "RoleCycle",
+    "RoleTeam",
+]
+
+from .scope import RoleScope, parse_role_scope, request_scope
+from .handoff import publish_role_cycle, load_role_cycle
+
+__all__ += [
+    "RoleScope",
+    "parse_role_scope",
+    "request_scope",
+    "publish_role_cycle",
+    "load_role_cycle",
+]

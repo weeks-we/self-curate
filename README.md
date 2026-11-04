@@ -4,7 +4,11 @@ Model-driven, feedback-guided data curation across learning stages.
 
 这是独立的新项目，不依赖相邻项目的代码、配置或实验流程。架构依据为用户提供的
 [技术蓝图](docs/self_curate_codex_blueprint.md)。目前实现 **M1：数据与标注** 和
-**M2：八算子与确定性批次选择**，以及 **P0 契约与 P1 正式交接**（0.5.1）。
+**M2：八算子与确定性批次选择**，以及 **P0 契约与 P1 正式交接**（0.6.1）。
+
+最新 [两遍框架与接口复查](docs/ROLES_TWO_PASS_REVIEW_ZH.md) 补齐固定会话条件、完整候选交接、执行失败反馈及独立恢复锚点。
+
+新增 [三角色共享模型与隔离上下文](docs/THREE_ROLE_AGENTS_ZH.md)：Lexec、Leval、Lopt 使用同一个客户端，各有固定 prompt 和独立 history。具体 prompt 可直接填写 `configs/roles/` 下对应文件的 instructions，当前正文为空。
 
 最新全模块检查、修复和接口适配矩阵见 [连贯性复查](docs/COHERENCE_REVIEW_ZH.md)。Leval/Lopt 的候选现在能直接通过标准 P1 目录承接下一次外部验证结果。
 

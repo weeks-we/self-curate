@@ -1,4 +1,14 @@
-# 当前进度：全模块连贯性与接口复查（0.5.1）
+# 当前进度：三角色两遍框架与接口复查（0.6.1）
+
+2026-11-03：第一遍核对框架不变量，修复会话未固定评价条件、Team 可半替换、cycle 身份检查与独立恢复锚点遗漏；第二遍验证完整产物交接、失败反馈、P0 成本、P1/梯度消费者和旧历史兼容。新增 RoleScope、cycle 发布/加载、previous_cycle 执行反馈接口。详细说明见 [两遍复查](ROLES_TWO_PASS_REVIEW_ZH.md)，最终证据与源码包位于 `runs/roles-two-pass/`。
+
+## 历史：三角色共享参数与独立上下文（0.6.0）
+
+2026-11-03：新增共享客户端 RoleRuntime 和执行/验证解释/优化三个 RoleAgent，绑定同一不可变 ModelRef；各自固定 prompt 配置、独立 before/after history、快照与版本检查。Prompt 正文为空，填写 configs/roles 下对应 JSON 的 instructions 即可。
+
+复用现有 P1、Leval 数值事实整理与 Lopt 程序检查；不实现真实模型服务、数值验证内核或完整搜索状态机。使用方式与边界见 [三角色接口](THREE_ROLE_AGENTS_ZH.md)。模型与 P1 成本绑定同一外层 attempt_id，会话 ID 独立。最终证据与源码包位于忽略的 `runs/three-roles-final/`；首轮结果保留在 `runs/three-roles/`。
+
+## 历史：全模块连贯性与接口复查（0.5.1）
 
 2026-11-03：从 M1/P0/M2/P1 到外部验证交接和 Leval/Lopt 重新核对，修复连续候选交接、报告覆盖、失败记录、调用摘要、随机配置锁、模型状态变化、提案 ID、真实域和审计统计边界。候选现在可以直接作为下一轮的标准 P1 输入，发布不重跑、不重记成本。
 

@@ -4,12 +4,10 @@ from dataclasses import dataclass
 from fractions import Fraction
 import json
 from time import perf_counter
-from typing import Protocol
 
 from self_curate.contracts import (
     ContractError,
     ErrorCode,
-    ModelRef,
     ResourceUsage,
     ComputeCost,
     canonical_json,
@@ -20,6 +18,9 @@ from self_curate.contracts.feedback import EditPolicy, ProgramChange, LoptPropos
 from self_curate.contracts.parsing import fields, load_json
 from self_curate.contracts.types import require, text
 from .leval import build_feedback
+from .client import SharedModelClient as SharedModelClient
+
+__all__ = ("SharedModelClient", "ProposalAttempt", "program_diff", "propose_program")
 
 
 def program_diff(parent, candidate):
@@ -48,14 +49,6 @@ def program_diff(parent, candidate):
         parent.output != candidate.output,
         parent.seed != candidate.seed or seeds(old) != seeds(new),
     )
-
-
-class SharedModelClient(Protocol):
-    model_ref: ModelRef
-
-    def generate_json(
-        self, *, role: str, system_prompt: str, payload: dict, timeout_seconds: float
-    ) -> dict: ...
 
 
 @dataclass(frozen=True)

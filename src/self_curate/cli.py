@@ -101,9 +101,23 @@ def main(argv=None):
     request_validation.add_argument(
         "--measure", choices=("predicted_gain", "reward_delta"), required=True
     )
+    role_demo = commands.add_parser(
+        "roles-demo", help="Run three isolated roles on one explicit CPU fixture client"
+    )
+    role_demo.add_argument("--output", required=True)
+    role_demo.add_argument("--project-root", default=".")
+    role_demo.add_argument("--prompts")
     args = parser.parse_args(argv)
     try:
-        if args.command == "request-validation":
+        if args.command == "roles-demo":
+            from self_curate.agents.demo import run_role_demo
+
+            result = run_role_demo(
+                args.output,
+                project_root=args.project_root,
+                prompt_directory=args.prompts,
+            )
+        elif args.command == "request-validation":
             from pathlib import Path
             from self_curate.agents import request_from_preparation
             from self_curate.contracts.parsing import load_json, artifact

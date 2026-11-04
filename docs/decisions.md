@@ -93,3 +93,18 @@
 - D65：规则候选与模型候选均保留校验失败和调用证据；调用 hash 绑定实际输入，提案 ID 绑定实际输出。固定 seed 策略同时锁定 seeded operator 的节点命名空间。
 - D66：共享模型客户端每次调用前后都须保持原 ModelRef，变化即停止后续调用。Lopt 获得冻结控制配置、context_hash 与 artifact 摘要；不传完整成对特征表，这些配置仍不进入模型可修改字段。
 - D67：外部报告转接核对精确 coverage，真实域拒绝已知 mock 目标/参考上下文；M1 读取核对存储配置和审计标签。原文档与历史证据不改写。
+
+## 2026-11-03：三个共享参数角色
+
+- D68：RoleTeam 的执行、验证解释、优化三个角色使用同一个客户端实例和不可变 ModelRef；每次调用前后检查版本，真实服务的权重真实性由后端核验。
+- D69：每角色一个固定 PromptTemplate，正文允许为空；自动组装 role-work-v1 输入。角色、session、模型和 prompt hash 绑定各自 history，不共享对话列表。
+- D70：History 追加 before/after 事件，保存真实结果和失败；仅把本角色最近工作送入模型，完整记录保留。只通过显式工作产物跨角色传递信息。
+- D71：快照显式保存到新目录，恢复校验身份与 hash 链，不重跑已完成工作；未结束事件必须显式核对。实时刷盘和完整搜索恢复仍属于 P2。
+- D72：角色层复用原数值检查与算子，模型解释不能覆盖分数，执行角色不能编辑程序。运行器账本只统计物理模型调用，P1 与 attempt 引用避免重复累计。
+
+## 2026-11-03：两遍框架复查
+
+- D73：同一业务会话固定 context/objective/measure/protocol/edit policy，RoleScope 可部分绑定后补齐，但已有条件不可改写；旧业务历史仅从确定性记录推断约束。
+- D74：RoleCycle 保留源请求/结果/上下文/策略，绑定实际调用 ID 与 attempt；完整产物通过 publish_role_cycle/load_role_cycle 交接，history save 不冒充候选持久化。
+- D75：恢复允许独立 session/attempt/backend/scope 锚点；Team 的运行器与角色绑定只读，整个业务 cycle 串行收集自己的模型调用。
+- D76：执行失败通过显式 previous_cycle 摘要交给 Lopt，不共享整段角色历史、不伪造数值验证。自动搜索与接受仍留给 P2。
