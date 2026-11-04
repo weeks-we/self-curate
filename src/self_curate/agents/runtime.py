@@ -23,7 +23,7 @@ from self_curate.contracts import (
 from self_curate.contracts.parsing import fields, load_json, model_ref
 from self_curate.contracts.types import integer, require, text
 from self_curate.contracts.workflow import finite
-from self_curate.data.pool import _publish, write_json, file_sha256
+from self_curate.data.pool import _publish, _staging_directory, write_json, file_sha256
 from .prompts import ROLES, PromptTemplate, default_prompts
 from .history import RoleHistory
 from .client import SharedModelClient
@@ -486,8 +486,7 @@ class RoleRuntime:
                 not output.exists(), "History snapshot exists", ErrorCode.OUTPUT_EXISTS
             )
             output.parent.mkdir(parents=True, exist_ok=True)
-            staging = output.parent / f".{output.name}.{uuid.uuid4().hex}.staging"
-            staging.mkdir()
+            staging = _staging_directory(output)
             meta = {
                 "schema_version": "1",
                 "session_id": self._session_id,

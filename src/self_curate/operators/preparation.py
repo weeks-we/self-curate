@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
-import uuid
 
 from self_curate.contracts import (
     ArtifactRef,
@@ -26,7 +25,7 @@ from self_curate.contracts.parsing import fields, load_json
 from self_curate.contracts.program import ProgramSpec, selection_identity
 from self_curate.contracts.types import require, sha256, text
 from self_curate.data import MetricView, read_pool
-from self_curate.data.pool import _publish, file_sha256, write_json
+from self_curate.data.pool import _publish, _staging_directory, file_sha256, write_json
 from .context import ExecutionContext, load_context, parse_context
 from .io import load_program
 from .runtime import execute_program
@@ -355,8 +354,7 @@ def publish_preparation(result, output):
         path=str(output),
     )
     output.parent.mkdir(parents=True, exist_ok=True)
-    staging = output.parent / f".{output.name}.{uuid.uuid4().hex}.staging"
-    staging.mkdir()
+    staging = _staging_directory(output)
     payloads = {
         "prepared.json": result.to_dict(),
         "program.json": result.program.to_dict(),

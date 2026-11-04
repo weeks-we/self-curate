@@ -1,7 +1,6 @@
 """Explicit CPU fixture client and a three-role example; no model weights."""
 
 from pathlib import Path
-import uuid
 
 from self_curate.contracts import (
     canonical_json,
@@ -17,6 +16,7 @@ from self_curate.data.pool import (
     load_config,
     write_json,
     _publish,
+    _staging_directory,
     file_sha256,
 )
 from self_curate.operators import load_preparation, publish_preparation
@@ -108,8 +108,7 @@ def run_role_demo(output, *, project_root=".", prompt_directory=None):
     )
     prompts = load_prompts(prompt_directory or root / "configs/roles")
     output.parent.mkdir(parents=True, exist_ok=True)
-    staging = output.parent / f".{output.name}.{uuid.uuid4().hex}.staging"
-    staging.mkdir()
+    staging = _staging_directory(output)
     build_pool(load_config(root / "configs/m2.data.fixture.json"), staging / "pool")
     from self_curate.operators import prepare_to_directory
 

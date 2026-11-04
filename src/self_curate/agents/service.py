@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
-import uuid
 
 from self_curate.contracts import (
     ArtifactRef,
@@ -24,7 +23,7 @@ from self_curate.contracts.feedback import (
 from self_curate.contracts.parsing import load_json
 from self_curate.contracts.types import require, text
 from self_curate.data import read_pool
-from self_curate.data.pool import _publish, write_json, file_sha256
+from self_curate.data.pool import _publish, _staging_directory, write_json, file_sha256
 from self_curate.operators import (
     load_preparation,
     publish_preparation,
@@ -376,8 +375,7 @@ def feedback_step_to_directory(
         client=client,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
-    staging = output.parent / f".{output.name}.{uuid.uuid4().hex}.staging"
-    staging.mkdir()
+    staging = _staging_directory(output)
     payloads = {
         "step.json": step.to_dict(),
         "validation_request.json": request.to_dict(),

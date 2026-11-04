@@ -238,7 +238,7 @@ def test_duplicate_even_if_excluded_and_atomic_failure(tmp_path):
         error.value.code == ErrorCode.DUPLICATE_ID and error.value.details["line"] == 2
     )
     assert not (tmp_path / "out").exists()
-    assert list(tmp_path.glob(".out.*.staging/failure.json"))
+    assert list(tmp_path.glob(".sc-*.staging/failure.json"))
 
 
 def test_oversize_reject_is_explicit_and_never_truncates(tmp_path):
@@ -502,7 +502,7 @@ def test_publish_has_bounded_retry_and_preserves_failure(tmp_path, monkeypatch):
     with pytest.raises(PermissionError):
         build_pool(config(path), tmp_path / "failed")
     assert len(attempts) == 3 and not (tmp_path / "failed").exists()
-    assert list(tmp_path.glob(".failed.*.staging/failure.json"))
+    assert list(tmp_path.glob(".sc-*.staging/failure.json"))
 
 
 def test_unknown_pool_schema_and_missing_manifest_are_structured(tmp_path):

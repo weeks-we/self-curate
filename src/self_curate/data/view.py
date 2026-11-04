@@ -245,7 +245,12 @@ class MetricView:
         self._gradients = MappingProxyType(gradients)
         self._signal_keys = MappingProxyType(signal_keys)
         self._gradient_keys = MappingProxyType(gradient_keys)
-        self.data_ids = tuple(by_id)
+        self._data_ids = tuple(by_id)
+
+    @property
+    def data_ids(self):
+        """Read-only membership of the snapshot used by execution identities."""
+        return self._data_ids
 
     def record(self, data_id):
         text(data_id, "data_id")

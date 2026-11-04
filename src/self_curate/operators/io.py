@@ -1,14 +1,13 @@
 """Small immutable selection receipts; no raw trajectories or model weights."""
 
 from pathlib import Path
-import uuid
 
 from self_curate.contracts import ContractError, ErrorCode, parse_batch_manifest
 from self_curate.contracts.parsing import load_json
 from self_curate.contracts.program import parse_program
 from self_curate.contracts.types import require
 from self_curate.data import read_pool
-from self_curate.data.pool import _publish, file_sha256, write_json
+from self_curate.data.pool import _publish, _staging_directory, file_sha256, write_json
 from .context import load_context
 from .runtime import execute_program
 
@@ -33,8 +32,7 @@ def select_to_directory(pool_path, program_path, context_path, output):
     pool = read_pool(pool_path)
     context = load_context(context_path, pool.metric_view())
     output.parent.mkdir(parents=True, exist_ok=True)
-    staging = output.parent / f".{output.name}.{uuid.uuid4().hex}.staging"
-    staging.mkdir()
+    staging = _staging_directory(output)
     write_json(staging / "program.json", program.to_dict())
     write_json(staging / "context.json", context.to_dict())
     try:

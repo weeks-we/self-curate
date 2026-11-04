@@ -1,7 +1,6 @@
 """Portable, checked three-role cycle handoff. No model calls or resampling."""
 
 from pathlib import Path
-import uuid
 
 from self_curate.contracts import (
     ContractError,
@@ -16,7 +15,7 @@ from self_curate.contracts import (
 )
 from self_curate.contracts.parsing import fields, load_json, sequence
 from self_curate.contracts.types import require, integer, sha256
-from self_curate.data.pool import _publish, write_json, file_sha256
+from self_curate.data.pool import _publish, _staging_directory, write_json, file_sha256
 from self_curate.operators import load_context, load_preparation, publish_preparation
 from .lopt import ProposalAttempt
 from .roles import RoleCycle, RoleEvaluation
@@ -128,8 +127,7 @@ def publish_role_cycle(cycle, output, *, model_ledger):
     output = Path(output).resolve()
     require(not output.exists(), "Cycle output already exists", ErrorCode.OUTPUT_EXISTS)
     output.parent.mkdir(parents=True, exist_ok=True)
-    staging = output.parent / f".{output.name}.{uuid.uuid4().hex}.staging"
-    staging.mkdir()
+    staging = _staging_directory(output)
     payloads = {
         "cycle.json": cycle.to_dict(),
         "source_request.json": cycle.source_request.to_dict(),

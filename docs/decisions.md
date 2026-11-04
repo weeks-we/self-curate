@@ -108,3 +108,8 @@
 - D74：RoleCycle 保留源请求/结果/上下文/策略，绑定实际调用 ID 与 attempt；完整产物通过 publish_role_cycle/load_role_cycle 交接，history save 不冒充候选持久化。
 - D75：恢复允许独立 session/attempt/backend/scope 锚点；Team 的运行器与角色绑定只读，整个业务 cycle 串行收集自己的模型调用。
 - D76：执行失败通过显式 previous_cycle 摘要交给 Lopt，不共享整段角色历史、不伪造数值验证。自动搜索与接受仍留给 P2。
+
+## 2026-11-04：按代码阅读教程复查
+
+- D77：MetricView.data_ids 改为只读属性，保持既有 tuple 读取接口。候选范围改变必须构建新视图和 ExecutionContext，不允许在同一缓存快照/context 身份下替换公开成员列表。
+- D78：数据池、选择、P1、反馈、cycle、角色快照与 demo 统一使用短名称同级 staging。独占 mkdir 并重试名称碰撞，继承工作区 ACL；不重复拼接完整 output 名和 UUID，保留现有发布锁、原子 rename、拒绝覆盖及失败证据。此变更不宣称支持任意长度 Windows 路径。

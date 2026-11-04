@@ -4,7 +4,9 @@ Model-driven, feedback-guided data curation across learning stages.
 
 这是独立的新项目，不依赖相邻项目的代码、配置或实验流程。架构依据为用户提供的
 [技术蓝图](docs/self_curate_codex_blueprint.md)。目前实现 **M1：数据与标注** 和
-**M2：八算子与确定性批次选择**，以及 **P0 契约与 P1 正式交接**（0.6.1）。
+**M2：八算子与确定性批次选择**，以及 **P0 契约与 P1 正式交接**（0.6.2）。
+
+按 [代码阅读教程](docs/CODE_READING_TUTORIAL_ZH.md) 的数据流复查，修复冻结指标视图的成员可变问题及 Windows 嵌套发布的临时路径膨胀。详见 [教程链路复查](docs/TUTORIAL_FLOW_REVIEW_ZH.md)。
 
 最新 [两遍框架与接口复查](docs/ROLES_TWO_PASS_REVIEW_ZH.md) 补齐固定会话条件、完整候选交接、执行失败反馈及独立恢复锚点。
 

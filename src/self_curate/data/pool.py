@@ -196,6 +196,26 @@ def _implementation_hash():
     )
 
 
+def _staging_directory(output):
+    """Create a short, exclusive sibling directory for atomic publication.
+
+    Repeating output names and UUIDs at each nested handoff can exceed Windows
+    path limits even when all final artifact paths fit. mkdir keeps inherited
+    workspace ACLs on managed Windows hosts; exclusive creation retries name
+    collisions and stays on the output's filesystem.
+    """
+    for _ in range(10):
+        staging = output.parent / f".sc-{uuid.uuid4().hex[:16]}.staging"
+        try:
+            staging.mkdir()
+        except FileExistsError:
+            continue
+        return staging
+    raise ContractError(
+        ErrorCode.ENVIRONMENT_FAILURE, "Cannot allocate staging directory"
+    )
+
+
 def _publish(staging, output):
     lock = output.parent / f".{output.name}.publish.lock"
     try:
@@ -243,8 +263,7 @@ def build_pool(config: ImportConfig, output: str | Path) -> dict:
         path=str(output),
     )
     output.parent.mkdir(parents=True, exist_ok=True)
-    staging = output.parent / f".{output.name}.{uuid.uuid4().hex}.staging"
-    staging.mkdir()
+    staging = _staging_directory(output)
     try:
         backend = config.tokenization_backend()
         source_hash = hashlib.sha256()
