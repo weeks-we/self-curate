@@ -16,6 +16,8 @@ from self_curate.contracts import (
 )
 from self_curate.contracts.types import require, text
 from .enrichment import data_binding
+from .normalize import evidence_metrics, validate_tool_links
+from .tokenization import validate_alignment
 
 
 def _reference_key(reference):
@@ -133,6 +135,27 @@ class MetricView:
             require(
                 isinstance(record, TrajectoryRecord),
                 "MetricView requires TrajectoryRecord",
+            )
+            # A caller may construct/replace a record without passing through
+            # read_pool(). Verify cross-field semantics once at this boundary.
+            validate_tool_links(record.messages)
+            validate_alignment(record.tokenization, record.messages)
+            skills = tuple(m.skill for m in record.evidence_metrics)
+            require(
+                len(set(skills)) == len(skills),
+                "Duplicate evidence skill rows",
+                ErrorCode.INVALID_EVIDENCE,
+            )
+            expected, union = evidence_metrics(
+                record.tokenization, record.annotations, skills
+            )
+            require(
+                {m.skill: m for m in expected}
+                == {m.skill: m for m in record.evidence_metrics}
+                and union == record.stats.evidence_union_tokens,
+                "Evidence metrics disagree with actual annotations/token mask",
+                ErrorCode.INVALID_EVIDENCE,
+                data_id=record.data_id,
             )
             require(
                 record.data_id not in by_id,

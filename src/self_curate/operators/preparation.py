@@ -75,6 +75,14 @@ def _domain(context, objective, backend):
             "Fixture cannot be prepared as real",
             ErrorCode.INVALID_CONFIG,
         )
+        require(
+            not any(
+                context.view.record(data_id).known_mock_artifacts
+                for data_id in context.view.data_ids
+            ),
+            "Known mock trajectory provenance cannot enter a real selection context",
+            ErrorCode.INVALID_CONFIG,
+        )
         references = [objective.estimator, objective.acceptance_policy]
         references.extend(
             r.artifact for signal in context.signals for r in signal.references

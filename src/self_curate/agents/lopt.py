@@ -379,12 +379,12 @@ def propose_program(
                 payload=json.loads(canonical_json(payload)),
                 timeout_seconds=policy.model_timeout_seconds,
             )
-            response_json = canonical_json(reply)
-            response_hash = digest(reply)
             if isinstance(reply, dict) and "usage" in reply:
                 from self_curate.contracts import parse_contract
 
                 usage = parse_contract("ResourceUsage", reply["usage"])
+            response_json = canonical_json(reply)
+            response_hash = digest(reply)
             require(
                 client.model_ref == request.model_ref,
                 "Lopt client changed the active ModelRef during generation",
@@ -463,8 +463,8 @@ def propose_program(
         "blocked",
         rationale=(
             "模型版本发生变化，停止后续调用。"
-            if len(attempts) < policy.max_model_attempts
-            else "模型提案未通过固定 schema/修改预算；有限重试已耗尽。"
+            if load_json(attempts[-1].error_json)["code"] == ErrorCode.STALE_CACHE.value
+            else "模型调用或提案校验失败；有限重试已耗尽。"
         ),
         hypothesis="保留失败与未知成本，等待修正；不回退伪造策略。",
     ), tuple(attempts)

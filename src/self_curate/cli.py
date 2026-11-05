@@ -107,9 +107,24 @@ def main(argv=None):
     role_demo.add_argument("--output", required=True)
     role_demo.add_argument("--project-root", default=".")
     role_demo.add_argument("--prompts")
+    inner_demo = commands.add_parser(
+        "inner-demo",
+        help="Run a complete mock inner search with an explicit demo stopping hook",
+    )
+    inner_demo.add_argument("--output", required=True)
+    inner_demo.add_argument("--project-root", default=".")
+    inner_demo.add_argument("--prompts")
     args = parser.parse_args(argv)
     try:
-        if args.command == "roles-demo":
+        if args.command == "inner-demo":
+            from self_curate.search.demo import run_inner_demo
+
+            result = run_inner_demo(
+                args.output,
+                project_root=args.project_root,
+                prompt_directory=args.prompts,
+            )
+        elif args.command == "roles-demo":
             from self_curate.agents.demo import run_role_demo
 
             result = run_role_demo(

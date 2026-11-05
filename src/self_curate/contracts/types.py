@@ -635,6 +635,36 @@ class TrajectoryRecord(Record):
         return digest(self.to_dict())
 
     @property
+    def known_mock_artifacts(self):
+        """Explicit synthetic provenance only; absence does not attest reality."""
+        refs = [self.source.artifact]
+        if self.quality.evidence is not None:
+            refs.append(self.quality.evidence)
+        for envelope in (self.annotation_record, self.metadata_record):
+            if envelope is not None:
+                refs.extend(envelope.provenance)
+        for signal in self.signals:
+            refs.extend(signal.provenance)
+            if signal.percentile_reference is not None:
+                refs.append(signal.percentile_reference.artifact)
+        for gradient in self.gradients:
+            refs.append(gradient.vector)
+            refs.extend(gradient.provenance)
+        refs.extend(self.usage.forward_scoring)
+        refs.extend(self.usage.gradient_extraction)
+        refs.extend(use.receipt for use in self.usage.candidate_sft)
+        return tuple(
+            sorted(
+                {
+                    ref
+                    for ref in refs
+                    if ref.uri.strip().lower().startswith(("fixture://", "mock://"))
+                },
+                key=lambda ref: (ref.uri, ref.sha256),
+            )
+        )
+
+    @property
     def labels(self):
         return tuple(
             token if supervise else -100

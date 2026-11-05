@@ -17,7 +17,7 @@ from self_curate.contracts import (
     parse_program,
     verify_batch,
 )
-from self_curate.data import MetricView, record_candidate_training
+from self_curate.data import MetricView, attach_annotations, record_candidate_training
 from self_curate.operators import (
     BudgetPolicy,
     QualityPolicy,
@@ -225,7 +225,7 @@ def test_skills_any_all_missing_and_registry_are_distinct():
         ).output_ids
         == ()
     )
-    rows[0] = replace(rows[0], annotations=None)
+    rows[0] = attach_annotations(rows[0], None)
     assert (
         "data-00"
         not in trace(single(rows, "SkillSelect", {"skills": ["recovery"]})).output_ids
@@ -555,7 +555,7 @@ def test_skill_exposure_keeps_overlapping_labels_and_missing_evidence_distinct()
             ),
         ),
     )
-    rows[1] = replace(rows[1], annotations=None)
+    rows[1] = attach_annotations(rows[1], None)
     result = single(
         rows,
         "LengthSelect",

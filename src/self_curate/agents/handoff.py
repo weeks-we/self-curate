@@ -113,7 +113,8 @@ def _costs(cycle, model_ledger):
     return model, total
 
 
-def publish_role_cycle(cycle, output, *, model_ledger):
+def _write_role_cycle(cycle, staging, *, model_ledger):
+    """Fill an empty caller-owned unpublished directory; outer owner publishes it."""
     require(
         isinstance(cycle, RoleCycle)
         and cycle.source_request is not None
@@ -124,10 +125,9 @@ def publish_role_cycle(cycle, output, *, model_ledger):
         cycle.source_request, cycle.source_result, cycle.source_context
     )
     model, total = _costs(cycle, model_ledger)
-    output = Path(output).resolve()
-    require(not output.exists(), "Cycle output already exists", ErrorCode.OUTPUT_EXISTS)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    staging = _staging_directory(output)
+    require(
+        staging.is_dir() and not any(staging.iterdir()), "Cycle staging must be empty"
+    )
     payloads = {
         "cycle.json": cycle.to_dict(),
         "source_request.json": cycle.source_request.to_dict(),
@@ -154,15 +154,29 @@ def publish_role_cycle(cycle, output, *, model_ledger):
             if p.is_file()
         },
     )
-    _publish(staging, output)
     return {
         "status": cycle.status,
-        "output": str(output),
         "ledger_hash": total.record_hash,
         "next_request_hash": (
             None if cycle.next_request is None else cycle.next_request.request_hash
         ),
     }
+
+
+def publish_role_cycle(cycle, output, *, model_ledger):
+    require(
+        isinstance(cycle, RoleCycle)
+        and cycle.source_request is not None
+        and cycle.source_policy is not None,
+        "Expected complete RoleTeam cycle",
+    )
+    output = Path(output).resolve()
+    require(not output.exists(), "Cycle output already exists", ErrorCode.OUTPUT_EXISTS)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    staging = _staging_directory(output)
+    summary = _write_role_cycle(cycle, staging, model_ledger=model_ledger)
+    _publish(staging, output)
+    return {**summary, "output": str(output)}
 
 
 def _attempt(raw):

@@ -1,4 +1,20 @@
-# 当前进度：按阅读教程复查数据流与交接（0.6.2）
+# 当前进度：全模块实现边界与连通性审计（0.7.1）
+
+2026-11-05：重新检查数据/算子/P0/P1/角色/反馈/内层循环/存储交接。原有 420 项通过后，用额外边界案例复现并修复五类问题：直接 MetricView 入口未重核 mask/派生证据；未启动操作在预写检查点失败后被误标 interrupted；不可序列化回复导致已知 usage 丢失及错误诊断过窄；已知 mock 轨迹可借 precomputed 声明进入 real 交接；独立 Lopt 入口未拒绝不同 EditPolicy 的 previous_cycle。新增 13 项回归，其中 11 项先实际复现失败。详见 [FULL_MODULE_AUDIT_ZH.md](FULL_MODULE_AUDIT_ZH.md)。
+
+本轮不实现真实模型、数值验证、NLL/entropy/梯度计算或外层训练。内层退出条件仍待调用方配置；原技术文档与历史证据保持原样。最终验证记录位于忽略的 runs/full-module-audit/verification.json。
+
+最终审计专项共 13 项，原目录全量 433 项、格式与静态检查通过。独立串行对照、旧池/旧角色历史/0.7.0 搜索检查点兼容、证据保留及源码包检查以该 verification.json 为准。
+
+## 历史：内层搜索闭环，退出条件待配置（0.7.0）
+
+2026-11-04：新增 search 模块，复用 RoleTeam、P1 和 ValidationProvider，完成外部验证、反馈、提案、筛选、再验证的多轮接续。分别维护 current/best/history/停滞次数/成本；只有 valid 且满足固定约束的实际批次可成为 best，平分保留更早项。退出条件按用户要求保留 StopCondition 回调，不代填候选数、预算或停滞阈值；未配置时 run 返回 awaiting_stop_condition，step 可手动推进。支持完整检查点、稳定边界恢复和独立最佳清单交接；未确认完成的在途操作恢复为 interrupted，不自动重发。接口与运行方法见 [INNER_SEARCH_ZH.md](INNER_SEARCH_ZH.md)。
+
+当前交付覆盖 P2 的内层搜索部分；外层模拟训练/接受/拒绝、真实数值验证、梯度、真实模型服务仍未实现。新证据位于忽略的 runs/inner-search/，原研究文档与旧证据保持原样。
+
+内层专项 30 项、隔离副本全量 420 项通过；最终原目录回归、独立串行对照、历史兼容与源码包检查以 runs/inner-search/verification.json 为准。
+
+## 历史：按阅读教程复查数据流与交接（0.6.2）
 
 2026-11-04：沿数据记录、指标视图、筛选、P0/P1 交接、三角色反馈及持久化逐段复查。修复 MetricView 的公开成员列表可重绑定、导致冻结上下文实际候选范围漂移的问题；统一短名称同级 staging，避免最终路径合法时嵌套临时路径先超过 Windows 限制。保留原子发布、拒绝覆盖、失败证据和历史格式。新增两个回归案例；检查与交付证据见 [教程链路复查](TUTORIAL_FLOW_REVIEW_ZH.md)。
 

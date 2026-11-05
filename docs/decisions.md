@@ -113,3 +113,20 @@
 
 - D77：MetricView.data_ids 改为只读属性，保持既有 tuple 读取接口。候选范围改变必须构建新视图和 ExecutionContext，不允许在同一缓存快照/context 身份下替换公开成员列表。
 - D78：数据池、选择、P1、反馈、cycle、角色快照与 demo 统一使用短名称同级 staging。独占 mkdir 并重试名称碰撞，继承工作区 ACL；不重复拼接完整 output 名和 UUID，保留现有发布锁、原子 rename、拒绝覆盖及失败证据。此变更不宣称支持任意长度 Windows 路径。
+
+## 2026-11-04：内层循环
+
+- D79：退出条件由调用方注入 StopCondition，返回 StopDecision；默认 None，自动 run 明确返回 awaiting_stop_condition，不隐式无限运行或冻结示例阈值。手动 step 一次只执行一项提案/筛选或一次验证操作。
+- D80：最新已验证候选与历史最佳分离。仅 valid 且满足固定约束的结果可按 total_value 严格比较；平分保留先者，负分不以零基线排除。best 保存同一 PreparedSelection、请求、实际 BatchManifest 与外部结果，不重抽训练成员。
+- D81：pending/invalid 验证只等待，不冒充零分或触发优化；失败操作保留证据、已知/未知成本并阻塞，显式 retry 或新外部证据才继续。完整的不可行/blocked cycle 可通过原 previous_cycle 反馈给下一轮 Lopt；没有验证数据的失败候选不生成数值收益。
+- D82：搜索成本复用 CostLedger，去重合并 seed/P1、物理角色调用及本次调用验证器的费用；不叠加工具 history span 或逻辑 Lopt attempt 的同一笔模型费用。导入既有验证结果默认只保留原 usage，不再次收取；异步新工作可显式传入绑定当前请求/模型/attempt 的原 CostEvent，按原事件 ID 去重。验证 usage 须为该次独立调用的增量费用，不能重复提交累计总额。调用身份绑定 search/session/外层 attempt/模型。
+- D83：搜索快照包含完整 P1、cycle、验证序列、role history、账本与 timeline。恢复重放确定性状态并独立核对初始请求、编辑政策、search/session/attempt/执行模式；不调用模型或验证器。可选 journal 在外部操作前后保存新快照；在途恢复为 interrupted，不能冒称完整 P2/M9 的外部任务完成对账。
+- D84：完整搜索快照拥有未发布目录时，cycle 使用内部写入函数填充子目录，整体完成后统一发布，避免无意义的额外嵌套 staging。既有公开 cycle 格式和独立发布行为保持兼容。
+
+## 2026-11-05：全模块审计
+
+- D85：MetricView 构造时统一核验工具调用关系、assistant mask、技能证据派生指标、证据总量和技能唯一性。直接传入 TrajectoryRecord 不能绕过文件入口已有的语义检查；指标批量查询仍保持按 ID 的内存索引，不逐次重算。
+- D86：外部操作派发前的检查点写入失败，回滚本次未启动的操作号与 pending 标记；操作已经完成后的保存失败不回滚其结果或费用，只能补保存。真正进行中的调用恢复仍为 interrupted，不自动重发。
+- D87：优先解析有效 usage，再处理回复 JSON 序列化和内容校验。坏回复仍失败，已报告的有效费用保持原值；没有合法 JSON 的回复不伪造 response hash。Lopt 耗尽重试时按实际错误概括，不把后端/协议错误一律写成 schema 失败。
+- D88：TrajectoryRecord 暴露派生的 known_mock_artifacts，不改变序列化或历史 hash。real P1 拒绝候选上下文中的显式 fixture/mock 轨迹来源；real 工作流消费视图时也核对选中记录的来源、质量证据、特征、标签及使用历史引用。没有已知 mock 标记不等于真实性认证，权重/向量/任务结果仍须由真实后端核验。
+- D89：独立 OptimizationAgent 使用 previous_cycle 时也核对 source_policy 与当前 EditPolicy，不能把不同编辑条件下的旧失败作为同条件执行反馈。内层已有的固定政策和历史最佳规则保持不变。

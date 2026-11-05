@@ -1,6 +1,6 @@
 # P1 正式入口：筛选并交接给 P0
 
-包版本 0.5.1。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。
+本页交接接口引入于 0.5.1；当前包 0.7.1。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。
 原 `execute_program` / `select` 保留。需要后续工作流消费时使用本接口，无需手工拼装批次。
 
 ## Python API
@@ -31,6 +31,7 @@ if prepared.status == "feasible":
 
 PreparedSelection 是本次调用的只读内存对象；持久化边界为下列 JSON 文件。
 status 为 feasible/infeasible/failed。捕获的算子 ContractError 在 prepared.error 中保留结构化 details/requests；不转换为零分或空批次。
+backend=real 的候选上下文不允许显式 fixture/mock 轨迹来源、质量证据或特征/历史引用。precomputed 只代表接入外部 token 信息，不能把已知 mock 数据转成真实数据；缺少 mock 标记也不构成真实性证明。
 
 ## 输出
 

@@ -312,9 +312,9 @@ class RoleRuntime:
                     payload=load_json(canonical_json(payload)),
                     timeout_seconds=timeout_seconds,
                 )
-                raw_reply = load_json(canonical_json(reply))
                 if type(reply) is dict and "usage" in reply:
                     usage = parse_contract("ResourceUsage", reply["usage"])
+                raw_reply = load_json(canonical_json(reply))
                 require(
                     self._client.model_ref == self._model,
                     "Shared client changed model during generation",

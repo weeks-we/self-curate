@@ -1,5 +1,7 @@
 # 三角色共享参数、Prompt 与 History 隔离（0.6.1）
 
+0.7.0 新增 [内层循环](INNER_SEARCH_ZH.md)，复用本页角色接口完成多轮验证/反馈与历史最佳管理；本页 RoleTeam.feedback_step 仍是单步入口，不自行判定历史最佳。真实模型、数值验证和完整外层恢复仍待后续。
+
 最新两遍复查、修复与下游接口见 [ROLES_TWO_PASS_REVIEW_ZH.md](ROLES_TWO_PASS_REVIEW_ZH.md)。会话新增固定评价 RoleScope；`team.publish_cycle()` 发布完整 P1/验证交接产物，`team.save()` 仍只保存角色历史，两者用途不同。
 
 执行角色 Lexec、验证解释角色 Leval、优化角色 Lopt 已接入同一个 RoleRuntime：**同一个客户端实例、同一个不可变 ModelRef；各自固定 prompt、各自独立 history**。没有创建三份模型，也没有引入新的 Agent 框架或模型供应商依赖。

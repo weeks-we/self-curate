@@ -18,7 +18,7 @@ from self_curate.contracts import (
     digest,
     verify_batch,
 )
-from self_curate.data import MetricView, record_candidate_training
+from self_curate.data import MetricView, attach_annotations, record_candidate_training
 from self_curate.operators import (
     BudgetPolicy,
     ExecutionContext,
@@ -175,7 +175,7 @@ def test_reuse_report_counts_final_rows_and_keeps_scoring_separate_from_training
 
 def test_one_context_cannot_mix_tokenizers_even_without_model_scores():
     rows = list(records(2))
-    rows = [replace(r, signals=(), annotations=None) for r in rows]
+    rows = [attach_annotations(replace(r, signals=()), None) for r in rows]
     changed = replace(
         rows[1].tokenization.identity, tokenizer_hash=digest("other-tokenizer")
     )

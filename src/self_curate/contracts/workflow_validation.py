@@ -168,6 +168,15 @@ def validate_workflow(
     )
     if view is not None:
         verify_batch(b.batch, view, model_ref=b.model_ref)
+        if b.backend == "real":
+            require(
+                not any(
+                    view.record(data_id).known_mock_artifacts
+                    for data_id in b.batch.data_ids
+                ),
+                "Known mock trajectory provenance in real training inputs",
+                ErrorCode.ARTIFACT_MISMATCH,
+            )
     tasks = _index(b.tasks, "task_id")
     rollouts = _index(b.rollouts, "rollout_id")
     targets = _index(b.target_gradients, "target_version")

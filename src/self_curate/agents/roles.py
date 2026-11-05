@@ -368,6 +368,7 @@ class OptimizationAgent(RoleAgent):
                 and previous_cycle.source_request.objective == request.objective
                 and previous_cycle.source_request.measure == request.measure
                 and previous_cycle.source_request.protocol == request.protocol
+                and previous_cycle.source_policy == policy
                 and request
                 in (previous_cycle.source_request, previous_cycle.next_request),
                 "Previous execution is unrelated to current source/conditions",

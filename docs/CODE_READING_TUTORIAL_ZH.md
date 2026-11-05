@@ -1,12 +1,12 @@
 # Self-Curate 代码阅读教程
 
-适用版本：0.6.2；核对日期：2026-11-04。本文针对独立项目 `D:\py project\self-curate`，按当前实际实现讲解。原始蓝图描述研究终态；了解当前进度先看 [progress.md](progress.md) 顶部，再读 [THREE_ROLE_AGENTS_ZH.md](THREE_ROLE_AGENTS_ZH.md) 和 [ROLES_TWO_PASS_REVIEW_ZH.md](ROLES_TWO_PASS_REVIEW_ZH.md)。沿本教程开展的代码复查与修复见 [TUTORIAL_FLOW_REVIEW_ZH.md](TUTORIAL_FLOW_REVIEW_ZH.md)。
+适用版本：0.7.1；核对日期：2026-11-05。本文针对独立项目 `D:\py project\self-curate`，按当前实际实现讲解。原始蓝图描述研究终态；了解当前进度先看 [progress.md](progress.md) 顶部，再读 [THREE_ROLE_AGENTS_ZH.md](THREE_ROLE_AGENTS_ZH.md)。最新边界与修复见 [FULL_MODULE_AUDIT_ZH.md](FULL_MODULE_AUDIT_ZH.md)，内层循环见 [INNER_SEARCH_ZH.md](INNER_SEARCH_ZH.md)。
 
 ## 1. 先记住系统在处理什么
 
 项目要让模型根据反馈，修改“下一批训练数据怎么选”的程序。内层筛选与比较时冻结模型；外层最终才考虑对最佳实际批次训练。
 
-目前已经实现数据管理、确定性筛选、跨模块契约、外部验证结果转反馈，以及三个角色共享客户端和隔离上下文。真实数值验证、梯度计算、SFT、完整搜索与接受/拒绝状态机仍待后续实现。
+目前已经实现数据管理、确定性筛选、跨模块契约、外部验证结果转反馈、三个角色共享客户端和隔离上下文，以及内层多轮循环与历史最佳管理。内层退出条件保留回调待配置；真实数值验证、梯度计算、SFT、外层接受/拒绝状态机仍待后续实现。
 
 先沿下面这条已实现的链阅读：
 
@@ -38,6 +38,7 @@
 | `src/self_curate/data/` | M1：规范化、数据池、指标视图、外部特征挂接、使用历史 | 先 `pool.py`、`view.py`，再看规范化细节 |
 | `src/self_curate/operators/` | M2 筛选和 P1 正式交接 | 先 `runtime.py`，再 `handlers.py`、`preparation.py` |
 | `src/self_curate/agents/` | 反馈、提案、三角色编排、共享客户端、独立记忆和发布 | 先 `demo.py`、`roles.py`，再看 runtime/history |
+| `src/self_curate/search/` | 将角色单步接成多轮内层搜索，保留历史最佳与检查点 | 先 `inner_loop.py` 的 run/step，再看 contracts/storage |
 | `src/self_curate/cli.py` | 命令分发 | 用命令名定位函数，不必先通读全部分支 |
 | `tests/` | 正常行为、缺失数据、过期版本及非法跨模块交接的例子 | 每读一个模块，跟读对应测试 |
 | `runs/` | 本地运行产物和历史验收证据 | 对照 JSON 理解真实输入输出；不用提交 Git |
@@ -199,11 +200,17 @@ demo 自己发布了候选目录和摘要；完整 cycle 的较新接口示例�
 
 会话快照需要显式保存，不是每条事件自动刷盘；这套能力也还不等于完整 P2 搜索恢复。
 
-## 10. 建议按三个学习阶段推进
+## 10. 接着阅读内层循环
+
+先读 `search/inner_loop.py` 的 `step`，确认一次推进只做一项提案/筛选或一次验证；再看 `run` 如何调用退出回调并接续。`state.current` 是最新有效结果，`state.best` 是历史最高的可行结果，两者可以不同。运行 `python -B -m self_curate inner-demo --project-root . --output runs/learn-inner-01` 可以看到 0.1 → 0.3 → 0.2 的声明 mock 值最终保留 0.3 的原批次。
+
+然后读 `search/storage.py`：快照保存完整交接与 timeline，恢复会重新核对状态、角色日志、成本和最佳选择，不调用模型/验证器。最后读 `tests/test_inner_search.py`，先看历史最佳与无默认退出条件，再看等待、失败、恢复和精确交接。实际接口及待填回调见 [INNER_SEARCH_ZH.md](INNER_SEARCH_ZH.md)。
+
+## 11. 建议按三个学习阶段推进
 
 1. **先掌握一条数据和一次筛选。** 跑 mock，读数据记录、程序、trace、batch；用自己的话解释成员怎样产生。
 2. **再掌握一次反馈接续。** 读父请求/结果、反馈、提案、候选与 next request；沿 `RoleTeam._feedback_step` 单步调试。
-3. **最后掌握跨模块约束。** 读对应失败测试，理解缺失、版本变化、精确批次、独立 history、scope 和成本为什么要校验；再讨论 P2 调度与真实后端接入。
+3. **最后掌握跨模块约束与内层调度。** 读对应失败测试和 search 模块，理解缺失、版本变化、精确批次、独立 history、scope、历史最佳和成本为什么要校验；再讨论真实后端与外层调度接入。
 
 调试时建议依次给 `run_role_demo`、`RoleTeam._feedback_step`、`build_feedback`、`propose_program`、`execute_program`、`prepare_selection` 下断点。前两个帮你看整体；后四个按执行进度逐个启用，避免一开始停得太碎。
 
