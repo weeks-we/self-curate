@@ -1,6 +1,6 @@
 # P1 正式入口：筛选并交接给 P0
 
-本页交接接口引入于 0.5.1；当前包 0.7.1。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。
+本页交接接口引入于 0.5.1；当前包 0.8.1。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。内层 best 的精确训练消费见 [外层接口](OUTER_TRAINING_ZH.md)。
 原 `execute_program` / `select` 保留。需要后续工作流消费时使用本接口，无需手工拼装批次。
 
 ## Python API

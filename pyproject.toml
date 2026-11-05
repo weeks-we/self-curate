@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "self-curate"
-version = "0.7.1"
+version = "0.8.1"
 description = "Model-driven, feedback-guided data curation"
 requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+training = ["torch>=2.1"]
 
 [project.scripts]
 self-curate = "self_curate.cli:main"

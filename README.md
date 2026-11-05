@@ -4,11 +4,17 @@ Model-driven, feedback-guided data curation across learning stages.
 
 这是独立的新项目，不依赖相邻项目的代码、配置或实验流程。架构依据为用户提供的
 [技术蓝图](docs/self_curate_codex_blueprint.md)。目前实现 **M1：数据与标注** 和
-**M2：八算子与确定性批次选择**，以及 **P0 契约与 P1 正式交接**（0.7.1）。
+**M2：八算子与确定性批次选择**、**P0 契约与 P1 正式交接**、内层搜索与两阶段外层训练／验证（0.8.1）。
+
+最新 [两遍逻辑与接口复查](docs/OUTER_TWO_PASS_REVIEW_ZH.md) 修复补证状态、执行协议绑定、训练／验证交接、异常费用和接续训练参数范围问题；旧验证目录提供只读核验接入。
+
+新增 [外层训练、任务验证与接收／退回](docs/OUTER_TRAINING_ZH.md)：精确子集 SFT → 任务验证 → 判断 →
+接收后继续筛选轨迹 SFT → 同协议验证 → 再判断。包含可选 PyTorch 实际参数更新、检查点与 adapter 身份、
+外部数据／任务接口；标准未填时等待，不自动晋级。原研究蓝图保持原样，本轮扩展以该接口文档为准。
 
 最新 [全模块与连通性审计](docs/FULL_MODULE_AUDIT_ZH.md) 区分实际实现、接口和 mock 边界，并修复内存数据入口、检查点写入失败、异常回复成本、已知 mock 数据进入 real 交接及独立角色历史政策混用的问题。
 
-新增 [内层搜索循环](docs/INNER_SEARCH_ZH.md)：复用现有三角色、P1 和外部验证接口，多轮更新候选、保留历史最佳精确批次、记录失败与成本，并支持检查点交接。搜索退出条件保留调用方回调，默认未配置；真实数值验证、训练和外层接受/拒绝继续留待后续。
+新增 [内层搜索循环](docs/INNER_SEARCH_ZH.md)：复用现有三角色、P1 和外部验证接口，多轮更新候选、保留历史最佳精确批次、记录失败与成本，并支持检查点交接。搜索退出条件保留调用方回调，默认未配置；真实内层数值验证、目标模型后端与全局提交继续留待后续。
 
 按 [代码阅读教程](docs/CODE_READING_TUTORIAL_ZH.md) 的数据流复查，修复冻结指标视图的成员可变问题及 Windows 嵌套发布的临时路径膨胀。详见 [教程链路复查](docs/TUTORIAL_FLOW_REVIEW_ZH.md)。
 
@@ -72,7 +78,8 @@ P0 的任务、rollout、目标梯度、两类报告、成本与轮次记录见 
 python -m self_curate validate-workflow --workflow configs/p0.fixture.json
 ```
 
-该命令只验证记录关系。内层多轮搜索现由 `search.InnerSearch` 实际调度；外层模拟训练、接受/拒绝及完整外层恢复尚未执行。
+该命令只验证记录关系。内层由 `search.InnerSearch` 调度，外层由 `orchestration.OuterCycle` 接续。
+完整外层崩溃恢复和全局提交尚未实现。显式 mock 演示：`python -m self_curate outer-demo --output runs/outer-demo`。
 
 P1 已提供从数据池直接产生未估值工作流的入口，保留原批次和选择成本：
 
@@ -88,7 +95,7 @@ python -m self_curate inspect-preparation --prepared runs/p1-demo/prepared --poo
 
 先读 [M1 接口与数据格式](docs/m1_interfaces.md)、[实现决策](docs/decisions.md)
 和 [交付与近期计划](docs/progress.md)。M2 的依赖分析见 [实现前设计](docs/m2_design.md)，
-内层搜索已经使用本模块的精确批次清单；下一步为填写研究退出条件，以及 P2 外层模拟训练/接受/拒绝，随后接真实验证和模型后端。
+内层搜索与外层训练均使用精确批次清单；下一步填写研究退出条件、接收标准，接入真实模型存储和任务执行器。
 
 外部结果接入示例见 [标注与信号接口](docs/enrichment_interfaces.md)。当前提供存储、校验、查询与
 provider 契约，NLL/entropy、CDF 和自动标注算法在后续实现；未计算的值保持缺失。

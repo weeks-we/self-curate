@@ -1,4 +1,21 @@
-# 当前进度：全模块实现边界与连通性审计（0.7.1）
+# 当前进度：两遍逻辑与接口复查（0.8.1）
+
+2026-11-05：第一遍复现并修复补证状态、验证协议证明、外层精确请求／权重消费、派发前 IO 异常费用、TrainingOutcome 预算和 DecisionContext attempt 绑定；第二遍核对历史报告、执行文件、数值回执和模型接续，补齐可训练参数范围及坏返回的有效 usage 保留。新增 18 项专项，第一批 10 项、参数范围及两个 usage 案例先实际复现失败。详见 [OUTER_TWO_PASS_REVIEW_ZH.md](OUTER_TWO_PASS_REVIEW_ZH.md)。
+
+旧报告仍只读加载；无执行证据时不得直接判断，可通过 load_task_evaluation 核对原目录中的实际请求／结果后接入，不改写旧文件。研究阈值和真实执行边界保持原样。最终证据位于 runs/outer-two-pass-review/verification.json。
+
+## 历史：两阶段外层 SFT、任务验证与接收／退回（0.8.0）
+
+2026-11-05：按用户确认实现“子集训练→验证→判断→接收后继续筛选轨迹训练→验证→判断”。
+训练模块提供 best 精确承接、配方、可选 torch 实际优化、隔离权重／adapter 与检查点。
+任务验证模块提供固定开发任务／seed／采样协议、可注入执行器、逐任务记录和能力汇总。
+标准未填写时停在 awaiting_decision，不默认接收；第二阶段退回保留第一阶段模型。
+详见 [OUTER_TRAINING_ZH.md](OUTER_TRAINING_ZH.md)。
+
+数据生产、目标模型加载适配、真实任务执行／评分、研究阈值、全局提交与完整 M9 恢复仍待后续。
+微型 CPU 模型实际更新与完整接续已测试；mock 奖励无研究效力。最终证据以 runs/outer-training/verification.json 为准。
+
+## 历史：全模块实现边界与连通性审计（0.7.1）
 
 2026-11-05：重新检查数据/算子/P0/P1/角色/反馈/内层循环/存储交接。原有 420 项通过后，用额外边界案例复现并修复五类问题：直接 MetricView 入口未重核 mask/派生证据；未启动操作在预写检查点失败后被误标 interrupted；不可序列化回复导致已知 usage 丢失及错误诊断过窄；已知 mock 轨迹可借 precomputed 声明进入 real 交接；独立 Lopt 入口未拒绝不同 EditPolicy 的 previous_cycle。新增 13 项回归，其中 11 项先实际复现失败。详见 [FULL_MODULE_AUDIT_ZH.md](FULL_MODULE_AUDIT_ZH.md)。
 

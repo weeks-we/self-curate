@@ -1,4 +1,4 @@
-"""Local data/selection/contracts CLI; no model initialization or training."""
+"""Local data/selection/contracts CLI and explicitly synthetic workflow demos."""
 
 import argparse
 import sys
@@ -114,9 +114,19 @@ def main(argv=None):
     inner_demo.add_argument("--output", required=True)
     inner_demo.add_argument("--project-root", default=".")
     inner_demo.add_argument("--prompts")
+    outer_demo = commands.add_parser(
+        "outer-demo",
+        help="Run explicit mock subset/curation SFT, task evaluation and acceptance",
+    )
+    outer_demo.add_argument("--output", required=True)
+    outer_demo.add_argument("--project-root", default=".")
     args = parser.parse_args(argv)
     try:
-        if args.command == "inner-demo":
+        if args.command == "outer-demo":
+            from self_curate.orchestration.demo import run_outer_demo
+
+            result = run_outer_demo(args.output, project_root=args.project_root)
+        elif args.command == "inner-demo":
             from self_curate.search.demo import run_inner_demo
 
             result = run_inner_demo(

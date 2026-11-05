@@ -130,3 +130,21 @@
 - D87：优先解析有效 usage，再处理回复 JSON 序列化和内容校验。坏回复仍失败，已报告的有效费用保持原值；没有合法 JSON 的回复不伪造 response hash。Lopt 耗尽重试时按实际错误概括，不把后端/协议错误一律写成 schema 失败。
 - D88：TrajectoryRecord 暴露派生的 known_mock_artifacts，不改变序列化或历史 hash。real P1 拒绝候选上下文中的显式 fixture/mock 轨迹来源；real 工作流消费视图时也核对选中记录的来源、质量证据、特征、标签及使用历史引用。没有已知 mock 标记不等于真实性认证，权重/向量/任务结果仍须由真实后端核验。
 - D89：独立 OptimizationAgent 使用 previous_cycle 时也核对 source_policy 与当前 EditPolicy，不能把不同编辑条件下的旧失败作为同条件执行反馈。内层已有的固定政策和历史最佳规则保持不变。
+
+## 2026-11-05：用户确认的外层两阶段训练
+
+- D90：用户新增筛选轨迹 SFT，确认接着子集权重训练；每次验证后判断接收／退回。第一阶段退回结束尝试；第二阶段退回保留第一阶段模型。此要求扩展原蓝图，不改写研究原文。
+- D91：训练／任务执行分包；数据／任务和配方显式接入，torch 为可选依赖。微型 CPU 实际更新与 fixture 能力结果分开报告。
+- D92：子集消费 best 精确清单及顺序；筛选轨迹独立语料绑定停止搜索 handoff。两阶段各有 P0 TrainingRecord，不强塞进原单训练 RoundRecord。
+- D93：每阶段隔离候选、新优化器，仅接续权重；按累积窗口实际监督 token 归一，不截断／重抽，保护冻结参数和调用方 RNG。
+- D94：固定开发 suite／seed／采样／协议，验证接收实际 checkpoint 引用；按任务奖励汇总，环境失败不记零；无 baseline 不宣称增益。
+- D95：判断阈值待填，无 policy／判断器就等待。决定绑定阶段模型、训练回执、能力报告、policy；补证显式复测并计费。attempt 内指针原子更新，不宣称全局提交或完整恢复。
+
+## 2026-11-05：两遍适配复查
+
+- D96：同一补证决定保持等待；新验证的复测授权须绑定新上下文，run/step 不隐式重调判断器。
+- D97：TaskEvaluation 绑定逐次 TaskRunRequest/Result、协议、checkpoint、attempt 与成本。旧报告可读但缺证据不得判断；通过只读目录 loader 核对并补齐，不改历史 artifact。
+- D98：外层消费精确 TrainingRequest 和验证 checkpoint；拒绝内部自洽但属于另一份请求／权重的结果，保留已发生费用。DecisionContext 同时绑定 attempt。
+- D99：任务派发前的目录／请求写盘错误保留此前调用成本，不给未派发工作制造一次模型事件；TrainingOutcome 导入也必须符合训练预算。
+- D100：接续训练的 requires_grad 参数名与已保存 checkpoint 元数据一致；真实 loader 的参数隔离和实际权重真实性仍由 model store 核验。
+- D101：训练与任务执行后端返回错误类型时，也先保留有效 ResourceUsage，再报契约错误；与现有角色运行器的失败成本语义一致。
