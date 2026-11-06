@@ -7,7 +7,7 @@ do not import neighboring projects or inherit their experiment configuration.
 ## Scope and architecture
 
 - Implement the milestone requested by the user; distinguish M1 data work from P0/P1 milestones.
-- Freeze weights in inner search. Shared roles use the same accepted ModelRef and separate memories.
+- Freeze the shared roles and reference ModelRef in inner search. Per the user's 2026-11-06 extension, optional candidate-SFT validation may train isolated branches from that fixed reference; never promote them or chain candidates. NICE only differentiates, without optimizer steps. Shared roles keep separate memories.
 - Use deterministic code for filtering, numerical evaluation, and acceptance.
 - Train the exact historically best evaluated manifest; never resample it at training time.
 - Compute missing sample gradients only after selecting data, and bind caches to complete identities.

@@ -1,6 +1,8 @@
 # 三角色共享参数、Prompt 与 History 隔离（0.6.1）
 
-0.7.0 新增 [内层循环](INNER_SEARCH_ZH.md)，复用本页角色接口完成多轮验证/反馈与历史最佳管理；本页 RoleTeam.feedback_step 仍是单步入口，不自行判定历史最佳。真实模型、数值验证和完整外层恢复仍待后续。
+当前 0.9.0 增加 [两套 Leval 内核与历史反馈槽位](LEVAL_BACKENDS_ZH.md)。共享角色参数仍冻结；可选候选 SFT 只训练独立分支。Leval 的 `work.prompt_slots` 与 Lopt 的 `work.handoff.prompt_slots` 承接本次/同条件历史比较，旧角色接口保持兼容。以下角色协议本身不承担数值计算；数值计算由 valuation 包执行。
+
+0.7.0 新增 [内层循环](INNER_SEARCH_ZH.md)，复用本页角色接口完成多轮验证/反馈与历史最佳管理；本页 RoleTeam.feedback_step 仍是单步入口，不自行判定历史最佳。目标模型/任务适配器和完整外层恢复仍待后续。
 
 最新两遍复查、修复与下游接口见 [ROLES_TWO_PASS_REVIEW_ZH.md](ROLES_TWO_PASS_REVIEW_ZH.md)。会话新增固定评价 RoleScope；`team.publish_cycle()` 发布完整 P1/验证交接产物，`team.save()` 仍只保存角色历史，两者用途不同。
 

@@ -19,6 +19,7 @@ from self_curate.data.pool import _publish, _staging_directory, write_json, file
 from self_curate.operators import load_context, load_preparation, publish_preparation
 from .lopt import ProposalAttempt
 from .roles import RoleCycle, RoleEvaluation
+from .feedback_context import parse_leval_context
 from .runtime import RoleReply
 from .prompts import ROLES
 
@@ -322,6 +323,7 @@ def _load_role_cycle(
             "numeric_source",
             "validation_implemented",
         ),
+        ("context", "prompt_slots"),
     )
     feedback = parse_feedback_contract("LevalFeedback", evaluation["feedback"])
     reply = None
@@ -339,7 +341,15 @@ def _load_role_cycle(
             canonical_json(evaluation["interpretation"]),
             events[key].usage,
         )
-    interpreted = RoleEvaluation(feedback, reply)
+    interpreted = RoleEvaluation(
+        feedback,
+        reply,
+        (
+            None
+            if "context" not in evaluation
+            else parse_leval_context(evaluation["context"])
+        ),
+    )
     require(
         canonical_json(interpreted.to_dict()) == canonical_json(evaluation),
         "Leval artifact metadata mismatch",

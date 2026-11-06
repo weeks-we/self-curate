@@ -23,6 +23,7 @@ from self_curate.operators import (
 )
 from self_curate.operators.preparation import _domain
 from .leval import build_feedback
+from .feedback_context import LevalContext, context_from_history
 from .lopt import propose_program, SYSTEM_PROMPT, ProposalAttempt, program_diff
 from .runtime import RoleRuntime, RoleReply
 from .scope import RoleScope, request_scope
@@ -141,12 +142,28 @@ class ExecutionAgent(RoleAgent):
 class RoleEvaluation:
     feedback: LevalFeedback
     interpretation: RoleReply | None
+    context: LevalContext | None = None
 
     def __post_init__(self):
         require(
             isinstance(self.feedback, LevalFeedback),
             "Expected code-owned Leval feedback",
         )
+        if self.context is not None:
+            require(
+                isinstance(self.context, LevalContext),
+                "Expected typed historical context",
+            )
+            current = self.context.current
+            require(
+                self.feedback
+                == build_feedback(
+                    current.request,
+                    current.result,
+                    memory_namespace=self.feedback.memory_namespace,
+                ),
+                "Historical context/feedback mismatch",
+            )
         if self.interpretation is not None:
             require(
                 self.feedback.status == "valid"
@@ -171,7 +188,7 @@ class RoleEvaluation:
             )
 
     def to_dict(self):
-        return {
+        value = {
             "feedback": self.feedback.to_dict(),
             "feedback_hash": self.feedback.record_hash,
             "interpretation": (
@@ -183,6 +200,10 @@ class RoleEvaluation:
             "numeric_source": "external_validation",
             "validation_implemented": False,
         }
+        if self.context is not None:
+            value["context"] = self.context.to_dict()
+            value["prompt_slots"] = self.context.prompt_slots(self.feedback)
+        return value
 
 
 class EvaluationAgent(RoleAgent):
@@ -210,11 +231,13 @@ class EvaluationAgent(RoleAgent):
         require(type(use_model) is bool, "use_model must be explicit boolean")
         scope = request_scope(request)
         self.runtime.bind_scope(scope)
+        history_context = context_from_history(request, result, self.history)
         feedback = self.runtime.run_tool(
             self.role,
             "interpret_validation",
             {
                 "request_hash": request.request_hash,
+                "current_request": request.to_dict(),
                 "external_result": result.to_dict(),
                 "scope": scope.to_dict(),
             },
@@ -244,11 +267,15 @@ class EvaluationAgent(RoleAgent):
                 )
 
             interpretation = self.generate(
-                {"feedback_hash": feedback.record_hash, "feedback": feedback.to_dict()},
+                {
+                    "feedback_hash": feedback.record_hash,
+                    "feedback": feedback.to_dict(),
+                    "prompt_slots": history_context.prompt_slots(feedback),
+                },
                 timeout_seconds=timeout_seconds,
                 validator=validate,
             )
-        return RoleEvaluation(feedback, interpretation)
+        return RoleEvaluation(feedback, interpretation, history_context)
 
 
 class _OptimizerClient:
@@ -342,6 +369,8 @@ class OptimizationAgent(RoleAgent):
                 "Expected explicit Leval artifact",
             )
             feedback = evaluation.feedback
+            if evaluation.context is not None:
+                evaluation.context.validate_source(request, result)
             require(
                 feedback
                 == build_feedback(
@@ -590,6 +619,8 @@ class RoleCycle:
             "Expected exact cycle source records",
         )
         feedback = self.evaluation.feedback
+        if self.evaluation.context is not None:
+            self.evaluation.context.validate_source(request, result)
         require(
             feedback
             == build_feedback(

@@ -1,4 +1,18 @@
-# 当前进度：两遍逻辑与接口复查（0.8.1）
+# 当前进度：Leval 两轮文档/模块复查（0.9.1）
+
+2026-11-06：补齐 SFT 实现版本与自动基线命名空间、Torch 数值上下文隔离/身份、模型 factory 版本、基线恢复后的 M1 候选使用历史、未知/失败费用、预算预检、无效基线报告与真实域 mock 识别；压缩评价 UUID 路径但保留完整 128 位身份。
+
+新增 20 项专项，15 项在 0.9.0 下实际复现失败。两轮发现、兼容接口与实际边界见 [LEVAL_REVIEW_ZH.md](LEVAL_REVIEW_ZH.md)。最终原目录全量测试、两种闭环、旧产物只读恢复、数值对照和源码包以 runs/leval-review/verification.json 为准。真实模型/GPU/任务评分未执行，prompt 正文和研究阈值继续待填。
+
+# 历史：可切换 Leval 内核与历史反馈（0.9.0）
+
+2026-11-06：增加 NICEValidator 和 SFTValidator。前者实现选中样本 assistant CE 梯度、实际 rollout 动作 NLL 重放、fresh-Adam/CountSketch/固定任务分母 cosine；后者复用外层训练与任务验证接口，从冻结参考模型训练隔离候选，再计算固定开发 suite 相对基线奖励增量。通过 configs/leval.json、create_validator 选择，不在同一搜索混排。
+
+新增 LevalContext，代码核对本次/同条件历史观察并生成比较槽位；Leval 与 Lopt prompt 输入明确消费，私有 history 不互读。cycle、搜索快照兼容旧格式；候选失败费用保留。基线可校验保存/恢复，避免续跑重算基线。
+
+接口、示例与边界见 [LEVAL_BACKENDS_ZH.md](LEVAL_BACKENDS_ZH.md)。两个 CLI demo 是合成接线；专项还用微型 CPU 模型实际求梯度和 SFT，不代表任务能力提升。真实模型/任务环境、原始数据真实性、具体 prompt、停止/接收阈值待后续。最终验收证据位于 runs/leval-backends/verification.json。
+
+# 历史：两遍逻辑与接口复查（0.8.1）
 
 2026-11-05：第一遍复现并修复补证状态、验证协议证明、外层精确请求／权重消费、派发前 IO 异常费用、TrainingOutcome 预算和 DecisionContext attempt 绑定；第二遍核对历史报告、执行文件、数值回执和模型接续，补齐可训练参数范围及坏返回的有效 usage 保留。新增 18 项专项，第一批 10 项、参数范围及两个 usage 案例先实际复现失败。详见 [OUTER_TWO_PASS_REVIEW_ZH.md](OUTER_TWO_PASS_REVIEW_ZH.md)。
 

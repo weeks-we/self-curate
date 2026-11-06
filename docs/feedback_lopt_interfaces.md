@@ -1,6 +1,8 @@
-# Leval 反馈与 Lopt 筛选程序优化接口（0.5.1）
+# Leval 反馈与 Lopt 筛选程序优化接口（当前 0.9.0）
 
-0.7.0 的 [InnerSearch](INNER_SEARCH_ZH.md) 已将本页验证接口与三角色单步串成内层循环，管理历史最佳、成本和检查点；本页服务本身仍保持单步语义。真实验证器与外层训练/接受仍未实现。
+0.9.0 已接入两套 [Leval 数值后端与历史 prompt 槽位](LEVAL_BACKENDS_ZH.md)：NICE 风格梯度 cosine，以及候选子集 SFT 后的任务奖励增量。原 `ValidationRequest/Result`、`build_feedback` 和 Lopt 单步契约保持兼容；以下 0.5.1 的外部结果服务说明描述该服务本身，不再代表整个项目尚无验证/训练实现。
+
+0.7.0 的 [InnerSearch](INNER_SEARCH_ZH.md) 已将本页验证接口与三角色单步串成内层循环，管理历史最佳、成本和检查点；本页服务本身仍保持单步语义。外层训练/接受见 [外层接口](OUTER_TRAINING_ZH.md)，目标模型和任务适配器由调用方接入。
 
 本轮全模块复查见 [COHERENCE_REVIEW_ZH.md](COHERENCE_REVIEW_ZH.md)。可行候选附带标准 `candidate_prepared/`，可在获得下一次外部验证结果后直接交给下一轮 feedback-step，无需重复执行 prepare-selection。
 
@@ -19,7 +21,7 @@
 | `agents/lopt.py` | 规则优化、共享模型适配器、真实程序差异和有限修复重试 | 只输出合法 ProgramSpec，复用 M2 八算子 |
 | `agents/service.py` | 执行一次反馈优化步骤并原子发布证据 | 复用 P1 `prepare_selection`；交出下一次验证请求 |
 
-`ValidationProvider.evaluate(request) -> ValidationResult` 仅定义验证后端协议，**没有具体实现或隐式 mock 回退**。后续实现 M5/M6/M8 时返回同一请求绑定的结果即可。当前提供的 fixture 是人为声明的外部 mock 数值，不能用作实验结论。
+`ValidationProvider.evaluate(request) -> ValidationResult` 定义验证后端协议；0.9.0 的 NICEValidator/SFTValidator 实现此协议，无隐式 mock 回退。原 fixture 仍是人为声明的外部 mock 数值，不能用作实验结论。
 
 本轮实现 Leval 的确定性反馈逻辑，Lopt 提供可直接运行的 `method="rule"` 和可注入的 `method="model"`。尚未接入真实共享 LLM 服务，因此不宣称完整 M7/P5 或完整 P2 内外循环已经完成。
 

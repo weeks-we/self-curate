@@ -17,6 +17,7 @@ from self_curate.data.pool import file_sha256, write_json
 from .contracts import BackendTrainingResult
 from .artifacts import checkpoint_fingerprint
 from .service import TrainingFailure
+from .execution import code_identity, torch_execution, execution_source_hash
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,19 @@ class StateDictModelStore:
         require(
             file_sha256(self._initial_state) == initial_model.weights_hash,
             "Initial state_dict differs from the declared weight hash",
+        )
+
+    @property
+    def implementation_hash(self):
+        from self_curate.contracts import digest
+
+        return digest(
+            {
+                "store": "state-dict-v1",
+                "code": file_sha256(Path(__file__)),
+                "model_factory": code_identity(self._factory),
+                "initial_model": self._initial_model.model_hash,
+            }
         )
 
     def _load(self, model_ref, path):
@@ -123,6 +137,20 @@ class TorchSFTBackend:
         self._models = weakref.WeakSet()
         self._produced = {}
 
+    @property
+    def implementation_hash(self):
+        from self_curate.contracts import digest
+
+        return digest(
+            {
+                "code": file_sha256(Path(__file__)),
+                "execution_code": execution_source_hash(),
+                "store": code_identity(self.store),
+                "checkpoint_kind": self.store.checkpoint_kind,
+                "execution": torch_execution(self.device),
+            }
+        )
+
     def train(self, request, output):
         import torch
         import torch.nn.functional as F
@@ -137,6 +165,7 @@ class TorchSFTBackend:
         output.mkdir(parents=True, exist_ok=False)
         device = torch.device(self.device)
         require(device.type in ("cpu", "cuda"), "Supported devices are CPU and CUDA")
+        execution = torch_execution(device)
         cuda_devices = (
             list(range(torch.cuda.device_count())) if device.type == "cuda" else []
         )
@@ -145,7 +174,10 @@ class TorchSFTBackend:
         processed, steps, loss_sum = 0, 0, 0.0
         model = None
         try:
-            with torch.random.fork_rng(devices=cuda_devices):
+            with (
+                torch.random.fork_rng(devices=cuda_devices),
+                torch.autocast(device.type, enabled=False),
+            ):
                 random.seed(request.recipe.seed)
                 torch.random.default_generator.manual_seed(request.recipe.seed)
                 if cuda_devices:
@@ -250,6 +282,10 @@ class TorchSFTBackend:
                         optimizer.step()
                         steps += 1
                 optimizer.zero_grad(set_to_none=True)
+                require(
+                    torch_execution(device) == execution,
+                    "SFT numeric execution policy changed during training",
+                )
                 self.store.save_branch(model, output / "weights")
                 weights_hash, files = checkpoint_fingerprint(output / "weights")
                 candidate = replace(
@@ -285,6 +321,8 @@ class TorchSFTBackend:
                         "optimizer_state_policy": "fresh_per_stage",
                         "micro_batch": 1,
                         "loss_reduction": request.recipe.loss_reduction,
+                        "execution": execution,
+                        "implementation_hash": self.implementation_hash,
                     },
                 )
                 checkpoint_hash, _ = checkpoint_fingerprint(output)

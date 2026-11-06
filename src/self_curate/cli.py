@@ -120,9 +120,22 @@ def main(argv=None):
     )
     outer_demo.add_argument("--output", required=True)
     outer_demo.add_argument("--project-root", default=".")
+    leval_demo = commands.add_parser(
+        "leval-demo",
+        help="Run a mock NICE or candidate-SFT Leval loop with history feedback",
+    )
+    leval_demo.add_argument("--method", choices=("nice", "sft"), required=True)
+    leval_demo.add_argument("--output", required=True)
+    leval_demo.add_argument("--project-root", default=".")
     args = parser.parse_args(argv)
     try:
-        if args.command == "outer-demo":
+        if args.command == "leval-demo":
+            from self_curate.valuation.demo import run_valuation_demo
+
+            result = run_valuation_demo(
+                args.output, method=args.method, project_root=args.project_root
+            )
+        elif args.command == "outer-demo":
             from self_curate.orchestration.demo import run_outer_demo
 
             result = run_outer_demo(args.output, project_root=args.project_root)

@@ -409,6 +409,8 @@ class InnerSearch:
             check_external_result(request, result)
         except Exception as exc:
             error = canonical_json(self._error(exc))
+            if isinstance(getattr(exc, "usage", None), ResourceUsage):
+                usage = exc.usage
             if not isinstance(result, ValidationResult):
                 result = None
         if usage.compute.wall_seconds is None:

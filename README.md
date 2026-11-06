@@ -4,7 +4,11 @@ Model-driven, feedback-guided data curation across learning stages.
 
 这是独立的新项目，不依赖相邻项目的代码、配置或实验流程。架构依据为用户提供的
 [技术蓝图](docs/self_curate_codex_blueprint.md)。目前实现 **M1：数据与标注** 和
-**M2：八算子与确定性批次选择**、**P0 契约与 P1 正式交接**、内层搜索与两阶段外层训练／验证（0.8.1）。
+**M2：八算子与确定性批次选择**、**P0 契约与 P1 正式交接**、内层搜索、两套 Leval 内核与两阶段外层训练／验证（0.9.1）。
+
+最新 [Leval 文档与模块两轮复查](docs/LEVAL_REVIEW_ZH.md) 修复实现/数值条件版本、自动基线身份、M1 使用历史恢复、失败费用和预算预检。旧研究原文与历史证据保留；真实模型与任务环境仍需接入验收。
+
+最新 [Leval 两种验证方式与历史反馈](docs/LEVAL_BACKENDS_ZH.md)：`nice` 运行 NICE 风格梯度余弦，`sft` 运行隔离候选子集训练及开发任务奖励增量；通过 `configs/leval.json` 与 `create_validator` 选择。两套实现复用既有内层循环，并把本次与同条件 Leval history 的比较填入预设 prompt 槽位交给 Lopt。真实模型/数据/任务后端继续通过接口接入，prompt 正文和研究阈值待配置。
 
 最新 [两遍逻辑与接口复查](docs/OUTER_TWO_PASS_REVIEW_ZH.md) 修复补证状态、执行协议绑定、训练／验证交接、异常费用和接续训练参数范围问题；旧验证目录提供只读核验接入。
 
@@ -14,7 +18,7 @@ Model-driven, feedback-guided data curation across learning stages.
 
 最新 [全模块与连通性审计](docs/FULL_MODULE_AUDIT_ZH.md) 区分实际实现、接口和 mock 边界，并修复内存数据入口、检查点写入失败、异常回复成本、已知 mock 数据进入 real 交接及独立角色历史政策混用的问题。
 
-新增 [内层搜索循环](docs/INNER_SEARCH_ZH.md)：复用现有三角色、P1 和外部验证接口，多轮更新候选、保留历史最佳精确批次、记录失败与成本，并支持检查点交接。搜索退出条件保留调用方回调，默认未配置；真实内层数值验证、目标模型后端与全局提交继续留待后续。
+新增 [内层搜索循环](docs/INNER_SEARCH_ZH.md)：复用现有三角色、P1 和验证接口，多轮更新候选、保留历史最佳精确批次、记录失败与成本，并支持检查点交接。搜索退出条件保留调用方回调，默认未配置；目标模型后端与全局提交继续留待后续。
 
 按 [代码阅读教程](docs/CODE_READING_TUTORIAL_ZH.md) 的数据流复查，修复冻结指标视图的成员可变问题及 Windows 嵌套发布的临时路径膨胀。详见 [教程链路复查](docs/TUTORIAL_FLOW_REVIEW_ZH.md)。
 

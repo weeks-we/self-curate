@@ -148,3 +148,21 @@
 - D99：任务派发前的目录／请求写盘错误保留此前调用成本，不给未派发工作制造一次模型事件；TrainingOutcome 导入也必须符合训练预算。
 - D100：接续训练的 requires_grad 参数名与已保存 checkpoint 元数据一致；真实 loader 的参数隔离和实际权重真实性仍由 model store 核验。
 - D101：训练与任务执行后端返回错误类型时，也先保留有效 ResourceUsage，再报契约错误；与现有角色运行器的失败成本语义一致。
+
+## 2026-11-06：用户指定两套 Leval 实现
+
+- D102：用户新增可选的内层候选 SFT 评价，扩展原蓝图；三个共享角色及参考模型仍冻结。所有候选从共同参考模型隔离训练，不提交、不接上个候选，不触发外层筛选轨迹 SFT。
+- D103：method=nice/sft 在构造请求/会话前选择。协议绑定模型、参考数据/任务 suite、配方与实现；分别返回无量纲 NICE-inspired predicted_gain 与任务 reward_delta，不跨方法比较，也不由 Lopt 改协议。
+- D104：参考用户 NICE 项目数学定义，样本 token-mean CE；任务 reward*NLL-token-sum/固定 rollout 数；全局裁剪后 fresh-Adam、再 CountSketch；按任务及实际子集成员平均 cosine。零任务留分母，全部零阻塞，不等价于 reward-ascent 目标内积或完整论文复现。
+- D105：TorchNICEBackend 实际求导但不创建优化器；隔离模型、固定 trainable 坐标、参数/buffer 前后 hash、RNG 恢复。只为选中成员求梯度，内存缓存绑定完整模型/输入/掩码/配方/代码身份。
+- D106：SFT 验证复用外层 TrainingService/TaskValidator/TaskSuite；基线需协议证据，首次计算或显式导入；按技能计算奖励增量。基线状态通过独立 hash/协议锚点恢复，不重算或重复收费；无有效奖励不填零。
+- D107：LevalContext 只使用同模型/objective/context/measure/protocol/backend 的已完成数值观察，最多 8 条；提供本次、相关历史、相对上一 valid/窗口最佳可行的代码比较和原 LevalFeedback 槽位。模型解释不能改数值。只向 Lopt 显式 handoff，不读取别的角色私有 history。旧记录缺身份时不猜测。
+- D108：评价内部详细 ledger 和未知小计保留，搜索仅计一次增量汇总；验证后端异常带有效 usage 时也保留。候选训练通过 updated_records 记录 pending candidate_sft，不污染原池或伪造 accepted_sft。真实数据/生成重放真实性和服务器目标模型验收继续由后端承担。
+
+## 2026-11-06：Leval 两轮文档与模块复查
+
+- D109：SFT/NICE protocol 绑定内核、后端/服务源码和明确声明的实现身份；真实候选验证适配器必须提供包含实例配置的 implementation_hash。StateDictModelStore 同时绑定模型 factory，不能仅靠相同权重文件假设计算实现相同。
+- D110：Torch NICE/SFT 自己禁用 ambient autocast，不改变参数原生 dtype；CE 为 float32。执行证据记录 torch、设备、TF32/确定性等数值条件；条件变化使协议/缓存失效，运行中发生变化则失败并保留费用。
+- D111：自动基线有独立 reference_namespace，不能由另一空 provider 重测后冒充原基线。显式相同参考保持稳定；reference schema=2 同时保存候选使用历史，独立 hash/protocol/input 绑定恢复、单调合并，不逆转终态。旧记录只读，新实现不静默续用旧协议。
+- D112：服务坏返回或无明细异常保留已报告 usage；无 ledger 的边界调用成本保持未知，不填零或编造 rollout。已有详细/有效空 ledger 按原事实保留，搜索仍只计一次汇总。无效基线保存 attempted_baseline；已知超长在任何模型调用前拒绝。
+- D113：NICE real 域 URI 统一 strip/lower 检查；本机反例仅是合约 fixture。评价目录采用 UUID 全 128 位的紧凑编码，缩短 Windows 嵌套路径；不改任务完整请求 hash 或宣称任意长路径支持。

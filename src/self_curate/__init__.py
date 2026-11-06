@@ -1,3 +1,3 @@
 """Self-Curate: independent data contracts and normalization, with no model imports."""
 
-__version__ = "0.8.1"
+__version__ = "0.9.1"
