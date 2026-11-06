@@ -1,6 +1,8 @@
 # P1 正式入口：筛选并交接给 P0
 
-本页交接接口引入于 0.5.1；当前包 0.9.1。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。内层 best 的精确训练消费见 [外层接口](OUTER_TRAINING_ZH.md)，内层两套估值器见 [Leval 接口](LEVAL_BACKENDS_ZH.md)。
+本页交接接口引入于 0.5.1；当前包 0.10.1。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。内层 best 的精确训练消费见 [外层接口](OUTER_TRAINING_ZH.md)，内层两套估值器见 [Leval 接口](LEVAL_BACKENDS_ZH.md)。
+
+[NLL/entropy 计算模块](SIGNAL_COMPUTATION_ZH.md) 可先回填 M1 并构造包含精确 SignalSpec 的新 SignalContext，再运行 P1；本接口不隐式触发模型前向或改写原 selection snapshot。
 原 `execute_program` / `select` 保留。需要后续工作流消费时使用本接口，无需手工拼装批次。
 
 ## Python API

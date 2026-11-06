@@ -127,9 +127,18 @@ def main(argv=None):
     leval_demo.add_argument("--method", choices=("nice", "sft"), required=True)
     leval_demo.add_argument("--output", required=True)
     leval_demo.add_argument("--project-root", default=".")
+    signals_demo = commands.add_parser(
+        "signals-demo",
+        help="Compute synthetic NLL/entropy, enrich M1, consume raw operators",
+    )
+    signals_demo.add_argument("--output", required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command == "leval-demo":
+        if args.command == "signals-demo":
+            from self_curate.signals.demo import run_signals_demo
+
+            result = run_signals_demo(args.output)
+        elif args.command == "leval-demo":
             from self_curate.valuation.demo import run_valuation_demo
 
             result = run_valuation_demo(

@@ -15,6 +15,7 @@ from .features import (
 )
 from .usage import attach_usage, record_candidate_training, resolve_training
 from .view import MetricBatch, MetricView
+from .publish import publish_signal_enrichment
 from .enrichment import (
     AnnotationProvider,
     SignalProvider,
@@ -39,6 +40,7 @@ __all__ = [
     "read_pool",
     "MetricBatch",
     "MetricView",
+    "publish_signal_enrichment",
     "GradientProvider",
     "attach_annotation_record",
     "attach_gradients",

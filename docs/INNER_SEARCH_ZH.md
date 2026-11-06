@@ -1,6 +1,6 @@
 # 内层闭环与接口：0.9.1
 
-0.9.1 的 [Leval 两轮复查](LEVAL_REVIEW_ZH.md) 固定真实执行身份和自动基线 namespace。恢复数值运行时使用同一参考状态；旧搜索/角色产物只读核验保持兼容，不能把新建 provider 当作旧基线恢复。
+0.9.1 的 [Leval 两轮复查](HISTORY.md#leval-review) 固定真实执行身份和自动基线 namespace。恢复数值运行时使用同一参考状态；旧搜索/角色产物只读核验保持兼容，不能把新建 provider 当作旧基线恢复。
 
 search 模块负责内层调度，退出条件仍待填。复用 M1/M2、P0/P1、三角色和 ValidationProvider 接口；0.9.0 的 [valuation](LEVAL_BACKENDS_ZH.md) 实现可切换 NICE 梯度估值/候选 SFT 任务增量。停止后的两阶段 SFT／任务验证／接收退回由外层模块承接，见 [OUTER_TRAINING_ZH.md](OUTER_TRAINING_ZH.md)。
 

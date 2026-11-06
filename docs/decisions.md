@@ -166,3 +166,20 @@
 - D111：自动基线有独立 reference_namespace，不能由另一空 provider 重测后冒充原基线。显式相同参考保持稳定；reference schema=2 同时保存候选使用历史，独立 hash/protocol/input 绑定恢复、单调合并，不逆转终态。旧记录只读，新实现不静默续用旧协议。
 - D112：服务坏返回或无明细异常保留已报告 usage；无 ledger 的边界调用成本保持未知，不填零或编造 rollout。已有详细/有效空 ledger 按原事实保留，搜索仍只计一次汇总。无效基线保存 attempted_baseline；已知超长在任何模型调用前拒绝。
 - D113：NICE real 域 URI 统一 strip/lower 检查；本机反例仅是合约 fixture。评价目录采用 UUID 全 128 位的紧凑编码，缩短 Windows 嵌套路径；不改任务完整请求 hash 或宣称任意长路径支持。
+
+## 2026-11-06：用户要求前向 NLL/entropy 并回填 M1
+
+- D114：SignalService 消费调用方的规范化 TrajectoryRecord/ScoringDataProvider，实际计算 NLL 和完整词表 entropy；实现旧 SignalProvider.compute 协议，M1 的 make_signal/attach_signals 继续只做包装与附加。
+- D115：因果目标 p 使用 logits[p-1]，只对 assistant mask 或 skill span 的监督交集统计，重叠取并集，完整上下文保持。mean/sum、nats/bits 分开标识；缺标注/零证据为 missing，位置 0 无因果前驱则拒绝，非有限值不裁剪成假数值。
+- D116：Torch 后端使用隔离 Store 的 eval/inference，禁用 ambient autocast，不调用 backward/optimizer；保留参数 dtype、float64 稳定全词表统计、RNG 与前后状态 hash。外部 logits 接口绑定 ModelRef/request/位置/dtype/词表与增量费用，源真实性由供应方负责。
+- D117：SignalRecord 绑定完整模型/adapter/tokenizer 版本及输入/选中位置/计算身份；逐 token 内存缓存可以跨 scope 聚合，不能跨模型/输入/计算配置复用。已附同版本 raw 值可复用；不从当前批次临时生成 CDF 百分位。
+- D118：前向使用记录只更新 forward_scoring，不改技能/质量/训练 history。新 M1 池按 ID 合并，保留原源 hash/排除记录并写 parent_pool_id/计算回执；消费时重建 MetricView/ExecutionContext，原快照回放保持独立。失败保留部分结果和实际已知费用，输出为新目录不覆写。
+
+## 2026-11-06：NLL/entropy 再次复查
+
+- D119：根评分请求 schema=2 保存原始输入及实际聚合的逐位置统计快照；重载验证 input record_hash、只允许信号/前向历史增量、重聚合数值及来源/状态一致。直接复用完整同版本信号对照原输入，不补造 token 数值。旧 schema=1 按原身份只读兼容，不伪造其缺失证据。
+- D120：失败目录保存 partial-records.jsonl 及内容 hash，沿用 read_records 读取；异常仍携带完整部分记录与已知 ledger。纯前向模块拒绝后端明确报告的梯度/训练工作并保留费用，未知计数保持 None；外部源真实性仍由供应方负责。
+
+## 2026-11-06：提交前目录整理
+
+- D121：按用户要求删减冗余文件。11 份阶段复查及旧进度完整合并为 HISTORY.md，更新引用并将 README/progress 聚焦当前接口与状态；研究原文、源码、回归和必要 fixture/配置保留。清理生成构建副本、缓存与测试临时目录，先归档核验；正式验收记录保持原路径。此次只整理文档和生成文件，不改变计算协议或模型版本，不代用户提交/推送 Git。

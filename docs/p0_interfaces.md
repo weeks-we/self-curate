@@ -1,6 +1,8 @@
 # P0 核心契约与跨模块交接
 
-本页契约在 0.4.1 补齐；当前包 0.9.1，schema_version=1，校验语义 p0-v3；M1 数据格式和 M2 的 m2-v2 语义保持不变。
+本页契约在 0.4.1 补齐；当前包 0.10.1，schema_version=1，校验语义 p0-v3；M1 数据格式和 M2 的 m2-v2 语义保持不变。
+
+0.10.1 的 [NLL/entropy producer](SIGNAL_COMPUTATION_ZH.md) 复用 ModelRef/ResourceUsage/CostLedger 和 M1 SignalRecord；不把前向统计当任务能力报告，也不改变 P0 工作流格式。
 实现前设计见 [p0_contract_design.md](p0_contract_design.md)。此前审计中的五个缺失核心契约均已补齐。
 
 ## 能力与边界

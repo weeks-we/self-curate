@@ -2,115 +2,63 @@
 
 Model-driven, feedback-guided data curation across learning stages.
 
-这是独立的新项目，不依赖相邻项目的代码、配置或实验流程。架构依据为用户提供的
-[技术蓝图](docs/self_curate_codex_blueprint.md)。目前实现 **M1：数据与标注** 和
-**M2：八算子与确定性批次选择**、**P0 契约与 P1 正式交接**、内层搜索、两套 Leval 内核与两阶段外层训练／验证（0.9.1）。
+独立的数据筛选与自改进研究项目，当前代码版本 **0.10.1**。内层使用固定模型执行筛选、数值评价和反馈优化；外层消费历史最佳的精确样本清单，进行子集 SFT、验证与判断，再从接收后的参数继续筛选轨迹 SFT、验证与判断。
 
-最新 [Leval 文档与模块两轮复查](docs/LEVAL_REVIEW_ZH.md) 修复实现/数值条件版本、自动基线身份、M1 使用历史恢复、失败费用和预算预检。旧研究原文与历史证据保留；真实模型与任务环境仍需接入验收。
+## 从哪里开始
 
-最新 [Leval 两种验证方式与历史反馈](docs/LEVAL_BACKENDS_ZH.md)：`nice` 运行 NICE 风格梯度余弦，`sft` 运行隔离候选子集训练及开发任务奖励增量；通过 `configs/leval.json` 与 `create_validator` 选择。两套实现复用既有内层循环，并把本次与同条件 Leval history 的比较填入预设 prompt 槽位交给 Lopt。真实模型/数据/任务后端继续通过接口接入，prompt 正文和研究阈值待配置。
+先看 [当前进度](docs/progress.md)，再按 [代码阅读教程](docs/CODE_READING_TUTORIAL_ZH.md) 理解数据流。研究定义见 [原始蓝图](docs/self_curate_codex_blueprint.md)、[数据中心架构](docs/data_centric_rsi_architecture.md) 和 [实现决策](docs/decisions.md)。
 
-最新 [两遍逻辑与接口复查](docs/OUTER_TWO_PASS_REVIEW_ZH.md) 修复补证状态、执行协议绑定、训练／验证交接、异常费用和接续训练参数范围问题；旧验证目录提供只读核验接入。
+历史复查与旧进度已合并到 [HISTORY.md](docs/HISTORY.md)。其中的“下一步”和“未实现”指各报告当时的状态；当前模块状态以下表和 progress.md 为准。
 
-新增 [外层训练、任务验证与接收／退回](docs/OUTER_TRAINING_ZH.md)：精确子集 SFT → 任务验证 → 判断 →
-接收后继续筛选轨迹 SFT → 同协议验证 → 再判断。包含可选 PyTorch 实际参数更新、检查点与 adapter 身份、
-外部数据／任务接口；标准未填时等待，不自动晋级。原研究蓝图保持原样，本轮扩展以该接口文档为准。
+## 模块与接口
 
-最新 [全模块与连通性审计](docs/FULL_MODULE_AUDIT_ZH.md) 区分实际实现、接口和 mock 边界，并修复内存数据入口、检查点写入失败、异常回复成本、已知 mock 数据进入 real 交接及独立角色历史政策混用的问题。
+| 模块 | 当前职责 | 接口说明 |
+|---|---|---|
+| M1 数据 | 完整轨迹、assistant mask、质量/技能/使用历史、版本化指标与 ID 保序查询 | [数据格式](docs/m1_interfaces.md)、[算子取值](docs/m1_operator_data_contract.md)、[外部标注](docs/enrichment_interfaces.md) |
+| NLL / entropy | 实际冻结前向或外部 raw logits，按 assistant/技能范围计算并回填新数据池 | [计算与回填](docs/SIGNAL_COMPUTATION_ZH.md) |
+| M2 / P1 | 八类筛选算子、固定质量门禁、确定性组批与精确清单交接 | [算子接口](docs/m2_interfaces.md)、[P1 交接](docs/p1_handoff_interfaces.md) |
+| P0 契约 | 模型、任务、梯度引用、评价、成本和轮次身份核验 | [P0 接口](docs/p0_interfaces.md) |
+| 三角色 / 反馈 | 同模型、独立 prompt/history；Leval 数值事实传给 Lopt | [角色接口](docs/THREE_ROLE_AGENTS_ZH.md)、[反馈接口](docs/feedback_lopt_interfaces.md) |
+| 内层搜索 | 候选循环、历史最佳、成本与检查点；停止条件由调用方配置 | [内层接口](docs/INNER_SEARCH_ZH.md) |
+| Leval | 可切换 NICE 梯度代理或隔离候选 SFT/开发任务评价 | [两套后端](docs/LEVAL_BACKENDS_ZH.md) |
+| 外层训练 / 验证 | 两阶段 SFT、任务执行接口与逐阶段接收/退回 | [外层接口](docs/OUTER_TRAINING_ZH.md) |
 
-新增 [内层搜索循环](docs/INNER_SEARCH_ZH.md)：复用现有三角色、P1 和验证接口，多轮更新候选、保留历史最佳精确批次、记录失败与成本，并支持检查点交接。搜索退出条件保留调用方回调，默认未配置；目标模型后端与全局提交继续留待后续。
-
-按 [代码阅读教程](docs/CODE_READING_TUTORIAL_ZH.md) 的数据流复查，修复冻结指标视图的成员可变问题及 Windows 嵌套发布的临时路径膨胀。详见 [教程链路复查](docs/TUTORIAL_FLOW_REVIEW_ZH.md)。
-
-最新 [两遍框架与接口复查](docs/ROLES_TWO_PASS_REVIEW_ZH.md) 补齐固定会话条件、完整候选交接、执行失败反馈及独立恢复锚点。
-
-新增 [三角色共享模型与隔离上下文](docs/THREE_ROLE_AGENTS_ZH.md)：Lexec、Leval、Lopt 使用同一个客户端，各有固定 prompt 和独立 history。具体 prompt 可直接填写 `configs/roles/` 下对应文件的 instructions，当前正文为空。
-
-最新全模块检查、修复和接口适配矩阵见 [连贯性复查](docs/COHERENCE_REVIEW_ZH.md)。Leval/Lopt 的候选现在能直接通过标准 P1 目录承接下一次外部验证结果。
-
-## 本次可使用的能力
-
-- 规范化文本轨迹与结构化工具调用，校验调用/返回关系。
-- 接入显式 fixture 分词器，或外部已计算的真实 token/对齐信息。
-- 保留全部上下文，仅监督 assistant 内容与动作，导出训练 labels。
-- 计算技能证据占比、密度与绝对量；处理重叠、缺失与零分母。
-- 保存质量验证来源和四类使用历史；显式处理超长与已训练数据。
-- 预留外部标签与 NLL/entropy 的类型化接入；按模型、token、scope、计算配置与 CDF 保存信号。
-- 提供按 ID 保序的内存 MetricView，供 operator 读取一个或多个指标；缺失值留在原位置。
-- 保存版本化样本梯度 artifact 引用，记录参数坐标、loss、投影、精度、优化器与配置。
-- 外部标签封装绑定数据/来源版本；训练使用状态支持可审计的 pending→accept/reject 更新。
-- 发布带 checksum 的数据池，下游读取时重新验证 mask、指标与清单。
-- 执行严格 JSON DAG，支持八类算子、系统固定质量门禁与完整轨迹组批。
-- 按监督 token 混合分支，保存精确成员、训练顺序、版本和排除原因；缺失或不可行明确返回。
+数据、模型、tokenizer 和任务执行器由调用方通过接口提供。具体 prompt 正文、研究停止条件和接收阈值仍待配置；不默认接收候选。最终测试集不进入筛选或优化。
 
 ## 本地运行
 
-Python 3.11+。运行代码仅使用标准库；测试需要 pytest。
+Python 3.11+。数据契约与基础 CLI 只使用标准库；指标计算需要 NumPy，实际 Torch 后端与相关专项需要 PyTorch。
 
 ```powershell
-python -m pip install -e '.[dev]'
+python -m pip install -e ".[dev,signals,training]"
 python -m self_curate --help
-python -m self_curate validate-config --config configs/m1.fixture.json
-python -m self_curate normalize --config configs/m1.fixture.json --output runs/m1-demo
-python -m self_curate inspect-pool --pool runs/m1-demo
 python -m pytest -q
 ```
 
-`runs/m1-demo` 必须是新目录；已有结果不会覆盖。fixture 数据和 token 仅验证工程语义，
-不是模型 tokenizer、真实测试报告或研究成绩。`inspect-pool` 可重复执行且不改写产物。
-
-输出为 `trajectories.jsonl`、`excluded.jsonl`、`audit.json`、`manifest.json`。
-M2 从 `read_pool()` 读取完整数据与指标，不重新分词或修改原轨迹。
-
-八算子端到端示例：
+显式合成示例，输出必须使用新目录：
 
 ```powershell
 python -m self_curate normalize --config configs/m2.data.fixture.json --output runs/m2-demo/pool
-python -m self_curate validate-program --program configs/programs/m2.fixture.json
 python -m self_curate select --pool runs/m2-demo/pool --program configs/programs/m2.fixture.json --context configs/m2.fixture.json --output runs/m2-demo/selection
+python -m self_curate signals-demo --output runs/signals-demo
+python -m self_curate outer-demo --output runs/outer-demo
 ```
 
-12 条合成轨迹中选出 8 条、64 个监督 fixture token，两分支各 32 token。
-退出码 0/3/2 分别表示可行、预算或配额不可行、契约或 IO 错误。
-选择结果保存在新目录内，输入池不变；详细接口与组批边界见 [M2 接口](docs/m2_interfaces.md)。
-M2 最近语义复查为 0.2.1/m2-v2，修正与验证说明见 [M2 第二次复查](docs/M2_REVIEW_ZH.md)。
+完整交接与 API 用法见上表对应文档。示例使用 fixture 数据、合成 logits 或 mock 任务结果；专项测试另有微型 CPU 模型真实前向/梯度/SFT。它们验证工程语义，不代表目标模型的任务能力或 GPU 容量已通过验收。
 
-P0 的任务、rollout、目标梯度、两类报告、成本与轮次记录见 [P0 接口](docs/p0_interfaces.md)。
-可验证完整的声明式 mock 契约链：
+## 提交前检查
+
+源码在 `src/`，回归测试与必要 fixture 在 `tests/`，可复现实例和角色配置在 `configs/`，架构与接口在 `docs/`。这些都属于项目所需内容。新增的 signals 包、数据池发布模块及其测试也应加入 Git。
+
+`runs/`、`build/`、`dist/`、`*.egg-info/`、缓存、数据、模型、运行状态与凭据由 `.gitignore` 排除，不上传。正式验收产物在本地 runs/ 中保留；历史测试临时文件可以归档后清理。删除已跟踪的历史文档会在 Git 中显示为删除，其内容已归入 HISTORY.md。
+
+由用户检查暂存内容后自行提交和推送：
 
 ```powershell
-python -m self_curate validate-workflow --workflow configs/p0.fixture.json
+git add -A
+git diff --cached --stat
+git diff --cached --check
+git status --short
 ```
 
-该命令只验证记录关系。内层由 `search.InnerSearch` 调度，外层由 `orchestration.OuterCycle` 接续。
-完整外层崩溃恢复和全局提交尚未实现。显式 mock 演示：`python -m self_curate outer-demo --output runs/outer-demo`。
-
-P1 已提供从数据池直接产生未估值工作流的入口，保留原批次和选择成本：
-
-```powershell
-python -m self_curate prepare-selection --pool runs/m2-demo/pool --program configs/programs/m2.fixture.json --context configs/m2.fixture.json --objective configs/p1.objective.fixture.json --backend mock --attempt-id demo-attempt --invocation-id select-001 --output runs/p1-demo/prepared
-python -m self_curate inspect-preparation --prepared runs/p1-demo/prepared --pool runs/m2-demo/pool
-```
-
-接口与重放约定见 [P1 交接说明](docs/p1_handoff_interfaces.md)，本轮发现与修复见 [P0/P1 适配复查](docs/P0_P1_INTEGRATION_REVIEW_ZH.md)。
-最新逐条需求核对与边界修正见 [P0/P1 文档对齐复查](docs/P0_P1_REQUIREMENTS_ALIGNMENT_ZH.md)。
-
-## 接下来怎么模块化开发
-
-先读 [M1 接口与数据格式](docs/m1_interfaces.md)、[实现决策](docs/decisions.md)
-和 [交付与近期计划](docs/progress.md)。M2 的依赖分析见 [实现前设计](docs/m2_design.md)，
-内层搜索与外层训练均使用精确批次清单；下一步填写研究退出条件、接收标准，接入真实模型存储和任务执行器。
-
-外部结果接入示例见 [标注与信号接口](docs/enrichment_interfaces.md)。当前提供存储、校验、查询与
-provider 契约，NLL/entropy、CDF 和自动标注算法在后续实现；未计算的值保持缺失。
-
-**operator 应优先使用 [M1 数据取值契约](docs/m1_operator_data_contract.md)**。
-这次按 [框架文档](docs/data_centric_rsi_architecture.md) 做了
-[三轮复核](docs/M1_THREE_PASS_REVIEW_ZH.md)；筛选算法现由 M2 实现，仍使用 M1 内存指标视图。
-
-无需先搭一整套 Agent 基础框架。每轮实现一个可运行、可测试的垂直模块，
-只补齐它依赖的公共契约；确定性选择器稳定后，再接模拟循环、梯度与真实角色。
-
-## Leval / Lopt 本轮交付
-
-已实现外部验证结果到反馈、完整候选程序、P1 重跑和下一次验证请求的单步链路。支持本地规则优化和可注入的共享模型客户端；验证算法与真实 LLM 服务留待后续。接口、命令和近期计划见 [Leval / Lopt 接口](docs/feedback_lopt_interfaces.md)。候选明确标记 `improvement_verified=false`。
+`git add -A` 同时记录新增、修改和删除。测试通过说明本地工程回归通过；远端认证、分支保护或并发提交仍可能影响后续 push。

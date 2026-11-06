@@ -1,6 +1,6 @@
 # Self-Curate 代码阅读教程
 
-适用版本：0.7.1；核对日期：2026-11-05。本文针对独立项目 `D:\py project\self-curate`，按当前实际实现讲解。原始蓝图描述研究终态；了解当前进度先看 [progress.md](progress.md) 顶部，再读 [THREE_ROLE_AGENTS_ZH.md](THREE_ROLE_AGENTS_ZH.md)。最新边界与修复见 [FULL_MODULE_AUDIT_ZH.md](FULL_MODULE_AUDIT_ZH.md)，内层循环见 [INNER_SEARCH_ZH.md](INNER_SEARCH_ZH.md)。
+适用版本：0.7.1；核对日期：2026-11-05。本文针对独立项目 `D:\py project\self-curate`，按当前实际实现讲解。原始蓝图描述研究终态；了解当前进度先看 [progress.md](progress.md) 顶部，再读 [THREE_ROLE_AGENTS_ZH.md](THREE_ROLE_AGENTS_ZH.md)。最新边界与修复见 [FULL_MODULE_AUDIT_ZH.md](HISTORY.md#full-module-audit)，内层循环见 [INNER_SEARCH_ZH.md](INNER_SEARCH_ZH.md)。
 
 ## 1. 先记住系统在处理什么
 

@@ -2,7 +2,7 @@
 
 M2 最近语义复查为 0.2.1；当前包 0.4.1 完成 P0/P1 文档对齐复查。程序/上下文/清单 schema 为 `1`，算子语义仍为 `m2-v2`。
 带成本和未执行工作流的 P1 正式入口见 [p1_handoff_interfaces.md](p1_handoff_interfaces.md)，原 select/execute_program 保留。
-复查发现与修正见 [M2_REVIEW_ZH.md](M2_REVIEW_ZH.md)。旧的 m2-v1 冻结上下文不在新语义下静默重放；原交付证据保留。
+复查发现与修正见 [M2_REVIEW_ZH.md](HISTORY.md#m2-review)。旧的 m2-v1 冻结上下文不在新语义下静默重放；原交付证据保留。
 设计依据见 [m2_design.md](m2_design.md)，上游字段见 [m1_operator_data_contract.md](m1_operator_data_contract.md)。
 
 ## 依赖和执行顺序

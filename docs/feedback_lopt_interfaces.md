@@ -4,7 +4,7 @@
 
 0.7.0 的 [InnerSearch](INNER_SEARCH_ZH.md) 已将本页验证接口与三角色单步串成内层循环，管理历史最佳、成本和检查点；本页服务本身仍保持单步语义。外层训练/接受见 [外层接口](OUTER_TRAINING_ZH.md)，目标模型和任务适配器由调用方接入。
 
-本轮全模块复查见 [COHERENCE_REVIEW_ZH.md](COHERENCE_REVIEW_ZH.md)。可行候选附带标准 `candidate_prepared/`，可在获得下一次外部验证结果后直接交给下一轮 feedback-step，无需重复执行 prepare-selection。
+本轮全模块复查见 [COHERENCE_REVIEW_ZH.md](HISTORY.md#coherence-review)。可行候选附带标准 `candidate_prepared/`，可在获得下一次外部验证结果后直接交给下一轮 feedback-step，无需重复执行 prepare-selection。
 
 传给模型的 `selection_context` 来自 `ExecutionContext.role_summary()`：包含冻结控制配置与 context_hash，语义表仅包含 artifact 身份及 pair_count，不传完整 pairs 特征。执行器仍使用完整上下文，原持久化格式和 context_hash 计算不变。
 

@@ -1,6 +1,6 @@
 # Leval 两种验证方式与历史反馈（0.9.1）
 
-0.9.1 的 [两轮复查](LEVAL_REVIEW_ZH.md) 补齐执行版本/数值条件、自动基线身份、M1 使用历史恢复、失败费用与预算预检。0.9.0 的旧产物保持只读；执行协议发生变化时新建会话，不静默混算。
+0.9.1 的 [两轮复查](HISTORY.md#leval-review) 补齐执行版本/数值条件、自动基线身份、M1 使用历史恢复、失败费用与预算预检。0.9.0 的旧产物保持只读；执行协议发生变化时新建会话，不静默混算。
 
 2026-11-06。入口是 `self_curate.valuation`，沿用已有 `ValidationProvider.evaluate(request) -> ValidationResult`。`InnerSearch`、Leval→Lopt 和外层训练不需要换一套状态机。
 
