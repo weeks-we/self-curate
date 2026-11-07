@@ -48,6 +48,7 @@ class OuterCycle:
         acceptance_policy=None,
         baseline=None,
         history_artifacts=(),
+        outer_exposures=None,
     ):
         require(
             isinstance(search_result, SearchResult)
@@ -106,6 +107,15 @@ class OuterCycle:
         self._recipes = {"subset": subset_recipe, "curation": curation_recipe}
         self._subset, self._curation = subset, None
         self._baseline = baseline
+        if outer_exposures is not None:
+            from self_curate.data import OuterExposureHistory
+
+            require(
+                isinstance(outer_exposures, OuterExposureHistory)
+                and outer_exposures.backend == self._handoff.backend,
+                "Outer exposure history uses another execution domain",
+            )
+        self._outer_exposures = outer_exposures
         self._accepted = expected_model
         self._phase, self._stage = "awaiting_training", "subset"
         self._training, self._evaluation = None, None
@@ -124,6 +134,8 @@ class OuterCycle:
             {k: v.to_dict() for k, v in self._recipes.items()},
         )
         self._write_accepted(self._accepted, decision=None)
+        if self._outer_exposures is not None:
+            self._outer_exposures.persist(self._output / "exposure-history")
         self._save("created")
 
     @property
@@ -157,6 +169,10 @@ class OuterCycle:
     @property
     def updated_records(self):
         return tuple(self._records[i] for i in self._handoff.batch.training_order)
+
+    @property
+    def outer_exposures(self):
+        return self._outer_exposures
 
     @property
     def ledger(self):
@@ -269,12 +285,14 @@ class OuterCycle:
             if self._provider is not None:
                 self.supply_curation_data(self._provider.prepare(self._handoff))
             return self.state()
+        subset_dispatched = None
         try:
             if self._phase == "awaiting_training":
                 data = self._subset if self._stage == "subset" else self._curation
                 request = self._request(data)
                 self._phase = "training"
                 self._save("training_started")
+                subset_dispatched = request if self._stage == "subset" else None
                 result = self._trainer.train(
                     request, self._output / ("train-" + self._stage)
                 )
@@ -290,6 +308,11 @@ class OuterCycle:
                 self._training = result
                 self._trainings.append(result)
                 if self._stage == "subset":
+                    if self._outer_exposures is not None:
+                        self._outer_exposures = self._outer_exposures.record(
+                            self._handoff, result
+                        )
+                        self._outer_exposures.persist(self._output / "exposure-history")
                     use = TrainingUse(
                         request.training_id,
                         request.starting_model.model_hash,
@@ -339,6 +362,23 @@ class OuterCycle:
         except Exception as exc:
             if isinstance(getattr(exc, "ledger", None), CostLedger):
                 self._merge(exc.ledger)
+            if subset_dispatched is not None and self._outer_exposures is not None:
+                usage = getattr(exc, "usage", None)
+                if getattr(usage, "training_supervised_tokens", None) != 0:
+                    error_hash = digest(
+                        {
+                            "request": subset_dispatched.record_hash,
+                            "error_type": type(exc).__name__,
+                            "error": str(exc),
+                        }
+                    )
+                    self._outer_exposures = self._outer_exposures.mark_unresolved(
+                        subset_dispatched.training_id,
+                        ArtifactRef(
+                            "record://unresolved-outer-update/" + error_hash, error_hash
+                        ),
+                    )
+                    self._outer_exposures.persist(self._output / "exposure-history")
             self._phase, self._reason = "blocked", str(exc)
             self._save("operation_failed")
         return self.state()
@@ -467,7 +507,7 @@ class OuterCycle:
         )
 
     def state(self):
-        return {
+        result = {
             "schema_version": "1",
             "phase": self._phase,
             "stage": self._stage,
@@ -482,3 +522,6 @@ class OuterCycle:
             "global_model_committed": False,
             "resume_implemented": False,
         }
+        if self._outer_exposures is not None:
+            result["outer_exposure_history_hash"] = self._outer_exposures.history_hash
+        return result

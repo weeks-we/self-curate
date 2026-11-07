@@ -2,11 +2,13 @@
 
 Model-driven, feedback-guided data curation across learning stages.
 
-独立的数据筛选与自改进研究项目，当前代码版本 **0.10.1**。内层使用固定模型执行筛选、数值评价和反馈优化；外层消费历史最佳的精确样本清单，进行子集 SFT、验证与判断，再从接收后的参数继续筛选轨迹 SFT、验证与判断。
+独立的数据筛选与自改进研究项目，当前代码版本 **0.12.0**。内层使用固定模型执行筛选、数值评价和反馈优化；外层消费历史最佳的精确样本清单，进行子集 SFT、验证与判断，再从接收后的参数继续筛选轨迹 SFT、验证与判断。
 
 ## 从哪里开始
 
 先看 [当前进度](docs/progress.md)，再按 [代码阅读教程](docs/CODE_READING_TUTORIAL_ZH.md) 理解数据流。研究定义见 [原始蓝图](docs/self_curate_codex_blueprint.md)、[数据中心架构](docs/data_centric_rsi_architecture.md) 和 [实现决策](docs/decisions.md)。
+
+用户的递进实验计划与数据准备规范已纳入 [执行总览](docs/EXPERIMENT_EXECUTION_PLAN_ZH.md)。每次实验使用独立版本的 [handoff](docs/handoffs/README.md)，公共模块共用；当前只有模板，尚无 ready 的首次真实实验交接。默认先串行、单源码目录运行，结束并保存后再更新；并行或旧版本恢复时可使用独立 worktree。
 
 历史复查与旧进度已合并到 [HISTORY.md](docs/HISTORY.md)。其中的“下一步”和“未实现”指各报告当时的状态；当前模块状态以下表和 progress.md 为准。
 
@@ -16,8 +18,10 @@ Model-driven, feedback-guided data curation across learning stages.
 |---|---|---|
 | M1 数据 | 完整轨迹、assistant mask、质量/技能/使用历史、版本化指标与 ID 保序查询 | [数据格式](docs/m1_interfaces.md)、[算子取值](docs/m1_operator_data_contract.md)、[外部标注](docs/enrichment_interfaces.md) |
 | NLL / entropy | 实际冻结前向或外部 raw logits，按 assistant/技能范围计算并回填新数据池 | [计算与回填](docs/SIGNAL_COMPUTATION_ZH.md) |
+| 指标刷新 | 首轮全池初始化；后续接收 Lopt 方向，仅刷新技能匹配且从未用于外层真实参数更新的数据 | [刷新接口与使用历史](docs/FOCUSED_SIGNAL_REFRESH_ZH.md) |
 | M2 / P1 | 八类筛选算子、固定质量门禁、确定性组批与精确清单交接 | [算子接口](docs/m2_interfaces.md)、[P1 交接](docs/p1_handoff_interfaces.md) |
 | P0 契约 | 模型、任务、梯度引用、评价、成本和轮次身份核验 | [P0 接口](docs/p0_interfaces.md) |
+| 共享实验资产 | 三类 M0 产物、精确身份/manifest pin、独立消费回执、冻结运行输入 | [复用与服务器更新](docs/EXPERIMENT_ASSETS_ZH.md) |
 | 三角色 / 反馈 | 同模型、独立 prompt/history；Leval 数值事实传给 Lopt | [角色接口](docs/THREE_ROLE_AGENTS_ZH.md)、[反馈接口](docs/feedback_lopt_interfaces.md) |
 | 内层搜索 | 候选循环、历史最佳、成本与检查点；停止条件由调用方配置 | [内层接口](docs/INNER_SEARCH_ZH.md) |
 | Leval | 可切换 NICE 梯度代理或隔离候选 SFT/开发任务评价 | [两套后端](docs/LEVAL_BACKENDS_ZH.md) |

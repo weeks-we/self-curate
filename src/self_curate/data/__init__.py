@@ -27,7 +27,16 @@ from .enrichment import (
     validate_signal,
 )
 
+from .outer_usage import (
+    OuterExposureHistory,
+    OuterTrainingExposure,
+    load_outer_exposures,
+)
+
 __all__ = [
+    "OuterExposureHistory",
+    "OuterTrainingExposure",
+    "load_outer_exposures",
     "FixtureTokenizer",
     "PrecomputedTokenizer",
     "TokenizationBackend",

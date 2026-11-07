@@ -132,9 +132,18 @@ def main(argv=None):
         help="Compute synthetic NLL/entropy, enrich M1, consume raw operators",
     )
     signals_demo.add_argument("--output", required=True)
+    asset_inspect = commands.add_parser(
+        "inspect-asset", help="Verify an immutable shared experiment asset"
+    )
+    asset_inspect.add_argument("--store", required=True)
+    asset_inspect.add_argument("--key", required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command == "signals-demo":
+        if args.command == "inspect-asset":
+            from self_curate.assets import AssetStore
+
+            result = AssetStore(args.store).inspect(args.key).manifest
+        elif args.command == "signals-demo":
             from self_curate.signals.demo import run_signals_demo
 
             result = run_signals_demo(args.output)

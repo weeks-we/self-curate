@@ -13,6 +13,14 @@ from .contracts import (
 from .backends import ProvidedLogitsBackend, ScoringFailure
 from .service import SignalService
 from .io import load_scoring_batch, parse_forward_contract, read_records
+from .refresh_contracts import SkillFocus, focus_from_outer_decision, parse_skill_focus
+from .refresh import (
+    FocusedRefreshService,
+    RefreshPlan,
+    RefreshResult,
+    RefreshFailure,
+    load_refresh_result,
+)
 
 __all__ = [
     "ForwardRequest",
@@ -29,4 +37,12 @@ __all__ = [
     "load_scoring_batch",
     "parse_forward_contract",
     "read_records",
+    "SkillFocus",
+    "focus_from_outer_decision",
+    "parse_skill_focus",
+    "FocusedRefreshService",
+    "RefreshPlan",
+    "RefreshResult",
+    "RefreshFailure",
+    "load_refresh_result",
 ]

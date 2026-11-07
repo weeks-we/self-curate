@@ -127,6 +127,12 @@ cycle.ledger 合并内层、训练、任务、汇总、失败和复测物理费�
 
 本轮有证据持久化，没有 OuterCycle 自动崩溃恢复；不是完整 M9。同名输出拒绝覆盖，失败不自动重发；进程在途退出须先人工核对已有调用和权重。
 
+## 外层使用与刷新交接
+
+0.12.0 新增可选参数 `outer_exposures=OuterExposureHistory(branch_id, backend)`。子集训练完成后立即登记固定成员和真实更新回执；验证未完成或后来退回都不撤销。`cycle.outer_exposures` 供下一轮累计传递；控制语料 SFT 不重复登记原任务样本。内层 candidate_sft 历史不能替代这份外层历史。部分更新范围不明则留下 unresolved，后续刷新等待核验；进程崩溃仍须先审计在途训练，不能直接从旧历史推进。
+
+接口和首轮/后续刷新规则见 [FOCUSED_SIGNAL_REFRESH_ZH.md](FOCUSED_SIGNAL_REFRESH_ZH.md)。未传该可选参数的旧调用保持原行为，不自动追踪外层使用。此扩展不改变训练清单、接收策略或模型接续语义。
+
 ## 本地验证与后续
 
 `python -m self_curate outer-demo --output runs/outer-demo` 运行显式 mock，不训练目标模型、不测能力；输出 training_executed=false 和 improvement_verified=false。`python -m pytest -q` 包含独立梯度参考、冻结参数／RNG、本地 checkpoint 接续、完整内层到两次实际微型 CPU SFT、adapter 基座不变、接收／退回／等待／失败与 JSON 边界。
