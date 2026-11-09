@@ -41,7 +41,7 @@ do not import neighboring projects or inherit their experiment configuration.
 - No GPU/model downloads/real containers unless the user authorizes that later milestone.
 - Mark fixture artifacts as synthetic; never silently fall back from real to fixture.
 - Use content hashes, strict schemas, immutable records, and complete publication markers.
-- Run the entire project test suite after code changes, including independent mask/metric references.
+- The user requested a runtime-only tree on 2026-11-09. Development tests/demos are archived outside source; do not recreate them without a request. Validate runtime changes with temporary CPU checks, the retained EXP001 dry-run, and server preflight/smoke. Keep check scripts and outputs under ignored runs/. Never report removed tests as executed.
 - Update decisions, interfaces, and progress when public behavior changes.
 - Do not commit datasets, weights, caches, credentials, or generated run outputs.
 - Do not commit, push, or merge on the user's behalf.

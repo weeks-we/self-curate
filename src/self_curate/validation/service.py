@@ -47,6 +47,8 @@ class TaskValidator:
         evaluation_id,
         output,
         checkpoint=None,
+        resume=False,
+        progress=None,
     ):
         require(isinstance(suite, TaskSuite), "Expected fixed TaskSuite")
         require(self.runner.backend == suite.backend, "Task runner/domain mismatch")
@@ -60,18 +62,39 @@ class TaskValidator:
                 model.tokenizer.backend != "fixture",
                 "Fixture model cannot run real validation",
             )
-        output = Path(output).resolve()
-        output.mkdir(parents=True, exist_ok=False)
-        write_json(
-            output / "request.json",
-            {
-                "model": model.to_dict(),
-                "suite": suite.to_dict(),
-                "attempt_id": attempt_id,
-                "evaluation_id": evaluation_id,
-                "checkpoint": None if checkpoint is None else checkpoint.to_dict(),
-            },
+        from self_curate.training.recovery import (
+            read_json,
+            atomic_json,
+            commit_directory,
+            verify_directory,
         )
+
+        output = Path(output).resolve()
+        envelope = {
+            "model": model.to_dict(),
+            "suite": suite.to_dict(),
+            "attempt_id": attempt_id,
+            "evaluation_id": evaluation_id,
+            "checkpoint": None if checkpoint is None else checkpoint.to_dict(),
+        }
+        if output.exists():
+            require(
+                resume and read_json(output / "request.json") == envelope,
+                "Existing evaluation needs explicit resume with the same request",
+            )
+            if (output / "COMMITTED.json").exists():
+                from self_curate.orchestration.io import load_task_evaluation
+
+                verify_directory(output)
+                return load_task_evaluation(
+                    output,
+                    expected_model=model,
+                    expected_suite=suite,
+                    expected_checkpoint=checkpoint,
+                )
+        else:
+            output.mkdir(parents=True, exist_ok=False)
+            atomic_json(output / "request.json", envelope)
         events, rollouts = [], []
         execution_requests, execution_results = [], []
         for task in suite.tasks:
@@ -93,10 +116,30 @@ class TaskValidator:
                 usage = ResourceUsage()
                 dispatched = False
                 try:
-                    folder.mkdir()
-                    write_json(folder / "request.json", request.to_dict())
-                    dispatched = True
-                    result = self.runner.execute(request, folder / "execution")
+                    if folder.exists():
+                        from self_curate.orchestration.io import parse_outer_contract
+
+                        require(resume, "Task output exists without resume")
+                        dispatched = (folder / "dispatched.json").exists() and not (
+                            folder / "COMMITTED.json"
+                        ).exists()
+                        verify_directory(folder)
+                        require(
+                            read_json(folder / "request.json") == request.to_dict(),
+                            "Resumed task changed request identity",
+                        )
+                        result = parse_outer_contract(
+                            "TaskRunResult", read_json(folder / "result.json")
+                        )
+                    else:
+                        folder.mkdir()
+                        write_json(folder / "request.json", request.to_dict())
+                        atomic_json(
+                            folder / "dispatched.json",
+                            {"request_hash": request.record_hash},
+                        )
+                        dispatched = True
+                        result = self.runner.execute(request, folder / "execution")
                     if isinstance(getattr(result, "usage", None), ResourceUsage):
                         usage = result.usage
                     require(
@@ -154,9 +197,18 @@ class TaskValidator:
                     rollouts.append(rollout)
                     execution_requests.append(request)
                     execution_results.append(result)
-                    write_json(folder / "result.json", result.to_dict())
-                    write_json(folder / "rollout.json", rollout.to_dict())
-                    write_json(folder / "cost.json", event.to_dict())
+                    if dispatched:
+                        write_json(folder / "result.json", result.to_dict())
+                        write_json(folder / "rollout.json", rollout.to_dict())
+                        write_json(folder / "cost.json", event.to_dict())
+                        commit_directory(folder)
+                    if progress:
+                        progress.update(
+                            "development",
+                            len(rollouts),
+                            len(suite.tasks) * len(suite.seeds),
+                            evaluation_id=evaluation_id,
+                        )
                 except Exception as exc:
                     if isinstance(getattr(exc, "usage", None), ResourceUsage):
                         usage = exc.usage
@@ -209,7 +261,7 @@ class TaskValidator:
                         str(exc), ledger=ledger, rollouts=rollouts
                     ) from exc
         try:
-            return self._aggregate(
+            evaluation = self._aggregate(
                 model,
                 suite,
                 evaluation_id,
@@ -221,6 +273,8 @@ class TaskValidator:
                 execution_requests,
                 execution_results,
             )
+            commit_directory(output)
+            return evaluation
         except Exception as exc:
             # Task calls have already occurred, even if aggregation/publication fails.
             ledger = CostLedger(evaluation_id, tuple(events), suite.backend)

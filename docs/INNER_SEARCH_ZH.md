@@ -1,6 +1,6 @@
 # 内层闭环与接口：0.9.1
 
-0.9.1 的 [Leval 两轮复查](HISTORY.md#leval-review) 固定真实执行身份和自动基线 namespace。恢复数值运行时使用同一参考状态；旧搜索/角色产物只读核验保持兼容，不能把新建 provider 当作旧基线恢复。
+0.9.1 的 [Leval 两轮复查](LEVAL_BACKENDS_ZH.md) 固定真实执行身份和自动基线 namespace。恢复数值运行时使用同一参考状态；旧搜索/角色产物只读核验保持兼容，不能把新建 provider 当作旧基线恢复。
 
 search 模块负责内层调度，退出条件仍待填。复用 M1/M2、P0/P1、三角色和 ValidationProvider 接口；0.9.0 的 [valuation](LEVAL_BACKENDS_ZH.md) 实现可切换 NICE 梯度估值/候选 SFT 任务增量。停止后的两阶段 SFT／任务验证／接收退回由外层模块承接，见 [OUTER_TRAINING_ZH.md](OUTER_TRAINING_ZH.md)。
 
@@ -25,7 +25,6 @@ search 模块负责内层调度，退出条件仍待填。复用 M1/M2、P0/P1�
 | `search/contracts.py` | StopCondition/StopDecision、EvaluatedCandidate、SearchState/Result、验证尝试 |
 | `search/inner_loop.py` | 多轮调度、当前/最佳、失败与成本、手动推进与自动循环 |
 | `search/storage.py` | 完整快照、timeline 重放、检查点恢复、最佳精确清单交接 |
-| `search/demo.py` | 显式 mock 值与两次角色 cycle、恢复和历史最佳演示 |
 
 验证器仍使用 `agents.ValidationProvider.evaluate(request) -> ValidationResult`。后续可在其内部组合“核验精确批次 → 查询缓存 → 只补最终成员缺失梯度 → 固定估值器”，无需改写搜索主循环。返回值须对应请求的模型、batch、objective、measure、protocol 和 backend。内部任何缺失或失败不得填零。
 
@@ -148,16 +147,3 @@ loaded = load_best("runs/search/best", original_view,
 交接含 `prepared/` 标准 P1、request/validation、best_attempt、result、完整搜索账本及 checksum。用系统独立保存的最佳请求作锚点，不能仅信目录内部自洽。训练实际输入使用原 `prepared/workflow.json` 和保存的 training_order。追加梯度后消费清单沿用 P0 的 load_workflow(view=enriched_view, expected_model=..., expected_objective=..., expected_selection_context_hash=..., expected_batch_id=...)；不要用新特征快照冒充原选择重放。
 
 本轮外部验证结果不被伪装为已计算两侧梯度的 EvaluationReport；正式梯度验证器之后需提供可追溯的真实报告和向量证据。
-
-## 可运行 mock 示例
-
-```powershell
-$env:PYTHONPATH = (Resolve-Path .\src).Path
-python -B -m self_curate inner-demo --project-root . --output runs/inner-demo
-```
-
-输出目录必须不存在。示例明确声明三个外部 mock 值 0.1 → 0.3 → 0.2；两个三角色 cycle，中途保存/恢复，最后交出 0.3 对应的原批次，而非最后的 0.2 批次。为让示例有限结束，demo 自己传入“三个声明值后结束”的回调；生产退出条件仍为 None。所有数值仅为工程验收，无真实模型、梯度或学习收益证明。
-
-查看 summary.json、result.json、checkpoint-1/、checkpoint-final/ 和 best/。测试入口为 `tests/test_inner_search.py`，全量测试与验收记录位于忽略的 `runs/inner-search/`。
-
-本轮内层专项 30 项和隔离副本全量 420 项通过。最终交付验证另覆盖自动循环与独立手动串行参考一致、稳定边界恢复不重复调用、退出条件缺省不发起工作、历史池/角色快照兼容、旧证据未改写和源码包 checksum；以 verification.json 实际记录为准。

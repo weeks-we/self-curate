@@ -1,0 +1,79 @@
+{
+  "schema_version": "1",
+  "experiment_id": "exp001_random_static_m0_v1",
+  "backend": "real",
+  "execution": "server",
+  "seed": 42,
+  "selection_fraction": 0.1,
+  "learning_rates": [
+    5e-06,
+    2e-05
+  ],
+  "modes": [
+    "random",
+    "static_m0"
+  ],
+  "effective_batch": 8,
+  "max_context_tokens": 131072,
+  "lexec_use_model": true,
+  "lopt_timeout_seconds": 600,
+  "adapter": "self_curate.experiments.exp001.server:build",
+  "adapter_settings": {
+    "prepared_manifest": null,
+    "model_id": "Qwen/Qwen3.8-27B",
+    "model_revision": "37561816e66b5b9153b1b64c10968c18c1e6f4a0",
+    "tuning": "lora",
+    "lora": {
+      "rank": 16,
+      "alpha": 32,
+      "dropout": 0.0,
+      "bias": "none",
+      "target_modules": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj"
+      ],
+      "language_path": "model.language_model",
+      "seed": 42,
+      "gradient_checkpointing": true,
+      "use_rslora": false,
+      "cpu_activation_offload": true,
+      "offload_min_tokens": 65536
+    },
+    "model_store": {
+      "base_path": null,
+      "initial_adapter": null,
+      "base_fingerprint": null,
+      "loader": "AutoModelForImageTextToText"
+    },
+    "prompts": "configs/experiments/exp001/prompts",
+    "capacity_receipt": null,
+    "source_registry": {
+      "path": "configs/experiments/exp001/sources.json",
+      "sha256": null
+    },
+    "training_source": {
+      "dataset": "SWE-bench/SWE-smith-trajectories",
+      "revision": "470d6f28b7219c95f43c47843cc7c69f63e077f0",
+      "split": "train",
+      "expected_rows": 5016,
+      "mode": "historical_exact"
+    },
+    "runtime_lock": null,
+    "objective": null,
+    "edit_policy": null,
+    "agent_sampling": null,
+    "task_execution": {
+      "serving_pool": null,
+      "initial_adapter": null,
+      "tokenizer_path": null,
+      "swe_python": null,
+      "harbor_executable": "harbor"
+    }
+  },
+  "gpu_uuids": []
+}

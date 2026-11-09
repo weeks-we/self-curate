@@ -16,3 +16,6 @@ dist/
 /runs/
 /artifacts/
 /wandb/
+
+# Personal meeting notes and research material
+/docs/meetings/

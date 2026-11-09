@@ -1,9 +1,9 @@
 # M2 算子与批次交接接口
 
-M2 最近语义复查为 0.2.1；当前包 0.4.1 完成 P0/P1 文档对齐复查。程序/上下文/清单 schema 为 `1`，算子语义仍为 `m2-v2`。
+M2 最近语义复查为 0.2.1；当前包 0.16.0 完成 P0/P1 文档对齐复查。程序/上下文/清单 schema 为 `1`，算子语义仍为 `m2-v2`。
 带成本和未执行工作流的 P1 正式入口见 [p1_handoff_interfaces.md](p1_handoff_interfaces.md)，原 select/execute_program 保留。
-复查发现与修正见 [M2_REVIEW_ZH.md](HISTORY.md#m2-review)。旧的 m2-v1 冻结上下文不在新语义下静默重放；原交付证据保留。
-设计依据见 [m2_design.md](m2_design.md)，上游字段见 [m1_operator_data_contract.md](m1_operator_data_contract.md)。
+旧的 m2-v1 冻结上下文不在新语义下静默重放；原交付证据保留。
+上游字段见 [m1_operator_data_contract.md](m1_operator_data_contract.md)。
 
 ## 依赖和执行顺序
 
@@ -25,19 +25,7 @@ M2 不记录新的训练曝光；后续训练模块在训练真正发生时通�
 
 ## Python 公共入口
 
-```python
-from self_curate.contracts import parse_program, verify_batch
-from self_curate.data import read_pool
-from self_curate.operators import load_program, load_context, execute_program, load_batch
 
-pool = read_pool("runs/m2-demo/pool")
-view = pool.metric_view()
-program = load_program("configs/programs/m2.fixture.json")
-context = load_context("configs/m2.fixture.json", view)
-result = execute_program(program, context)
-if result.status == "feasible":
-    exact_training_order = verify_batch(result.batch, view, model_ref=context.model_ref)
-```
 
 | 接口 | 输入 → 输出 | 约束 |
 |---|---|---|
@@ -138,11 +126,7 @@ M2 保证交接数据可核验；后续模块仍需真正实现并遵守这些�
 
 在项目根目录安装 `python -m pip install -e ".[dev]"` 后：
 
-```powershell
-python -m self_curate normalize --config configs/m2.data.fixture.json --output runs/m2-demo/pool
-python -m self_curate validate-program --program configs/programs/m2.fixture.json
-python -m self_curate select --pool runs/m2-demo/pool --program configs/programs/m2.fixture.json --context configs/m2.fixture.json --output runs/m2-demo/selection
-```
+
 
 示例贯通全部八类算子：12 条合成轨迹，每条 8 个监督 fixture token，最终 8 条/64 token，两个分支各 32 token，effective_batch=8。
 其中分数、标签、判分证据均显式为 fixture，不代表真实 NLL/entropy/质量验证。
@@ -157,3 +141,11 @@ selection 新目录内含 program.json、context.json、result.json、trace.json
 
 先接入 P2 的显式 mock 搜索循环：消费本模块的精确清单，测试历史最优、拒绝保留证据和恢复幂等。
 随后接真实 tokenizer/外部分数服务，再做 M5 样本梯度、M6 估值和 M8 候选训练；这些不能以本轮 fixture 验收代替。
+
+
+## 模块边界与预算语义
+
+M2 只读 M1 标签和已有指标，不标注、不计算模型信号/梯度、不调用训练或任务环境。
+程序是严格 JSON DAG，不执行任意代码；QualityGate 和 BudgetPack 固定，Agent 不能编辑。
+ordered-greedy 只组完整轨迹，是确定性启发式，不宣称穷尽所有组合；不足时报告缺口，
+不静默放宽预算或截断。missing_policy=request 只生成计算请求，不隐式运行模型。

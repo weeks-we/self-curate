@@ -1,29 +1,19 @@
 # P0 核心契约与跨模块交接
 
-本页契约在 0.4.1 补齐；当前包 0.11.0，schema_version=1，校验语义 p0-v3；M1 数据格式和 M2 的 m2-v2 语义保持不变。
+本页契约在 0.4.1 补齐；当前包 0.16.0，schema_version=1，校验语义 p0-v3；M1 数据格式和 M2 的 m2-v2 语义保持不变。
 
 0.10.1 的 [NLL/entropy producer](SIGNAL_COMPUTATION_ZH.md) 复用 ModelRef/ResourceUsage/CostLedger 和 M1 SignalRecord；不把前向统计当任务能力报告，也不改变 P0 工作流格式。
-实现前设计见 [p0_contract_design.md](p0_contract_design.md)。此前审计中的五个缺失核心契约均已补齐。
+此前审计中的五个缺失核心契约均已补齐。
 
 ## 能力与边界
 
 P0 冻结可序列化的数据结构、严格 JSON 边界和跨记录身份关系。
-本轮不执行模型、训练、梯度计算、代理 dot product、接受阈值或原子提交；样例中的奖励、向量、估值和 accept/reject 均是**声明的 mock 记录**。
+P0 契约层不执行模型、训练、梯度计算、代理 dot product、接受阈值或原子提交；样例中的奖励、向量、估值和 accept/reject 均是**声明的 mock 记录**。
 内层调度和历史最佳由 search 实现；0.8.0 新增训练／任务验证及逐阶段接收／退回，见 [外层接口](OUTER_TRAINING_ZH.md)。两阶段分别复用 TrainingRecord，不改变旧单训练 RoundRecord。全局提交、完整恢复及外部任务完成对账仍待后续。搜索退出条件未配置，成本记录不等于资源预留／扣减。
 
 ## 公共入口
 
-```python
-from self_curate.contracts import (
-    TaskRecord, RolloutRecord, EvaluationReport, CapabilityReport, RoundRecord,
-    TargetGradientSpec, TargetGradientFeature, CostEvent, CostLedger,
-    WorkflowBundle, parse_contract, load_workflow, validate_workflow,
-    task_set_hash, rollout_set_hash,
-)
 
-bundle = load_workflow("configs/p0.fixture.json")
-receipt = validate_workflow(bundle)  # 检查记录身份和声明的一致性
-```
 
 `parse_contract(kind, dict)` 只接受固定注册的类名，不解析代码或外部 Python 模块。
 另提供 parse_task_record、parse_rollout_record、parse_evaluation_report、parse_capability_report、parse_round_record、parse_workflow_bundle。
@@ -134,12 +124,7 @@ CostLedger 的内存 ID 索引不进入 JSON/hash；模型操作成本必须带 
 
 安装本包后，在项目根目录运行：
 
-```powershell
-python -m self_curate validate-workflow --workflow configs/p0.fixture.json
-python -m self_curate normalize --config configs/m2.data.fixture.json --output runs/p0-demo/pool
-python -m self_curate validate-workflow --workflow configs/p0.fixture.json --pool runs/p0-demo/pool
-python -m pytest -q
-```
+
 
 fixture 明确 backend=mock，包含声明的 3 任务/8 rollout、8 个样本梯度引用、2 个目标引用和完整记录链。
 CLI 退出码 0 表示契约验证通过，2 表示契约或 IO 错误。它不启动 GPU，也不表示已跑通 P2 的接受/拒绝状态机。

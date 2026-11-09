@@ -145,10 +145,3 @@ ScoringFailure 保留此前已完成记录/结果和全部已知 ledger；失败
 0.12.0 的 [FocusedRefreshService](FOCUSED_SIGNAL_REFRESH_ZH.md) 在此计算器之上实现首轮全池初始化、后续外部技能方向与外层未使用约束，数值公式与缓存身份不变。方向缺失等待；当前接收参数精确查询，旧版本不覆盖；不会修改活跃内层快照。
 
 ## 本机验收
-
-```powershell
-python -m pytest -q
-python -m self_curate signals-demo --output runs/new-signals-demo
-```
-
-demo 使用显式合成 logits，执行实际 NLL/entropy 数学计算、M1 回填/发布/重载和两个 raw operator；不加载目标模型。专项测试另外用微型 CPU 模型执行真实前向并对照独立 log_softmax 结果，检查 mask/因果位移/多版本/数值稳定性/无训练/费用和失败边界。真实 GPU 和目标模型容量未在本机运行。

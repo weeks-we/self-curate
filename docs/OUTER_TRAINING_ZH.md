@@ -1,8 +1,8 @@
 # 外层两阶段训练、任务验证与接收／退回
 
-0.9.1 [Leval 复查](HISTORY.md#leval-review) 同时补强了本模块复用的 TorchSFTBackend：隔离外部 autocast，checkpoint 记录执行数值条件与实现身份。原有子集→验证/判断→接续轨迹训练→验证/判断及新优化器规则保持不变。
+0.9.1 [Leval 复查](LEVAL_BACKENDS_ZH.md) 同时补强了本模块复用的 TorchSFTBackend：隔离外部 autocast，checkpoint 记录执行数值条件与实现身份。原有子集→验证/判断→接续轨迹训练→验证/判断及新优化器规则保持不变。
 
-版本 0.8.1，2026-11-05。用户确认：筛选轨迹 SFT 接着子集 SFT 的权重继续训练；每次验证后做接收／退回判断，标准待填。这是对原蓝图单次候选 SFT 的新增要求，原研究文档保留。最新检查与旧报告接入见 [两遍复查](HISTORY.md#outer-review)。
+版本 0.8.1，2026-11-05。用户确认：筛选轨迹 SFT 接着子集 SFT 的权重继续训练；每次验证后做接收／退回判断，标准待填。这是对原蓝图单次候选 SFT 的新增要求，原研究文档保留。
 
 ## 流程和退回语义
 
@@ -133,8 +133,4 @@ cycle.ledger 合并内层、训练、任务、汇总、失败和复测物理费�
 
 接口和首轮/后续刷新规则见 [FOCUSED_SIGNAL_REFRESH_ZH.md](FOCUSED_SIGNAL_REFRESH_ZH.md)。未传该可选参数的旧调用保持原行为，不自动追踪外层使用。此扩展不改变训练清单、接收策略或模型接续语义。
 
-## 本地验证与后续
-
-`python -m self_curate outer-demo --output runs/outer-demo` 运行显式 mock，不训练目标模型、不测能力；输出 training_executed=false 和 improvement_verified=false。`python -m pytest -q` 包含独立梯度参考、冻结参数／RNG、本地 checkpoint 接续、完整内层到两次实际微型 CPU SFT、adapter 基座不变、接收／退回／等待／失败与 JSON 边界。
-
-后续按项填入 model store、筛选轨迹生产者、真实 TaskRunner、固定判断标准；真实权重和任务环境需独立验收。
+后续按项填入 model store、筛选轨迹生产者、真实 TaskRunner 和固定判断标准；真实权重与任务环境需服务器验收。

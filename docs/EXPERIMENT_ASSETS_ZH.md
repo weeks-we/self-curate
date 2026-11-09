@@ -162,6 +162,6 @@ python3 -m venv "$RSI_JOB/venv"
 
 ## 5. 范围与验收
 
-本轮实现资产 API、三个核心桥接、冻结输入与只读检查。完整实验 runner、首次数据准备/Teacher 标注、模型/任务服务、自动持久化 NICE 特征重组及外层恢复继续按 [就绪清单](EXPERIMENT_READINESS_ZH.md) 推进。没有运行真实服务器 Git 更新、API、GPU 或任务环境。
+本轮实现资产 API、三个核心桥接、冻结输入与只读检查。完整实验 runner、首次数据准备/Teacher 标注、模型/任务服务、自动持久化 NICE 特征重组及外层恢复继续按 [就绪清单](progress.md) 推进。没有运行真实服务器 Git 更新、API、GPU 或任务环境。
 
 专项验证覆盖：源文件变化/存储根迁移、完成标记与文件损坏、冲突/依赖/pin、消费费用不重记、三类资产身份失配、M1 当前标签保留、Lopt 实际 before-history/单调用费用，以及冻结配置/源码/环境。最终全量回归、兼容和交付包以本地 runs/shared-assets/verification.json 为准。

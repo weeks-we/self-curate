@@ -147,6 +147,9 @@ def reuse_signals(
         "Saved signal input binding mismatch",
     )
     additions = {r.data_id: [] for r in records}
+    # StoredAsset.reference parses the complete immutable manifest. Resolve it
+    # once per batch rather than once for every sample/scope.
+    asset_reference = asset.reference
     for outcome in batch.outcomes:
         if outcome.signal is not None:
             signal = outcome.signal
@@ -154,7 +157,7 @@ def reuse_signals(
                 signal,
                 provenance=tuple(
                     sorted(
-                        set((*signal.provenance, asset.reference)),
+                        set((*signal.provenance, asset_reference)),
                         key=lambda r: (r.uri, r.sha256),
                     )
                 ),

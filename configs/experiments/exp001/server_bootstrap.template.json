@@ -1,0 +1,36 @@
+{
+  "schema_version": "1",
+  "storage_root": "/storage/self-curate",
+  "run_id": "exp001-001",
+  "base_port": 8100,
+  "terminal_task_glob": "tasks/*/task.toml",
+  "teacher": {
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-flash",
+    "api_key_env": "DEEPSEEK_API_KEY",
+    "max_calls": 8000,
+    "max_output_tokens": 8192,
+    "timeout_seconds": 600
+  },
+  "review_teacher": null,
+  "preparation": {
+    "near_duplicate_threshold": 0.85,
+    "development_per_skill": 50,
+    "development_candidate_limit": 1000,
+    "training_audit_size": 50,
+    "grader_timeout_seconds": 3600,
+    "terminal_budget": {
+      "max_steps": 75,
+      "max_output_tokens": 262144,
+      "max_context_tokens": 131072,
+      "max_wall_seconds": 172800
+    }
+  },
+  "services": {
+    "gpu_memory_utilization": 0.85,
+    "tool_call_parser": "qwen3_coder",
+    "reasoning_parser": "qwen3",
+    "startup_timeout_seconds": 1800,
+    "telemetry": true
+  }
+}

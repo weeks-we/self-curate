@@ -332,6 +332,7 @@ def load_scoring_batch(folder, *, expected_model, expected_computation_hash):
     by_id = {r.data_id: r for r in batch.records}
     forward_tokens = {}
     consumed = set()
+    events_by_id = {e.event_id: e for e in batch.ledger.events}
     for path in folder.glob("fwd-*/request.json"):
         forward = parse_forward_contract(
             "ForwardRequest", load_json(path.read_text(encoding="utf-8"))
@@ -351,8 +352,9 @@ def load_scoring_batch(folder, *, expected_model, expected_computation_hash):
             and forward.backend == batch.backend,
             "Forward evidence uses another model/data/input version",
         )
+        forward_hash = forward.record_hash
         require(
-            result.request_hash == forward.record_hash
+            result.request_hash == forward_hash
             and result.positions == forward.positions
             and result.backend == batch.backend,
             "Forward output/request binding changed",
@@ -366,14 +368,7 @@ def load_scoring_batch(folder, *, expected_model, expected_computation_hash):
             (p, (n, h, result.evidence))
             for p, n, h in zip(result.positions, result.token_nll, result.token_entropy)
         )
-        event = next(
-            (
-                e
-                for e in batch.ledger.events
-                if e.event_id == "score-" + forward.record_hash
-            ),
-            None,
-        )
+        event = events_by_id.get("score-" + forward_hash)
         require(
             event is not None
             and event.event_id not in consumed

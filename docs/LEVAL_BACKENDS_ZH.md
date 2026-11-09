@@ -1,6 +1,6 @@
 # Leval 两种验证方式与历史反馈（0.9.1）
 
-0.9.1 的 [两轮复查](HISTORY.md#leval-review) 补齐执行版本/数值条件、自动基线身份、M1 使用历史恢复、失败费用与预算预检。0.9.0 的旧产物保持只读；执行协议发生变化时新建会话，不静默混算。
+本模块校验执行版本/数值条件、自动基线身份、M1 使用历史恢复、失败费用与预算预检。0.9.0 的旧产物保持只读；执行协议发生变化时新建会话，不静默混算。
 
 2026-11-06。入口是 `self_curate.valuation`，沿用已有 `ValidationProvider.evaluate(request) -> ValidationResult`。`InnerSearch`、Leval→Lopt 和外层训练不需要换一套状态机。
 
@@ -135,14 +135,6 @@ SFT 内部物理训练/任务 ledger 全量保留，InnerSearch 仅计一次本�
 
 直接拒绝选中样本与开发任务的已声明 ID/来源 family 重叠。原始数据来源闭包、近似题面去重、预训练污染、真实任务评分和模型加载真实性仍需数据/服务器适配器验收；最终 test 任务不可接入优化 suite。
 
-## 6. 本机验收与后续接入
-
-```powershell
-python -m pytest -q
-python -m self_curate leval-demo --method nice --output runs/leval-nice-new --project-root .
-python -m self_curate leval-demo --method sft --output runs/leval-sft-new --project-root .
-```
-
-两个 demo 使用显式合成向量、权重回执和任务奖励，用于验证接线、三轮循环、历史比较及 Lopt prompt 消费，不代表模型能力提升。专项测试另外使用微型 CPU 随机模型，实际执行 autograd、监督 mask 对照、SFT 更新和冻结起点隔离。
+## 6. 真实接入
 
 真实接入只需提供：当前模型的隔离 ModelStore、固定 development TaskSuite/TaskRunner；NICE 另需该模型的任务执行及真实 ReplayTrajectory；显式 SFT/NICE 配方。数据标注、真实 GPU/模型容量和环境判分未在本机执行。内层停止条件、外层接受阈值、具体 prompt 正文继续由后续配置填写。

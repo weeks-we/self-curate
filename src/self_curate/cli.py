@@ -1,4 +1,4 @@
-"""Local data/selection/contracts CLI and explicitly synthetic workflow demos."""
+"""Runtime data, selection, contracts and shared-asset CLI."""
 
 import argparse
 import sys
@@ -101,37 +101,6 @@ def main(argv=None):
     request_validation.add_argument(
         "--measure", choices=("predicted_gain", "reward_delta"), required=True
     )
-    role_demo = commands.add_parser(
-        "roles-demo", help="Run three isolated roles on one explicit CPU fixture client"
-    )
-    role_demo.add_argument("--output", required=True)
-    role_demo.add_argument("--project-root", default=".")
-    role_demo.add_argument("--prompts")
-    inner_demo = commands.add_parser(
-        "inner-demo",
-        help="Run a complete mock inner search with an explicit demo stopping hook",
-    )
-    inner_demo.add_argument("--output", required=True)
-    inner_demo.add_argument("--project-root", default=".")
-    inner_demo.add_argument("--prompts")
-    outer_demo = commands.add_parser(
-        "outer-demo",
-        help="Run explicit mock subset/curation SFT, task evaluation and acceptance",
-    )
-    outer_demo.add_argument("--output", required=True)
-    outer_demo.add_argument("--project-root", default=".")
-    leval_demo = commands.add_parser(
-        "leval-demo",
-        help="Run a mock NICE or candidate-SFT Leval loop with history feedback",
-    )
-    leval_demo.add_argument("--method", choices=("nice", "sft"), required=True)
-    leval_demo.add_argument("--output", required=True)
-    leval_demo.add_argument("--project-root", default=".")
-    signals_demo = commands.add_parser(
-        "signals-demo",
-        help="Compute synthetic NLL/entropy, enrich M1, consume raw operators",
-    )
-    signals_demo.add_argument("--output", required=True)
     asset_inspect = commands.add_parser(
         "inspect-asset", help="Verify an immutable shared experiment asset"
     )
@@ -143,36 +112,6 @@ def main(argv=None):
             from self_curate.assets import AssetStore
 
             result = AssetStore(args.store).inspect(args.key).manifest
-        elif args.command == "signals-demo":
-            from self_curate.signals.demo import run_signals_demo
-
-            result = run_signals_demo(args.output)
-        elif args.command == "leval-demo":
-            from self_curate.valuation.demo import run_valuation_demo
-
-            result = run_valuation_demo(
-                args.output, method=args.method, project_root=args.project_root
-            )
-        elif args.command == "outer-demo":
-            from self_curate.orchestration.demo import run_outer_demo
-
-            result = run_outer_demo(args.output, project_root=args.project_root)
-        elif args.command == "inner-demo":
-            from self_curate.search.demo import run_inner_demo
-
-            result = run_inner_demo(
-                args.output,
-                project_root=args.project_root,
-                prompt_directory=args.prompts,
-            )
-        elif args.command == "roles-demo":
-            from self_curate.agents.demo import run_role_demo
-
-            result = run_role_demo(
-                args.output,
-                project_root=args.project_root,
-                prompt_directory=args.prompts,
-            )
         elif args.command == "request-validation":
             from pathlib import Path
             from self_curate.agents import request_from_preparation

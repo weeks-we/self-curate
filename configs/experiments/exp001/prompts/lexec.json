@@ -1,0 +1,8 @@
+{
+  "schema_version": "1",
+  "role": "lexec",
+  "template_id": "exp001_execute_frozen_policy",
+  "revision": "1",
+  "input_format": "role-work-v1",
+  "instructions": "Authorize only the exact supplied frozen ProgramSpec and selection context. Return action=execute with their exact program_hash and context_hash, and optional notes. Deterministic Python tools perform selection. Do not modify thresholds, nodes, samples, seeds, budgets, the model, or the objective. Do not request Leval, training, rescoring or benchmark access. Do not invent tool output or validation scores."
+}

@@ -4,7 +4,7 @@
 
 0.7.0 的 [InnerSearch](INNER_SEARCH_ZH.md) 已将本页验证接口与三角色单步串成内层循环，管理历史最佳、成本和检查点；本页服务本身仍保持单步语义。外层训练/接受见 [外层接口](OUTER_TRAINING_ZH.md)，目标模型和任务适配器由调用方接入。
 
-本轮全模块复查见 [COHERENCE_REVIEW_ZH.md](HISTORY.md#coherence-review)。可行候选附带标准 `candidate_prepared/`，可在获得下一次外部验证结果后直接交给下一轮 feedback-step，无需重复执行 prepare-selection。
+可行候选附带标准 `candidate_prepared/`，可在获得下一次外部验证结果后直接交给下一轮 feedback-step，无需重复执行 prepare-selection。
 
 传给模型的 `selection_context` 来自 `ExecutionContext.role_summary()`：包含冻结控制配置与 context_hash，语义表仅包含 artifact 身份及 pair_count，不传完整 pairs 特征。执行器仍使用完整上下文，原持久化格式和 context_hash 计算不变。
 
@@ -101,13 +101,7 @@ def generate_json(*, role, system_prompt, payload, timeout_seconds) -> dict:
 
 以下所有数值与 tokenizer 都是显式 synthetic fixture，输出目录必须不存在：
 
-```powershell
-python -m self_curate normalize --config configs/m2.data.fixture.json --output runs/feedback-demo/pool
-python -m self_curate prepare-selection --pool runs/feedback-demo/pool --program configs/programs/feedback.parent.fixture.json --context configs/m2.fixture.json --objective configs/p1.objective.fixture.json --backend mock --attempt-id demo --invocation-id parent --output runs/feedback-demo/prepared
-python -m self_curate request-validation --prepared runs/feedback-demo/prepared --pool runs/feedback-demo/pool --protocol configs/feedback.protocol.fixture.json --measure predicted_gain --request-id external-fixture-validation --output runs/feedback-demo/request.json
-python -m self_curate validate-feedback --request runs/feedback-demo/request.json --result configs/feedback.result.fixture.json
-python -m self_curate feedback-step --prepared runs/feedback-demo/prepared --pool runs/feedback-demo/pool --request runs/feedback-demo/request.json --result configs/feedback.result.fixture.json --policy configs/feedback.policy.fixture.json --attempt-id demo --invocation-id feedback-001 --output runs/feedback-demo/step
-```
+
 
 初始两分支各 50%，外部 fixture 声明 regression=-0.02 未达 -0.01 下界；规则候选把 regression 分支改到 62.5%，recovery 为 37.5%。完整轨迹仍为 8 条、64 个监督 token，对应两分支 5/3 条；这是配额与交接验收，不是学习效果验证。
 

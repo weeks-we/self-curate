@@ -1,6 +1,6 @@
 # P1 正式入口：筛选并交接给 P0
 
-本页交接接口引入于 0.5.1；当前包 0.11.0。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。内层 best 的精确训练消费见 [外层接口](OUTER_TRAINING_ZH.md)，内层两套估值器见 [Leval 接口](LEVAL_BACKENDS_ZH.md)。
+本页交接接口引入于 0.5.1；当前包 0.16.0。P1 执行沿用 m2-v2；PreparedSelection 和发布格式 schema_version=1。内层 best 的精确训练消费见 [外层接口](OUTER_TRAINING_ZH.md)，内层两套估值器见 [Leval 接口](LEVAL_BACKENDS_ZH.md)。
 
 [NLL/entropy 计算模块](SIGNAL_COMPUTATION_ZH.md) 可先回填 M1 并构造包含精确 SignalSpec 的新 SignalContext，再运行 P1；本接口不隐式触发模型前向或改写原 selection snapshot。
 原 `execute_program` / `select` 保留。需要后续工作流消费时使用本接口，无需手工拼装批次。
@@ -72,11 +72,7 @@ bundle = load_workflow(
 
 在项目根目录安装包后：
 
-```powershell
-python -m self_curate normalize --config configs/m2.data.fixture.json --output runs/p1-demo/pool
-python -m self_curate prepare-selection --pool runs/p1-demo/pool --program configs/programs/m2.fixture.json --context configs/m2.fixture.json --objective configs/p1.objective.fixture.json --backend mock --attempt-id demo-attempt --invocation-id select-001 --output runs/p1-demo/prepared
-python -m self_curate inspect-preparation --prepared runs/p1-demo/prepared --pool runs/p1-demo/pool --expected-model configs/p1.model.fixture.json --expected-objective configs/p1.objective.fixture.json
-```
+
 
 prepare-selection：退出码 0 可行、3 不可行、2 算子/契约/IO 失败。
 程序/输入配置校验失败发生在执行前，不发布执行产物；执行中的结构化失败会发布 failed 结果及本次选择成本。
@@ -84,9 +80,7 @@ inspect-preparation：0 验证通过，2 产物/版本/配置错误；不会因�
 
 工作流也可单独核对系统配置：
 
-```powershell
-python -m self_curate validate-workflow --workflow runs/p1-demo/prepared/workflow.json --pool runs/p1-demo/pool --expected-model configs/p1.model.fixture.json --expected-objective configs/p1.objective.fixture.json --expected-context configs/m2.fixture.json --expected-batch runs/p1-demo/prepared/batch.json
-```
+
 
 expected 参数来自系统受控配置和系统已保存的清单；--expected-context 要求 --pool。
 回执分别列出模型、目标、上下文、精确批次和训练输入是否已核对。--expected-batch 也可传给 inspect-preparation。

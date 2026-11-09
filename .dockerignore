@@ -1,0 +1,16 @@
+.git
+.venv
+venv
+runs
+data
+models
+weights
+assets
+__pycache__
+**/__pycache__
+.pytest_cache
+*.egg-info
+.env
+.env.*
+**/*.key
+**/credentials*

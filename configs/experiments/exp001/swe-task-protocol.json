@@ -1,0 +1,7 @@
+{
+  "schema_version": "1",
+  "recent_tool_observations": 5,
+  "per_call_output_tokens": 32768,
+  "tool_timeout_seconds": 300,
+  "model_timeout_seconds": 3600
+}

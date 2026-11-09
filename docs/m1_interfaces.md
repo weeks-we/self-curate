@@ -4,27 +4,7 @@
 
 ## 1. Python 接口
 
-```python
-from self_curate.data import (
-    TokenizationBackend, FixtureTokenizer, PrecomputedTokenizer,
-    normalize_trajectory, load_config, build_pool, read_pool,
-)
 
-record = normalize_trajectory(raw_record, backend, declared_skills=("failure_recovery",))
-record.data_id
-record.content_hash                 # 规范化消息内容；不混入来源或标注
-record.record_hash                  # 包括 token、mask、指标、质量、使用历史
-record.stats.supervised_tokens
-record.tokenization.assistant_mask
-record.labels                       # 非监督位置为 -100
-record.evidence_metrics             # tuple[EvidenceMetrics, ...]
-
-config = load_config("configs/m1.fixture.json")
-manifest = build_pool(config, "runs/a-new-pool")
-snapshot = read_pool("runs/a-new-pool")
-snapshot.records                    # tuple[TrajectoryRecord, ...]，按 data_id 排序
-snapshot.excluded                   # 精确排除原因和记录身份
-```
 
 公共数据契约均来自 `self_curate.contracts`，可通过 `.to_dict()` 导出 JSON 对象。
 不可变 dataclass 用 tuple 保存嵌套序列。对象与大文件按内容 hash 关联，不以路径充当身份。
@@ -37,7 +17,7 @@ ProgramSpec、BatchManifest 仍由后续模块定义。
 
 必填：`schema_version="1"`、`data_id`、`source`、`messages`、`quality`。
 可选：`annotations`、`usage`、`tokenization`、`signals`、`metadata`、`gradients`、
-`annotation_record`、`metadata_record`。具体小样本见 `tests/fixtures/m1_trajectories.jsonl`。
+`annotation_record`、`metadata_record`。原始数据由调用方提供 JSONL。
 
 | 字段 | 约定 |
 |---|---|
@@ -120,7 +100,7 @@ forward/gradient 历史不自动构成训练排除。允许被拒绝的数据再
 
 ## 6. 配置与数据池
 
-配置使用 JSON，路径相对于配置文件所在目录解析。fixture 示例位于 `configs/m1.fixture.json`。
+配置使用 JSON，路径相对于配置文件所在目录解析。运行时应提供自己的数据导入配置。
 precomputed 模式额外必填 tokenizer identity；本版本不内置任何目标模型或真实实验预算。
 
 `max_context_tokens` 是完整模板化序列长度。oversize_policy=reject 写入排除清单，

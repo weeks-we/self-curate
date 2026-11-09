@@ -4,7 +4,7 @@
 
 0.7.0 新增 [内层循环](INNER_SEARCH_ZH.md)，复用本页角色接口完成多轮验证/反馈与历史最佳管理；本页 RoleTeam.feedback_step 仍是单步入口，不自行判定历史最佳。目标模型/任务适配器和完整外层恢复仍待后续。
 
-最新两遍复查、修复与下游接口见 [ROLES_TWO_PASS_REVIEW_ZH.md](HISTORY.md#roles-review)。会话新增固定评价 RoleScope；`team.publish_cycle()` 发布完整 P1/验证交接产物，`team.save()` 仍只保存角色历史，两者用途不同。
+会话新增固定评价 RoleScope；`team.publish_cycle()` 发布完整 P1/验证交接产物，`team.save()` 仍只保存角色历史，两者用途不同。
 
 执行角色 Lexec、验证解释角色 Leval、优化角色 Lopt 已接入同一个 RoleRuntime：**同一个客户端实例、同一个不可变 ModelRef；各自固定 prompt、各自独立 history**。没有创建三份模型，也没有引入新的 Agent 框架或模型供应商依赖。
 
@@ -19,7 +19,6 @@
 | `agents/history.py` | 独立角色的 before/after 事件、hash 链、窗口取值与内部只读索引 |
 | `agents/runtime.py` | 共享客户端调用、模型版本核对、隔离上下文、成本、快照保存与恢复 |
 | `agents/roles.py` | ExecutionAgent、EvaluationAgent、OptimizationAgent、RoleTeam 及单步协作 |
-| `agents/demo.py` | 显式 CPU fixture 客户端及两轮运行/恢复演示，不能作为真实模型结果 |
 
 Lexec 复用 `prepare_selection`；Leval 复用 `build_feedback`；Lopt 复用 `propose_program` 的完整程序校验、真实 diff 和有限修复重试。原 M1、M2、P0/P1 和旧 `run_feedback_step` 接口保留。需要三角色模型调用时使用本页的 RoleTeam 入口。
 
@@ -168,15 +167,4 @@ class YourSharedClient:
 
 `runtime.ledger()` 只统计实际模型调用。P1 选择成本继续保存在 candidate.ledger；Lopt attempt usage 引用的是同一批物理调用，不是另外一笔成本。工具 history 的耗时是诊断 span，可能包含子调用，不应再叠加到模型/P1 成本中。未知 token/GPU 计量保留 null，失败、取消和无效 JSON 不会被抹去。
 
-## 本地可运行验收
-
-```powershell
-python -m self_curate roles-demo --project-root . --prompts configs/roles --output runs/roles-demo
-python -m pytest -q
-```
-
-demo 使用显式 FixtureRoleClient，同一实例为三个角色各调用两次，中间保存并恢复 history。输出保存完整调用、角色快照、两个候选 P1 目录和摘要，所有数值都是声明的 mock。原始技术文档和旧证据不改写。
-
 模型调用账本中的 attempt_id 与 P1 使用同一个外层尝试 ID，session_id 单独标识角色会话。构造时可以显式提供 attempt_id；RoleTeam.feedback_step 也会在首次工作前绑定它。会话已有记录后不能重新贴成其他尝试。
-
-本轮最终验收记录与交付包位于 `runs/three-roles-final/`；`runs/three-roles/` 保留首轮测试和验收脚本编码错误的记录。测试统计以最终 verification.json 为准。后续工作是填充 prompt、实现/注入真实无状态客户端并核验加载版本，再接数值验证与完整搜索状态机。

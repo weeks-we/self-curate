@@ -102,4 +102,4 @@ if result.status == "completed":
 - 不改变 V0 固定教材定义。后续配置由实验控制层显式决定是否调用刷新；V0/Random 等关闭路径仍需实现。
 - 尚需统一配置 runner、跨轮装配/恢复、真实模型和任务适配，以及正式配置/handoff。当前模块通过 CPU/mock 验收不表示已有真实实验结果。
 
-相关契约：[指标计算](SIGNAL_COMPUTATION_ZH.md)、[共享资产](EXPERIMENT_ASSETS_ZH.md)、[外层训练](OUTER_TRAINING_ZH.md)、[执行总览](EXPERIMENT_EXECUTION_PLAN_ZH.md)。
+相关契约：[指标计算](SIGNAL_COMPUTATION_ZH.md)、[共享资产](EXPERIMENT_ASSETS_ZH.md)、[外层训练](OUTER_TRAINING_ZH.md)、[执行总览](README.md)。

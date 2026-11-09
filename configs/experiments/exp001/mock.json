@@ -1,0 +1,17 @@
+{
+  "schema_version": "1",
+  "experiment_id": "exp001_random_static_v1_mock",
+  "backend": "mock",
+  "execution": "local_mock",
+  "seed": 42,
+  "selection_fraction": 0.1,
+  "learning_rates": [0.000005, 0.00002],
+  "modes": ["random", "static_m0"],
+  "effective_batch": 8,
+  "max_context_tokens": 32,
+  "lexec_use_model": true,
+  "lopt_timeout_seconds": 30,
+  "adapter": "self_curate.experiments.exp001.mock:build",
+  "adapter_settings": {},
+  "gpu_uuids": []
+}

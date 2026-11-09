@@ -1,68 +1,31 @@
 # Self-Curate
 
-Model-driven, feedback-guided data curation across learning stages.
+数据筛选与自改进实验项目，版本 0.16.0。工作目录按正式实验运行维护；开发测试与旧模块演示已归档。
 
-独立的数据筛选与自改进研究项目，当前代码版本 **0.12.0**。内层使用固定模型执行筛选、数值评价和反馈优化；外层消费历史最佳的精确样本清单，进行子集 SFT、验证与判断，再从接收后的参数继续筛选轨迹 SFT、验证与判断。
+## 运行入口
 
-## 从哪里开始
+- [EXP001 V3 Handoff](docs/handoffs/EXP001_SERVER_V3.md)：正式实验交接与输出。
+- [容器部署](docs/SERVER_CONTAINER_DEPLOYMENT_ZH.md)：无 GPU 联网准备、GPU 验收与执行。
+- [文档索引](docs/README.md)、[当前状态](docs/progress.md)、[运行链路](docs/CODE_READING_TUTORIAL_ZH.md)。
 
-先看 [当前进度](docs/progress.md)，再按 [代码阅读教程](docs/CODE_READING_TUTORIAL_ZH.md) 理解数据流。研究定义见 [原始蓝图](docs/self_curate_codex_blueprint.md)、[数据中心架构](docs/data_centric_rsi_architecture.md) 和 [实现决策](docs/decisions.md)。
+`configs/experiments/exp001/server_bootstrap.template.json` 是服务器计划模板，
+`server.template.json` 保存正式参数模板（含唯一 LoRA 超参），`sources.json` 固定来源。
+实际数据、权重、镜像和 GPU 容量必须在服务器核验；不能把模板当成已验收配置。
 
-用户的递进实验计划与数据准备规范已纳入 [执行总览](docs/EXPERIMENT_EXECUTION_PLAN_ZH.md)。每次实验使用独立版本的 [handoff](docs/handoffs/README.md)，公共模块共用；当前只有模板，尚无 ready 的首次真实实验交接。默认先串行、单源码目录运行，结束并保存后再更新；并行或旧版本恢复时可使用独立 worktree。
-
-历史复查与旧进度已合并到 [HISTORY.md](docs/HISTORY.md)。其中的“下一步”和“未实现”指各报告当时的状态；当前模块状态以下表和 progress.md 为准。
-
-## 模块与接口
-
-| 模块 | 当前职责 | 接口说明 |
-|---|---|---|
-| M1 数据 | 完整轨迹、assistant mask、质量/技能/使用历史、版本化指标与 ID 保序查询 | [数据格式](docs/m1_interfaces.md)、[算子取值](docs/m1_operator_data_contract.md)、[外部标注](docs/enrichment_interfaces.md) |
-| NLL / entropy | 实际冻结前向或外部 raw logits，按 assistant/技能范围计算并回填新数据池 | [计算与回填](docs/SIGNAL_COMPUTATION_ZH.md) |
-| 指标刷新 | 首轮全池初始化；后续接收 Lopt 方向，仅刷新技能匹配且从未用于外层真实参数更新的数据 | [刷新接口与使用历史](docs/FOCUSED_SIGNAL_REFRESH_ZH.md) |
-| M2 / P1 | 八类筛选算子、固定质量门禁、确定性组批与精确清单交接 | [算子接口](docs/m2_interfaces.md)、[P1 交接](docs/p1_handoff_interfaces.md) |
-| P0 契约 | 模型、任务、梯度引用、评价、成本和轮次身份核验 | [P0 接口](docs/p0_interfaces.md) |
-| 共享实验资产 | 三类 M0 产物、精确身份/manifest pin、独立消费回执、冻结运行输入 | [复用与服务器更新](docs/EXPERIMENT_ASSETS_ZH.md) |
-| 三角色 / 反馈 | 同模型、独立 prompt/history；Leval 数值事实传给 Lopt | [角色接口](docs/THREE_ROLE_AGENTS_ZH.md)、[反馈接口](docs/feedback_lopt_interfaces.md) |
-| 内层搜索 | 候选循环、历史最佳、成本与检查点；停止条件由调用方配置 | [内层接口](docs/INNER_SEARCH_ZH.md) |
-| Leval | 可切换 NICE 梯度代理或隔离候选 SFT/开发任务评价 | [两套后端](docs/LEVAL_BACKENDS_ZH.md) |
-| 外层训练 / 验证 | 两阶段 SFT、任务执行接口与逐阶段接收/退回 | [外层接口](docs/OUTER_TRAINING_ZH.md) |
-
-数据、模型、tokenizer 和任务执行器由调用方通过接口提供。具体 prompt 正文、研究停止条件和接收阈值仍待配置；不默认接收候选。最终测试集不进入筛选或优化。
-
-## 本地运行
-
-Python 3.11+。数据契约与基础 CLI 只使用标准库；指标计算需要 NumPy，实际 Torch 后端与相关专项需要 PyTorch。
-
-```powershell
-python -m pip install -e ".[dev,signals,training]"
-python -m self_curate --help
-python -m pytest -q
+```bash
+python -m self_curate.server --help
+python -m self_curate.experiments.exp001 --help
+python -m self_curate.experiments.exp001.status --output <run-directory> --watch
 ```
 
-显式合成示例，输出必须使用新目录：
+EXP001 的 mock.json 与整体 CPU 预演后端保留，用于部署前检查训练/验证/恢复/打包链路，
+不下载目标模型，不产生研究结论。五个旧模块级 *-demo 命令和测试工程已删除。
 
-```powershell
-python -m self_curate normalize --config configs/m2.data.fixture.json --output runs/m2-demo/pool
-python -m self_curate select --pool runs/m2-demo/pool --program configs/programs/m2.fixture.json --context configs/m2.fixture.json --output runs/m2-demo/selection
-python -m self_curate signals-demo --output runs/signals-demo
-python -m self_curate outer-demo --output runs/outer-demo
-```
+## 目录和提交
 
-完整交接与 API 用法见上表对应文档。示例使用 fixture 数据、合成 logits 或 mock 任务结果；专项测试另有微型 CPU 模型真实前向/梯度/SFT。它们验证工程语义，不代表目标模型的任务能力或 GPU 容量已通过验收。
+src/ 为运行模块，configs/ 为实验/角色配置，docker/ 为环境构建，docs/ 为需求、接口与交接。
+没有维护中的 tests/ 或 pytest 开发依赖。数据、模型、缓存、凭据、状态和结果不提交 Git。
+运行必需的版本/数据校验、任务验证、恢复检查、容量验收继续保留。
 
-## 提交前检查
-
-源码在 `src/`，回归测试与必要 fixture 在 `tests/`，可复现实例和角色配置在 `configs/`，架构与接口在 `docs/`。这些都属于项目所需内容。新增的 signals 包、数据池发布模块及其测试也应加入 Git。
-
-`runs/`、`build/`、`dist/`、`*.egg-info/`、缓存、数据、模型、运行状态与凭据由 `.gitignore` 排除，不上传。正式验收产物在本地 runs/ 中保留；历史测试临时文件可以归档后清理。删除已跟踪的历史文档会在 Git 中显示为删除，其内容已归入 HISTORY.md。
-
-由用户检查暂存内容后自行提交和推送：
-
-```powershell
-git add -A
-git diff --cached --stat
-git diff --cached --check
-git status --short
-```
-
-`git add -A` 同时记录新增、修改和删除。测试通过说明本地工程回归通过；远端认证、分支保护或并发提交仍可能影响后续 push。
+开发测试和演示的完整源码备份在本地被忽略的 runs/runtime-only-20261109/；
+该备份不会随 Git 更新到师兄服务器。用户自行 commit/push，助手不代执行。
