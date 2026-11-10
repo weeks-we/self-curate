@@ -260,3 +260,8 @@
 保留 EXP001 整体 mock 作为部署预演；不提供已删除的模块 demo 命令，不保留 pytest 的失效入口。
 LoRA 以 server.template.json 的 adapter_settings.lora 为准。服务器使用 Docker/无 GPU assets 准备，
 删除未被该运行流程引用的旧 venv 安装脚本。旧源码完整备份，原始研究文档不改写。
+
+
+## 2026-11-10：独立的内外层 CPU mock 验收入口
+
+用户要求将整体嵌套流程交给服务器 agent 前先在本机运行。新增 self_curate.smoke 与 configs/smoke/nested_cpu_mock.json，只支持 CPU mock，固定外层 3 轮、每轮 5 次内层候选评估；配置中评分、技能方向和决策均为显式模拟情景，不替代正式策略。复用现有 InnerSearch、OuterCycle、SignalService/FocusedRefreshService、训练/任务验证服务，不复制核心状态机。跨轮新建绑定当前模型的角色会话，旧私有 history 保持原身份，以角色私有摘要引用和外层决策证据输入新会话。旧 runtime-only 决策继续有效，不恢复源码测试树；此次用户明确要求的完整流程验收保留为可移植运行入口。支持内层中途保存恢复与完成证据复核，不宣称通用外层跨进程恢复。交接见 docs/handoffs/NESTED_CPU_MOCK_HANDOFF.md。

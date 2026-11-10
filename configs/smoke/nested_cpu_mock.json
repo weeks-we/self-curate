@@ -1,0 +1,17 @@
+{
+  "schema_version": "1",
+  "backend": "mock",
+  "execution": "cpu_mock",
+  "seed": 42,
+  "pool_size": 64,
+  "outer_rounds": 3,
+  "inner_evaluations": 5,
+  "values": [0.1, 0.4, 0.2, 0.3, 0.15],
+  "proposal_shares": [0.625, 0.375, 0.75, 0.25],
+  "decision_scenarios": [
+    ["accept", "accept"],
+    ["needs_more_evidence", "reject"],
+    ["accept", "reject"]
+  ],
+  "focus_skills": ["recovery", "regression"]
+}

@@ -8,7 +8,7 @@ from self_curate.contracts.types import require
 from self_curate.data.pool import file_sha256
 from self_curate.training.recovery import atomic_json, commit_directory
 
-DATASET = "SWE-bench/SWE-smith-trajectories"
+DATASET = "SWE-bench/SWE-smith-trajectories" #TODO 可更换
 REVISION = "470d6f28b7219c95f43c47843cc7c69f63e077f0"
 
 

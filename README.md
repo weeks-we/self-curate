@@ -2,6 +2,16 @@
 
 数据筛选与自改进实验项目，版本 0.16.0。工作目录按正式实验运行维护；开发测试与旧模块演示已归档。
 
+## 内外层 CPU 联调
+
+小规模 3×5 嵌套循环的配置和交接见 [CPU mock Handoff](docs/handoffs/NESTED_CPU_MOCK_HANDOFF.md)。
+它只调用合成 mock 后端，不加载真实模型、不使用 GPU；真实实验仍走各自正式入口。
+
+```bash
+PYTHONPATH=src python -m self_curate.smoke --config configs/smoke/nested_cpu_mock.json --output runs/nested-cpu-new
+PYTHONPATH=src python -m self_curate.smoke --output runs/nested-cpu-new --verify-only
+```
+
 ## 运行入口
 
 - [EXP001 V3 Handoff](docs/handoffs/EXP001_SERVER_V3.md)：正式实验交接与输出。
