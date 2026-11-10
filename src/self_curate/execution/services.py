@@ -27,7 +27,7 @@ def phase_uuids(uuids, phase, *, reserved=(), training_count=4):
         return ()
     if phase == "training":
         require(
-            type(training_count) is int and 1 <= training_count < 8,
+            type(training_count) is int and 1 <= training_count <= 8,
             "Invalid independent training branch count",
         )
         return tuple(uuids[training_count:])

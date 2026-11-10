@@ -500,7 +500,18 @@ def _finish(
     if hasattr(ports, "enter_phase"):
         ports.enter_phase("training")
 
-    if parallel_training or config.backend == "real":
+    if config.backend == "real":
+        # All eight ranks belong to ONE branch; four branches run successively.
+        # Published adapters are evaluated after the distributed worker exits.
+        ports.release_initial()
+        branch_results = {}
+        for branch, request in plans:
+            require(source_hash() == stamp, "Source changed before FSDP branch")
+            ports.enter_phase("training")
+            branch_results[branch] = execute_branch(
+                ports, config, request, inputs.development, output / "branches" / branch, resume=resume
+            )
+    elif parallel_training:
         ports.release_initial()
         branch_results = run_processes(config, plans, output, asset_root, resume=resume)
     else:

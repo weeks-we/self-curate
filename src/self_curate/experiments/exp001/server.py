@@ -8,7 +8,6 @@ from self_curate.contracts.parsing import artifact
 from self_curate.contracts.types import require
 from self_curate.training.recovery import read_json
 from self_curate.training.peft_store import PeftModelStore, LoRASettings
-from self_curate.training.continuous import TorchContinuousBackend
 from self_curate.execution.artifacts import read_artifact
 from self_curate.execution.runner import build_task_runner
 from self_curate.execution.model import CompletionClient
@@ -147,8 +146,7 @@ class ServerPorts:
             self.manager = ServiceManager(
                 {
                     **self.settings["services"],
-                    "training_processes": len(config.modes)
-                    * len(config.learning_rates),
+                    "training_processes": 8,
                 },
                 self.task_runner.router.entries,
                 config.gpu_uuids,
@@ -171,7 +169,7 @@ class ServerPorts:
             self.config.gpu_uuids,
             phase,
             reserved=reserved,
-            training_count=len(self.config.modes) * len(self.config.learning_rates),
+            training_count=8,
         )
         if self.manager:
             active = self.manager.transition(phase, reserved=reserved)
@@ -306,7 +304,12 @@ class ServerPorts:
         return self._scorer
 
     def training_backend(self, branch):
-        return TorchContinuousBackend(self.store, backend="real", device="cuda:0")
+        from self_curate.training.fsdp import AccelerateFSDPBackend
+        require(self.settings.get("training_backend", "accelerate_fsdp") == "accelerate_fsdp",
+                "Real server SFT must use the configured Accelerate FSDP backend")
+        require(self.manager is not None, "FSDP requires managed inference services to release all authorized GPUs")
+        return AccelerateFSDPBackend(self.store, gpu_uuids=self.config.gpu_uuids,
+                                      config=self.settings.get("fsdp", {}))
 
     def attach_training(self, config, model):
         require(model == self.model, "Worker M0 changed")

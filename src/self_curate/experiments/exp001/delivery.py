@@ -36,6 +36,19 @@ def redact(value):
     return value
 
 
+def _contains_training_payload(value):
+    if isinstance(value, dict):
+        examples = value.get("examples")
+        if isinstance(examples, list) and any(
+            isinstance(item, dict) and "input_ids" in item and "labels" in item for item in examples
+        ):
+            return True
+        return any(_contains_training_payload(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_training_payload(item) for item in value)
+    return False
+
+
 def verify_run(root):
     root = Path(root).resolve()
     marker = read_json(root / "completion.json")
@@ -228,11 +241,14 @@ def export_bundle(run, output=None):
                     ".toml",
                     ".yaml",
                 )
-                or path.name in ("records.jsonl", "historical-5016.jsonl")
+                or path.name in ("records.jsonl", "historical-5016.jsonl", "job.json")
             ):
                 continue
             require(not path.is_symlink(), "Do not package symlink targets")
             raw = path.read_bytes()
+            if path.suffix == ".json" and _contains_training_payload(json.loads(raw.decode("utf-8"))):
+                # Requests/plans can embed raw tokenized TrainingData as well as job.json.
+                continue
             changed = False
             if path.suffix == ".json":
                 transformed = (

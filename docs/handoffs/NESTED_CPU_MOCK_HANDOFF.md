@@ -20,7 +20,7 @@ python -m self_curate.smoke --config configs/smoke/nested_cpu_mock.json --output
 python -m self_curate.smoke --output "$RUN" --verify-only
 ```
 
-两条命令均应退出 0，最后 JSON 中 status=passed、backend=mock。新运行拒绝覆盖已有目录；失败后保留原目录，修复问题后换一个新的 RUN。`--verify-only` 只核对已完成证据及 ZIP，不继续训练，不表示外层断点续跑。通用 OuterCycle 的跨进程恢复仍未实现。
+两条命令均应退出 0，最后 JSON 中 status=passed、backend=mock。新运行拒绝覆盖已有目录；失败后保留原目录，修复问题后换一个新的 RUN。`--verify-only` 只核对已完成证据及 ZIP，不继续训练，它不负责恢复整个 smoke CLI；OuterCycle 的跨进程恢复由本次联调在内部实际执行。
 
 ## 实际覆盖的流程
 
@@ -37,6 +37,22 @@ python -m self_curate.smoke --output "$RUN" --verify-only
 | 3 | 训练、验证、接受 | 接着子集权重训练、验证、拒绝 | 第三轮子集阶段模型 |
 
 轨迹语料由 mock provider 提供两枚监督 token，只测试接口；不宣称已经实现真实筛选轨迹总结。mock 指标计算后走现有 SignalService/M1 回填与 FocusedRefreshService；不是实际模型 logits。Leval 分数和接受策略同样为明确的验收情景。
+
+## 外层进程恢复检查（新增）
+
+入口、配置及上述两条命令保持不变。每轮在一个持久化边界模拟控制器中断，再启动独立 Python 子进程恢复 OuterCycle：
+
+| 轮次 | 模拟中断位置 | 应有行为 |
+|---|---|---|
+| 1 | 子集训练结果已保存，控制器尚未提交 training_completed | 读取原训练结果，不再调用训练后端 |
+| 2 | 子集任务验证已保存，控制器尚未提交 validation_completed | 读取原验证，不重复 rollout；之后仅执行配置中的追加验证 |
+| 3 | 接受决定和 accepted 指针已落盘，控制器尚未提交 decision_recorded | 续交同一决定，不再次调用判断器，不重复接受 |
+
+每个子进程重新读取内层 checkpoint、原数据视图和独立身份锚点。结束后主进程再次恢复终态，确认不会新增训练、验证或决策。总预算仍为 5 次训练、42 次 rollout；恢复不加预算。
+
+每轮查看 outer-resume-verification.json、outer-resume-worker.json 和 outer-resume-worker.log。summary.json 必须有 outer_process_recovery_verified=true、outer_resume_scenarios=3；子进程 PID 必须与主进程不同。journal 是带前序 hash 和完整恢复状态的原子记录。
+
+这测试的是每轮 OuterCycle 的进程恢复，不代表可随意修改源码后恢复，也不是整个三轮 smoke 主程序的 --resume。旧版无恢复 payload 的 journal 不迁移、不改写。外部调用如果没有可核验结果，恢复仍可能阻塞；不会把未知工作当成未执行而盲目重发。
 
 ## 自动验收要求
 

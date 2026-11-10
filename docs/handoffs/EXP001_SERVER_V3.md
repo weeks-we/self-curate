@@ -1,3 +1,5 @@
+> SFT execution updated 2026-11-10: see [FSDP handoff](SFT_FSDP_RECOVERY_HANDOFF.md). Earlier four independent single-GPU worker instructions are superseded.
+
 # EXP001_SERVER_V3：联网准备与 GPU 执行分离
 
 状态：代码交接；正式结果必须通过服务器容量、环境和评测 smoke。不得把本机 mock 当研究结果。

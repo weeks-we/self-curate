@@ -164,12 +164,11 @@ def run(config, output):
                            baseline=baseline, outer_exposures=exposures)
         decisions = mock.MockDecisions(config["decision_scenarios"][number - 1])
         training_start = len(trainer.requests)
-        cycle.run(decider=decisions)
-        if number == 2:
-            check(cycle.phase == "awaiting_decision" and len(cycle.trainings) == 1, "insufficient evidence failed to wait")
-            cycle.request_revalidation(reason="Configured mock additional evidence")
-            cycle.run(decider=decisions)
-            check(len(cycle.trainings) == 1 and len(cycle.evaluations) == 2, "revalidation retrained the subset")
+        from .outer_resume import recover_in_process
+        cycle = recover_in_process(cycle, number=number, result=result, view=context.view,
+                    inner_request=request, edit_policy=policy, prompts=prompts, folder=folder,
+                    trainer=trainer, tasks=tasks, decisions=decisions,
+                    outcomes=config["decision_scenarios"][number - 1])
         expected_trainings = 1 if number == 2 else 2
         check(len(trainer.requests) - training_start == expected_trainings, "unexpected stage training count")
         first = trainer.requests[training_start]
@@ -213,7 +212,8 @@ def run(config, output):
     summary = {"status": "passed", "backend": "mock", "execution": "cpu_mock", "outer_rounds": 3,
                "inner_evaluations": 15, "role_calls": role_calls, "training_calls": len(trainer.requests),
                "task_rollouts": len(tasks.requests), "rounds": rows, "seconds": perf_counter() - started,
-               "inner_midpoint_restore_verified": True, "outer_crash_resume_supported": False,
+               "inner_midpoint_restore_verified": True, "outer_crash_resume_supported": True,
+               "outer_process_recovery_verified": True, "outer_resume_scenarios": 3,
                "research_effectiveness_verified": False}
     write_json(output / "summary.json", summary)
     with (output / "rounds.csv").open("w", encoding="utf-8", newline="") as stream:
@@ -233,6 +233,11 @@ def verify(output):
     summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
     check(summary["status"] == "passed" and summary["inner_evaluations"] == 15 and
           summary["training_calls"] == 5 and summary["task_rollouts"] == 42, "summary acceptance counts")
+    check(summary["outer_process_recovery_verified"] and summary["outer_resume_scenarios"] == 3,
+          "outer process recovery was not exercised")
+    for number in range(1, 4):
+        report = json.loads((output / f"round-{number:02d}" / "outer-resume-verification.json").read_text(encoding="utf-8"))
+        check(report["passed"] and report["subprocess_pid"] != report["parent_pid"], "not a separate recovery process")
     check([r["phase"] for r in summary["rounds"]] == ["completed", "rejected", "rejected"], "outer decision phases")
     return summary
 

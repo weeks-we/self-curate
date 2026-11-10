@@ -29,18 +29,35 @@ class TrainingService:
     def __init__(self, backend):
         self.backend = backend
 
-    def train(self, request: TrainingRequest, output) -> TrainingOutcome:
+    def train(self, request: TrainingRequest, output, *, resume=False) -> TrainingOutcome:
         require(isinstance(request, TrainingRequest), "Expected TrainingRequest")
         require(
             self.backend.backend == request.backend, "Training backend/domain mismatch"
         )
+        from .recovery import atomic_json
         output = Path(output).resolve()
-        output.mkdir(parents=True, exist_ok=False)
-        write_json(output / "request.json", request.to_dict())
+        if output.exists():
+            require(resume, "Existing SFT output requires explicit resume")
+            from .recovery import read_json
+            require(read_json(output / "request.json") == request.to_dict(), "Resumed SFT request changed")
+            if (output / "outcome.json").exists():
+                from self_curate.orchestration.io import parse_outer_contract
+                outcome = parse_outer_contract("TrainingOutcome", read_json(output / "outcome.json"))
+                require(outcome.request == request, "Completed SFT belongs to another request")
+                verify_local_checkpoint(outcome.result.checkpoint)
+                return outcome
+            if (output / "failure.json").exists():
+                from .runlog import new_run_id
+                evidence = output / "failures"
+                evidence.mkdir(exist_ok=True)
+                write_json(evidence / (new_run_id() + ".json"), read_json(output / "failure.json"))
+        else:
+            output.mkdir(parents=True, exist_ok=False)
+            atomic_json(output / "request.json", request.to_dict())
         start = perf_counter()
         usage = ResourceUsage()
         try:
-            result = self.backend.train(request, output / "checkpoint")
+            result = self.backend.train(request, output / "checkpoint", **({"resume": True} if resume else {}))
             if isinstance(getattr(result, "usage", None), ResourceUsage):
                 usage = result.usage
             require(isinstance(result, BackendTrainingResult), "Invalid trainer result")
@@ -102,7 +119,7 @@ class TrainingService:
                 request.backend,
             )
             outcome = TrainingOutcome(request, record, ledger, result)
-            write_json(output / "outcome.json", outcome.to_dict())
+            atomic_json(output / "outcome.json", outcome.to_dict())
             return outcome
         except Exception as exc:
             if isinstance(exc, TrainingFailure):
@@ -119,7 +136,7 @@ class TrainingService:
             from self_curate.contracts import digest
 
             event = CostEvent(
-                "training-" + request.record_hash,
+                "training-failed-" + request.record_hash + "-" + __import__("uuid").uuid4().hex,
                 request.attempt_id,
                 "training",
                 request.training_id,

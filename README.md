@@ -2,6 +2,8 @@
 
 数据筛选与自改进实验项目，版本 0.16.0。工作目录按正式实验运行维护；开发测试与旧模块演示已归档。
 
+- [SFT FSDP / recovery handoff](docs/handoffs/SFT_FSDP_RECOVERY_HANDOFF.md): eight GPU ranks, timestamped outputs, optimizer-state continuation.
+
 ## 内外层 CPU 联调
 
 小规模 3×5 嵌套循环的配置和交接见 [CPU mock Handoff](docs/handoffs/NESTED_CPU_MOCK_HANDOFF.md)。

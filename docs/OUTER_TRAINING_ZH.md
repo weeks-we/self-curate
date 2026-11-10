@@ -97,7 +97,7 @@ ModelStore 实现 load_branch、save_branch、load_checkpoint；必须加载确�
 
 通用 StateDictModelStore 接受 model_factory、initial_model、initial_state，加载现有本地 torch state_dict；初始 ModelRef.weights_hash 必须是初始文件 SHA256。factory 必须返回新实例。adapter store 声明 checkpoint_kind=adapter，起始模型必须有 adapter_hash；更新实际 adapter hash，保持基座 weights_hash。full store 处理无 adapter_hash 的完整模型。
 
-训练 loss 仅为拟合诊断，不用于声称能力提升。本轮未实现分布式、AMP、scheduler、特定目标模型 loader 或训练中途恢复。
+训练 loss 仅为拟合诊断，不用于声称能力提升。上述 Torch 后端说明保留其基础语义；正式 EXP001 已接入 Accelerate FSDP、BF16 LoRA 与训练断点恢复，见 SFT_FSDP_RECOVERY_HANDOFF.md。当前配方使用常数学习率，没有引入 scheduler。
 
 ## 任务验证与判断
 
@@ -125,12 +125,16 @@ cycle.updated_records 交出带 M1 训练历史的新记录：子集训练完成
 
 cycle.ledger 合并内层、训练、任务、汇总、失败和复测物理费用，不重复计账，未知量为 None。全部 journal／完整性校验 I/O 尚未纳入统一成本。
 
-本轮有证据持久化，没有 OuterCycle 自动崩溃恢复；不是完整 M9。同名输出拒绝覆盖，失败不自动重发；进程在途退出须先人工核对已有调用和权重。
+OuterCycle 已支持新运行的进程恢复：使用 `OuterCycle.restore(search_result, original_view, **original_constructor_kwargs)`，output 指向原目录，独立 model/batch/suite/recipe/policy/baseline/exposure 锚点沿用创建时的值。恢复先校验原子 journal 的 hash 链、冻结输入、源码和后端身份，再恢复模型、训练/验证结果、决定、费用和 M1 使用/曝光状态。已完成操作读取原结果；在途训练和验证调用现有 resume 接口。持久化决定意图先于 journal 提交时续交同一决定，不重问判断器。
+
+所有状态修改由 attempt 的 OS lease 串行保护，旧内存实例不能覆盖恢复后的进度。失败状态不会自动重发，显式 `retry(reason=...)` 最多两次；未知的外部在途调用可能仍需核验。accepted 指针仍只属于本 attempt，不是全局模型服务提交。旧无恢复 payload 的 journal 不迁移。恢复验证已加入原 CPU 模块联调 Handoff。
 
 ## 外层使用与刷新交接
 
-0.12.0 新增可选参数 `outer_exposures=OuterExposureHistory(branch_id, backend)`。子集训练完成后立即登记固定成员和真实更新回执；验证未完成或后来退回都不撤销。`cycle.outer_exposures` 供下一轮累计传递；控制语料 SFT 不重复登记原任务样本。内层 candidate_sft 历史不能替代这份外层历史。部分更新范围不明则留下 unresolved，后续刷新等待核验；进程崩溃仍须先审计在途训练，不能直接从旧历史推进。
+0.12.0 新增可选参数 `outer_exposures=OuterExposureHistory(branch_id, backend)`。子集训练完成后立即登记固定成员和真实更新回执；验证未完成或后来退回都不撤销。`cycle.outer_exposures` 供下一轮累计传递；控制语料 SFT 不重复登记原任务样本。内层 candidate_sft 历史不能替代这份外层历史。部分更新范围不明则留下 unresolved，后续刷新等待核验；恢复根据已提交训练结果登记曝光；没有完成证据的在途更新仍保留 unresolved，不能直接从旧历史推进。
 
 接口和首轮/后续刷新规则见 [FOCUSED_SIGNAL_REFRESH_ZH.md](FOCUSED_SIGNAL_REFRESH_ZH.md)。未传该可选参数的旧调用保持原行为，不自动追踪外层使用。此扩展不改变训练清单、接收策略或模型接续语义。
 
 后续按项填入 model store、筛选轨迹生产者、真实 TaskRunner 和固定判断标准；真实权重与任务环境需服务器验收。
+
+未知判断器/轨迹生产调用恢复后以 pending_operation 标记等待，不能自动重发；可显式补交绑定上下文的决定或轨迹数据，或调用 retry(reason=...) 限次授权。

@@ -139,6 +139,9 @@ def _execute_branch(ports, config, request, suite, output, *, resume=False):
 
     def checkpoint_ready(value):
         nonlocal history, previous_model, previous_end, previous_steps
+        if config.backend == "real":
+            # FSDP has finished and released all eight devices before emit.
+            ports.enter_phase("development")
         event = OuterTrainingExposure(
             request.training_id + "-wave" + str(value.stage),
             request.attempt_id,

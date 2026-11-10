@@ -1,7 +1,7 @@
 """Exact subset SFT -> validate -> decide -> curation SFT -> validate -> decide.
 
 Rejected candidates never replace accepted state. No automatic retry, hidden
-acceptance threshold, final-test access, or claim of crash recovery is included.
+acceptance threshold or final-test access is included. Recovery uses committed journals.
 """
 
 from pathlib import Path
@@ -28,6 +28,7 @@ from self_curate.training import (
 from self_curate.validation import TaskEvaluation, TaskSuite, TaskValidator
 from self_curate.training.artifacts import verify_local_checkpoint
 from .contracts import AcceptanceDecision, DecisionContext, OuterHandoff
+from .outer_recovery import serialized
 
 
 class OuterCycle:
@@ -49,6 +50,7 @@ class OuterCycle:
         baseline=None,
         history_artifacts=(),
         outer_exposures=None,
+        resume=False,
     ):
         require(
             isinstance(search_result, SearchResult)
@@ -125,6 +127,15 @@ class OuterCycle:
         self._reason = None
         self._journal_count = 0
         self._output = Path(output).resolve()
+        from .outer_recovery import source_identity, initial_anchor, restore
+        self._source_identity = source_identity()
+        self._initial_anchor = initial_anchor(self)
+        self._journal_hash = None
+        self._pending_operation, self._resume_io = None, False
+        self._recovery_retries, self._lease_depth = 0, 0
+        if resume:
+            restore(self)
+            return
         self._output.mkdir(parents=True, exist_ok=False)
         write_json(self._output / "handoff.json", self._handoff.to_dict())
         write_json(self._output / "subset_data.json", subset.to_dict())
@@ -137,6 +148,31 @@ class OuterCycle:
         if self._outer_exposures is not None:
             self._outer_exposures.persist(self._output / "exposure-history")
         self._save("created")
+
+    @classmethod
+    def restore(cls, search_result, view, **kwargs):
+        """Reopen the same attempt using the ORIGINAL independent constructor anchors."""
+        require("resume" not in kwargs, "restore sets resume explicitly")
+        return cls(search_result, view, resume=True, **kwargs)
+
+    @serialized
+    def retry(self, *, reason):
+        """Explicit bounded retry for a failed training/validation operation."""
+        from self_curate.contracts.types import text
+        text(reason, "outer recovery reason")
+        require(self._pending_operation in ("training", "validation", "decision", "curation_data")
+                and self._phase in ("blocked", "awaiting_decision", "awaiting_curation_data"),
+                "Only failed or interrupted work can be retried")
+        require(self._recovery_retries < 2, "Two failed-operation retries exhausted; audit required")
+        self._recovery_retries += 1
+        operation = self._pending_operation
+        self._phase = {"training": "awaiting_training", "validation": "awaiting_validation",
+                       "decision": "awaiting_decision", "curation_data": "awaiting_curation_data"}[operation]
+        self._resume_io, self._reason = operation in ("training", "validation"), reason
+        if not self._resume_io:
+            self._pending_operation = None
+        self._save("retry_authorized")
+        return self.state()
 
     @property
     def handoff(self):
@@ -196,6 +232,7 @@ class OuterCycle:
             self._policy,
         )
 
+    @serialized
     def configure_acceptance(self, policy):
         require(
             isinstance(policy, ArtifactRef)
@@ -211,6 +248,7 @@ class OuterCycle:
         self._policy = policy
         self._save("acceptance_policy_configured")
 
+    @serialized
     def supply_curation_data(self, data):
         require(
             self._stage == "curation"
@@ -228,8 +266,14 @@ class OuterCycle:
         )
         # Validate complete sequences and explicit recipe before making the input runnable.
         self._request(data)
-        write_json(self._output / "curation_data.json", data.to_dict())
+        from self_curate.training.recovery import atomic_json, read_json
+        target = self._output / "curation_data.json"
+        require(not target.exists() or digest(read_json(target)) == digest(data.to_dict()),
+                "Persisted curation input changed")
+        if not target.exists():
+            atomic_json(target, data.to_dict())
         self._curation, self._phase = data, "awaiting_training"
+        self._pending_operation = None
         self._save("curation_data_ready")
 
     def _request(self, data):
@@ -264,6 +308,7 @@ class OuterCycle:
                 self._events.append(event)
                 by_id[event.event_id] = event
 
+    @serialized
     def step(self, *, decider=None):
         if self._phase in ("completed", "rejected", "blocked"):
             return self.state()
@@ -278,11 +323,17 @@ class OuterCycle:
                 return (
                     self.state()
                 )  # An insufficient-evidence decision waits for new evidence.
-            # Policy exceptions do not dispatch training or change accepted weights.
+            # Unknown external calls are never silently reissued after a crash.
+            if self._pending_operation == "decision":
+                return self.state()
+            self._pending_operation = "decision"
+            self._save("decision_started")
             self.submit_decision(decider.decide(context))
             return self.state()
         if self._phase == "awaiting_curation_data":
-            if self._provider is not None:
+            if self._provider is not None and self._pending_operation != "curation_data":
+                self._pending_operation = "curation_data"
+                self._save("curation_data_requested")
                 self.supply_curation_data(self._provider.prepare(self._handoff))
             return self.state()
         subset_dispatched = None
@@ -290,11 +341,18 @@ class OuterCycle:
             if self._phase == "awaiting_training":
                 data = self._subset if self._stage == "subset" else self._curation
                 request = self._request(data)
+                binder = getattr(self._trainer.backend, "bind_starting_checkpoint", None)
+                if binder is not None:
+                    checkpoint = self._baseline.checkpoint if self._baseline is not None else None
+                    binder(self._accepted, checkpoint)
                 self._phase = "training"
+                self._pending_operation = "training"
                 self._save("training_started")
                 subset_dispatched = request if self._stage == "subset" else None
                 result = self._trainer.train(
-                    request, self._output / ("train-" + self._stage)
+                    request, self._output / ("train-" + self._stage),
+                    **({"resume": True} if self._resume_io and
+                       (self._output / ("train-" + self._stage)).exists() else {})
                 )
                 require(
                     isinstance(result, TrainingOutcome),
@@ -324,9 +382,11 @@ class OuterCycle:
                         for i, r in self._records.items()
                     }
                 self._phase = "awaiting_validation"
+                self._pending_operation, self._resume_io = None, False
                 self._save("training_completed")
             elif self._phase == "awaiting_validation":
                 self._phase = "validating"
+                self._pending_operation = "validation"
                 self._save("validation_started")
                 result = self._validator.evaluate(
                     self._training.result.candidate_model,
@@ -338,6 +398,8 @@ class OuterCycle:
                     + str(len(self._evaluations)),
                     output=self._output / ("validate-" + str(len(self._evaluations))),
                     checkpoint=self._training.result.checkpoint,
+                    **({"resume": True} if self._resume_io and
+                       (self._output / ("validate-" + str(len(self._evaluations)))).exists() else {}),
                 )
                 require(
                     isinstance(result, TaskEvaluation),
@@ -358,6 +420,7 @@ class OuterCycle:
                 self._evaluation = result
                 self._evaluations.append(result)
                 self._phase = "awaiting_decision"
+                self._pending_operation, self._resume_io = None, False
                 self._save("validation_completed")
         except Exception as exc:
             if isinstance(getattr(exc, "ledger", None), CostLedger):
@@ -403,6 +466,7 @@ class OuterCycle:
                 break
         return self.state()
 
+    @serialized
     def submit_decision(self, decision):
         require(
             isinstance(decision, AcceptanceDecision),
@@ -431,10 +495,12 @@ class OuterCycle:
                 "An unscored/invalid capability report cannot be accepted",
             )
             verify_local_checkpoint(self._training.result.checkpoint)
-        write_json(
-            self._output / ("decision-" + str(len(self._decisions)) + ".json"),
-            {"context": context.to_dict(), "decision": decision.to_dict()},
-        )
+        from self_curate.training.recovery import atomic_json, read_json
+        intent = self._output / ("decision-" + str(len(self._decisions)) + ".json")
+        value = {"context": context.to_dict(), "decision": decision.to_dict()}
+        require(not intent.exists() or digest(read_json(intent)) == digest(value), "Decision intent changed")
+        if not intent.exists():
+            atomic_json(intent, value)
         if decision.outcome == "accept":
             self._write_accepted(
                 self._training.result.candidate_model, decision=decision
@@ -458,9 +524,11 @@ class OuterCycle:
             self._phase, self._reason = "rejected", decision.reason
         else:
             self._reason = decision.reason
+        self._pending_operation = None
         self._save("decision_recorded")
         return self.state()
 
+    @serialized
     def request_revalidation(self, *, reason):
         from self_curate.contracts.types import text
 
@@ -491,20 +559,8 @@ class OuterCycle:
         os.replace(pending, self._output / "accepted.json")
 
     def _save(self, event):
-        self._journal_count += 1
-        folder = self._output / "journal"
-        folder.mkdir(exist_ok=True)
-        path = folder / (str(self._journal_count).zfill(6) + ".json")
-        require(not path.exists(), "Outer journal cannot be overwritten")
-        write_json(
-            path,
-            {
-                "event": event,
-                "state": self.state(),
-                "ledger": self.ledger.to_dict(),
-                "usage": [r.usage.to_dict() for r in self.updated_records],
-            },
-        )
+        from .outer_recovery import save
+        save(self, event)
 
     def state(self):
         result = {
@@ -520,7 +576,8 @@ class OuterCycle:
             "policy": None if self._policy is None else self._policy.to_dict(),
             "reason": self._reason,
             "global_model_committed": False,
-            "resume_implemented": False,
+            "resume_implemented": True,
+            "pending_operation": self._pending_operation,
         }
         if self._outer_exposures is not None:
             result["outer_exposure_history_hash"] = self._outer_exposures.history_hash

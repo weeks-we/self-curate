@@ -41,7 +41,7 @@
       "seed": 42,
       "gradient_checkpointing": true,
       "use_rslora": false,
-      "cpu_activation_offload": true,
+      "cpu_activation_offload": false,
       "offload_min_tokens": 65536
     },
     "model_store": {
@@ -73,6 +73,16 @@
       "tokenizer_path": null,
       "swe_python": null,
       "harbor_executable": "harbor"
+    },
+    "training_backend": "accelerate_fsdp",
+    "fsdp": {
+      "world_size": 8,
+      "micro_batch_size": 1,
+      "save_every_steps": 4,
+      "mixed_precision": "bf16",
+      "fsdp_version": 1,
+      "keep_recovery_checkpoints": 2,
+      "cpu_ram_efficient_loading": true
     }
   },
   "gpu_uuids": []

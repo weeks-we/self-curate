@@ -265,3 +265,22 @@ LoRA 以 server.template.json 的 adapter_settings.lora 为准。服务器使用
 ## 2026-11-10：独立的内外层 CPU mock 验收入口
 
 用户要求将整体嵌套流程交给服务器 agent 前先在本机运行。新增 self_curate.smoke 与 configs/smoke/nested_cpu_mock.json，只支持 CPU mock，固定外层 3 轮、每轮 5 次内层候选评估；配置中评分、技能方向和决策均为显式模拟情景，不替代正式策略。复用现有 InnerSearch、OuterCycle、SignalService/FocusedRefreshService、训练/任务验证服务，不复制核心状态机。跨轮新建绑定当前模型的角色会话，旧私有 history 保持原身份，以角色私有摘要引用和外层决策证据输入新会话。旧 runtime-only 决策继续有效，不恢复源码测试树；此次用户明确要求的完整流程验收保留为可移植运行入口。支持内层中途保存恢复与完成证据复核，不宣称通用外层跨进程恢复。交接见 docs/handoffs/NESTED_CPU_MOCK_HANDOFF.md。
+
+## 2026-11-10：正式 SFT 使用 Accelerate FSDP，恢复与日志
+
+用户要求用成熟 FSDP 框架、实现中断续训、完善带时间编号的日志，并按 8×H200（约141GB/卡）安排训练。真实 EXP001 改为一个分支占用八卡 FSDP，四个分支依次执行；训练结束释放显存后再用八卡验证已发布节点。服务管理只关闭本项目拥有的进程。原“四张独立训练卡、四张验证卡”的默认安排不再用于该后端。
+
+新增 training/fsdp.py、fsdp_worker.py 与 runlog.py。采用 Accelerate 1.15.0/PyTorch FSDP1 FULL_SHARD、PEFT 官方自动包装、BF16 LoRA、仅 assistant payload 的精确监督损失。参数分片、分布式反向、模型/优化器/RNG/混合精度状态交给框架，项目保留精确清单和阶段控制。FSDP 包装后才构造优化器，插件创建前绑定 LOCAL_RANK。仍有项目级训练循环，不能说成已使用 HF Trainer。保持有效batch=8、每卡micro=1、累积=1，科研学习率、seed和曝光次数不改。
+
+框架状态默认每4步及阶段结束保存，校验后原子发布；恢复核对请求、数据、模型、源码、环境和GPU拓扑，未提交窗口允许重放并记录未知花费。保留最近两份完整恢复状态，清理旧分片前保留checksum证据；三阶段adapter单独保留。worker持有OS锁，控制器中断后不能对仍运行的worker重复发起训练。通用TrainingService增加显式resume；完成结果复用不新增训练调用。通用OuterCycle的进程级恢复依然是独立缺口。
+
+新运行支持 --output-root 自动分配 YYYYMMDD-HHMMSS-hash-id；原 --output 保留用于精确恢复。控制器、torchrun、每rank事件日志分别落盘，记录时间、token、loss、学习率、吞吐、ETA、显存、GPU利用率、保存/恢复/失败。全局token字段不能跨rank重复求和，物理rank前向token另外记录；缺失GPU时间和未知中断花费不补0。结果包不包含新的job.json、权重或恢复分片。具体路径与服务器步骤见 handoffs/SFT_FSDP_RECOVERY_HANDOFF.md。
+
+本机使用微型随机CPU模型实际执行Accelerate保存、强制中断和恢复，最终权重与连续训练逐张量一致；回归、嵌套mock、EXP001 mock/恢复/ZIP及编号检查的实际记录在忽略的runs目录。没有在本机加载目标模型或启动GPU/Docker。8卡真实FSDP、长上下文容量、真实adapter重载和吞吐必须在服务器重新验收，不能根据CPU结果声称已经通过。
+
+
+## 2026-11-10：OuterCycle 进程恢复与原 CPU 联调扩展
+
+新增 outer_recovery.py：完整恢复状态、前序hash链与原子journal，冻结输入/源码/后端/独立model和batch锚点核验，attempt OS lease及旧实例拒绝。恢复已完成训练与验证不重复执行，持久化接受/退回决定按同一上下文续交；M1 usage、外层实际训练曝光及费用同时恢复。失败后的显式retry最多两次，无法核验的外部在途调用不盲目重发。FSDP后端接收当前接受模型的checkpoint。仅支持新格式，不改写旧snapshot，不等同于全局服务模型提交。
+
+原self_curate.smoke入口、配置和NESTED_CPU_MOCK_HANDOFF.md保持使用，加入训练结果、验证结果、接受决定三个位置的模拟中断，并由独立Python进程恢复。仍为3×5、5次训练、42次rollout，无GPU和外网。各阶段恢复、错误锚点、损坏日志、失败重试与旧实例检查记录在忽略的runs目录；真实后端仍需服务器验收。

@@ -13,7 +13,9 @@ def main(argv=None):
         description="EXP001 Random + frozen M0 policy; 4 branches, 3 training waves"
     )
     parser.add_argument("--config", required=True)
-    parser.add_argument("--output", required=True)
+    outputs = parser.add_mutually_exclusive_group()
+    outputs.add_argument("--output")
+    outputs.add_argument("--output-root", help="Allocate YYYYMMDD-HHMMSS-hash-id beneath this root")
     parser.add_argument("--assets", required=True)
     parser.add_argument("--handoff")
     parser.add_argument(
@@ -29,10 +31,20 @@ def main(argv=None):
     parser.add_argument(
         "--parallel-training",
         action="store_true",
-        help="Four isolated worker processes; always enabled for server execution",
+        help="Parallel mock branches; real SFT uses all eight GPUs in one FSDP branch at a time",
     )
     parser.add_argument("--train-branch", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if not args.output:
+        if args.resume or args.train_branch:
+            parser.error("Resume/worker requires the original --output directory")
+        from self_curate.training.runlog import new_run_id
+        args.output = str(Path(args.output_root or "runs/exp001") / new_run_id())
+    from self_curate.training.runlog import RunLog
+    controller_log = RunLog(Path(args.output).parent / "controller-logs" / Path(args.output).name)
+    controller_log.event("controller_started", output=str(Path(args.output).resolve()), resume=args.resume)
+    print(canonical_json({"run_directory": str(Path(args.output).resolve()),
+                          "attempt_log": str(controller_log.folder)}), flush=True)
     try:
         if args.train_branch:
             from .training import run_worker
@@ -53,6 +65,7 @@ def main(argv=None):
             handoff=args.handoff,
             parallel_training=args.parallel_training,
         )
+        controller_log.event("controller_completed", status=result["status"], backend=result["backend"])
         delivery = None
         if args.package_results:
             from .delivery import export_bundle, verify_bundle
@@ -81,6 +94,7 @@ def main(argv=None):
         )
         return 0
     except Exception as exc:
+        controller_log.event("controller_failed", error_type=type(exc).__name__, message=str(exc))
         print(canonical_json({"status": "blocked", "error": str(exc)}))
         return 2
 
