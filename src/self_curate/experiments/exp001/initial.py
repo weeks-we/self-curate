@@ -160,12 +160,12 @@ def prepare_initial(
         "selection_context": context.role_summary(),
         "context_hash": context.context_hash,
         "objective": ports.objective.to_dict(),
-        "count": math.floor(len(records) * config.selection_fraction),
+        "count": config.selected_count(len(records)),
         "pool_hash": digest([r.record_hash for r in records]),
         "signal_spec": specs[0].to_dict(),
         "operator_contracts": policy_catalog(
             skills=inputs.skills,
-            count=math.floor(len(records) * config.selection_fraction),
+            count=config.selected_count(len(records)),
             seed=config.seed,
         ),
         "candidate_summary": pool_summary(records, values, inputs.skills),
@@ -179,6 +179,15 @@ def prepare_initial(
         },
         "instruction": "Propose one complete feasible selection program. Use fixed M0 labels and scores. Do not request Leval, training, test data, or later revisions.",
     }
+    feedback_ref = None
+    from .initial_feedback import initial_feedback, TEMPLATE
+    if ports.prompts["leval"].template_id == TEMPLATE:
+        interpretation, feedback_events, feedback_ref = initial_feedback(
+            baseline.report, ports, config, store, output, producer, capability[1]["asset"]
+        )
+        new_events.extend(feedback_events)
+        work["initial_feedback"] = interpretation
+        work["initial_feedback_asset"] = feedback_ref.to_dict()
     # Stable session/history identity makes the common prefix reusable across V0/V1/etc.
     session = "common-initial-" + digest(work)[:20]
     runtime = RoleRuntime(
@@ -274,7 +283,7 @@ def prepare_initial(
     write_json(output / "context.json", context.to_dict())
     write_json(output / "work.json", work)
     write_json(output / "program.json", strategy[0].to_dict())
-    # A fresh runtime starts Lexec with its own role memory; Leval is never invoked.
+    # Lexec starts with isolated memory; optional initial Leval has a separate saved session.
     runtime_snapshot = output / "roles"
     if not runtime_snapshot.exists():
         runtime.save(runtime_snapshot)
@@ -283,6 +292,8 @@ def prepare_initial(
         "m0_signals": signals[1]["asset"],
         "initial_strategy": strategy[1]["asset"],
     }
+    if feedback_ref is not None:
+        refs["initial_feedback"] = feedback_ref.to_dict()
     if progress:
         progress.update("initial_policy", 1, 1)
     return (

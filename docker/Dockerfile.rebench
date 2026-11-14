@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1.7
+# Build only on the networked workstation. Pass immutable image digest.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS runtime
+ENV DEBIAN_FRONTEND=noninteractive PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv python3-dev git ca-certificates build-essential docker.io docker-compose-v2 && rm -rf /var/lib/apt/lists/*
+RUN python3 -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
+ENV PYTHONPATH=/opt/self-curate/src
+WORKDIR /opt/self-curate
+COPY pyproject.toml README.md ./
+COPY src ./src
+# Full commit identities are required; this is not the legacy SWE-smith image.
+ARG REBENCH_COMMIT
+ARG PRO_COMMIT
+ARG VERIFIED_COMMIT
+ARG HARBOR_COMMIT
+RUN python -c 'import os,re; assert all(re.fullmatch("[0-9a-f]{40}",os.environ.get(k,"")) for k in ("REBENCH_COMMIT","PRO_COMMIT","VERIFIED_COMMIT","HARBOR_COMMIT")), "Full harness commits required"'
+# Separate grader environments avoid competing swebench distribution names.
+RUN pip install 'pip==25.3' && pip install '.[server]' \
+    "harbor @ git+https://github.com/harbor-framework/harbor.git@${HARBOR_COMMIT}" \
+    "swebench @ git+https://github.com/SWE-bench/SWE-bench.git@${VERIFIED_COMMIT}"
+RUN python3 -m venv /opt/graders/rebench && /opt/graders/rebench/bin/pip install \
+    "swebench @ git+https://github.com/SWE-rebench/SWE-bench-fork.git@${REBENCH_COMMIT}"
+RUN python3 -m venv /opt/graders/verified && /opt/graders/verified/bin/pip install \
+    "swebench @ git+https://github.com/SWE-bench/SWE-bench.git@${VERIFIED_COMMIT}"
+RUN git clone https://github.com/scaleapi/SWE-bench_Pro-os.git /opt/graders/pro \
+    && git -C /opt/graders/pro checkout --detach ${PRO_COMMIT} \
+    && git -C /opt/graders/pro submodule update --init --recursive
+COPY configs ./configs
+COPY docs ./docs
+RUN mkdir -p /opt/build-evidence && pip freeze --all > /opt/build-evidence/runtime.lock.txt \
+    && /opt/graders/rebench/bin/pip freeze --all > /opt/build-evidence/rebench.lock.txt \
+    && /opt/graders/verified/bin/pip freeze --all > /opt/build-evidence/verified.lock.txt
+# Pro's pinned official setup is a separate workstation stage: no fake generic SWE grader.
+# Export these wheels/locks and all selected task images before cluster scheduling.
+FROM runtime AS cluster
+ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 PIP_NO_INDEX=1
+CMD ["python", "-m", "self_curate.experiments.exp001", "--help"]

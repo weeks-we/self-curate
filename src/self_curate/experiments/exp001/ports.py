@@ -42,4 +42,10 @@ def load_experiment_prompts(directory):
 
         require(prompt.role == role, "EXP001 prompt role mismatch")
         prompts[role] = prompt
+    extra = Path(directory) / "leval.json"
+    if extra.exists():
+        prompt = PromptTemplate(**load_json(extra.read_text(encoding="utf-8")))
+        from self_curate.contracts.types import require
+        require(prompt.role == "leval", "Initial feedback prompt role mismatch")
+        prompts["leval"] = prompt
     return prompts

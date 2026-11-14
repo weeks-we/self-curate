@@ -33,9 +33,11 @@ from .isolation import IsolationIndex, family_ids, select_development
 from .provider import AnnotationUnavailable
 
 
-def annotation_ledger(client, backend):
+def annotation_ledger(client, backend, *, request_keys=None):
     events = []
     for path in sorted(client.output.glob("*/dispatched.json")):
+        if request_keys is not None and path.parent.name not in request_keys:
+            continue
         folder = path.parent
         response = (
             read_json(folder / "response.json")

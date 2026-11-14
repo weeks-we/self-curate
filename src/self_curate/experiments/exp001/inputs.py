@@ -209,6 +209,17 @@ class PreparedInputs:
                     ),
                     "Prepared records came from the later tool pool or another source",
                 )
+            if registry.get("training_selection", {}).get("mode") == "rebench_success":
+                source = registry["datasets"]["rebench_trajectories"]
+                require(all(r.source.source_id == source["repo_id"] and r.source.revision == source["revision"]
+                            for r in self.records), "Prepared records are not from locked Rebench trajectories")
+                budget = lock.get("selection_budget")
+                require(budget is not None and settings.get("selection_budget") == budget,
+                        "Bind training denominator to the preparation source lock")
+                require(budget.get("basis") == "raw_success_before_admission"
+                        and budget.get("selected_count") == budget.get("raw_success_count",0)//10,
+                        "Invalid preparation success denominator")
+                config.selected_count(len(self.records))
             require(
                 self.model.base_model_id == registry["model"]["repo_id"]
                 and self.model.revision == registry["model"]["revision"],
@@ -226,16 +237,10 @@ class PreparedInputs:
                 "EXP001 server profile requires a common frozen-base initial LoRA adapter",
             )
             require(
-                set(self.skills)
-                == {
-                    "code_localization",
-                    "failure_reproduction",
-                    "error_analysis",
-                    "hypothesis_revision",
-                    "implementation_edit",
-                    "test_construction",
-                    "regression_check",
-                },
+                set(self.skills) == (set(registry["skills"]) if registry.get("training_selection", {}).get("mode") == "rebench_success" else {
+                    "code_localization", "failure_reproduction", "error_analysis",
+                    "hypothesis_revision", "implementation_edit", "test_construction", "regression_check",
+                }),
                 "Use the frozen seven-skill Coding ontology",
             )
             require(

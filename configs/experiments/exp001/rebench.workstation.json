@@ -1,0 +1,114 @@
+{
+  "schema_version": "exp001-rebench-workstation-v1",
+  "execution_location": "workstation",
+  "storage_root": "/storage/self-curate-rebench",
+  "seed": 42,
+  "skills": {
+    "status": "pending_user_definition",
+    "schema_path": null,
+    "task_prompt_path": null,
+    "trajectory_prompt_path": null
+  },
+  "task_candidate_count": null,
+  "development_count": null,
+  "training_count": null,
+  "training_fraction": 0.1,
+  "max_context_tokens": 131072,
+  "sources": {
+    "model": {
+      "repo_id": "Qwen/Qwen3.8-27B",
+      "repo_type": "model",
+      "revision": "37561816e66b5b9153b1b64c10968c18c1e6f4a0"
+    },
+    "trajectories": {
+      "repo_id": "nebius/SWE-rebench-openhands-trajectories",
+      "repo_type": "dataset",
+      "revision": null,
+      "config": "default",
+      "split": "train",
+      "success_field": "resolved",
+      "success_value": 1
+    },
+    "tasks": {
+      "repo_id": "nebius/SWE-rebench",
+      "repo_type": "dataset",
+      "revision": null,
+      "config": "default",
+      "split": "test",
+      "identity": "instance_id"
+    },
+    "verified": {
+      "repo_id": "SWE-bench/SWE-bench_Verified",
+      "repo_type": "dataset",
+      "revision": "78f471bf655a3137b2e8a75af1501690ec009ec3",
+      "config": "default",
+      "split": "test",
+      "expected_tasks": 500
+    },
+    "pro": {
+      "repo_id": "ScaleAI/SWE-bench_Pro",
+      "repo_type": "dataset",
+      "revision": null,
+      "config": "default",
+      "split": "test",
+      "version": "2.0.0",
+      "expected_tasks": 642,
+      "task_format": "Harbor V2",
+      "authoritative_score": "fresh_sandbox_regrade"
+    }
+  },
+  "terminal": {
+    "version": "4.1",
+    "registry_url": "https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/5?tab=tasks",
+    "revision": null,
+    "resolve_policy": "verify_official_registry_before_freeze",
+    "note": "Official Terminal-Bench 4.1 homepage links to registry entry 5; do not infer dataset CLI version from URL number."
+  },
+  "teacher": {
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-flash",
+    "api_key_env": "DEEPSEEK_API_KEY",
+    "max_output_tokens": 16384,
+    "timeout_seconds": 900,
+    "max_calls": null,
+    "call_budget_rule": "ceil(1.25*(task_candidates+eligible_trajectories))",
+    "review_teacher": {
+      "model": "deepseek-v4-pro",
+      "max_output_tokens": 16384,
+      "timeout_seconds": 900,
+      "max_calls": null,
+      "call_budget_rule": "ceil(0.10*(task_candidates+eligible_trajectories))"
+    },
+    "pilot_size": 64,
+    "no_silent_truncation": true
+  },
+  "roles": {
+    "prompts": "configs/experiments/exp001/prompts-rebench",
+    "initial_leval": true
+  },
+  "training": {
+    "backend": "accelerate_fsdp",
+    "world_size": 8,
+    "micro_batch_size": 1,
+    "global_batch": 8,
+    "epochs": 1,
+    "learning_rates": [
+      5e-06,
+      2e-05
+    ],
+    "lora": {
+      "rank": 16,
+      "alpha": 32,
+      "dropout": 0
+    },
+    "gpu_uuids": [],
+    "capacity_status": "requires_cluster_acceptance"
+  },
+  "workflow_status": "implemented_pending_ontology_and_real_workstation_acceptance",
+  "development_per_skill": 50,
+  "training_budget_basis": "raw_success_before_admission",
+  "modes": [
+    "random",
+    "static_policy"
+  ]
+}

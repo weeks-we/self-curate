@@ -1,0 +1,25 @@
+{
+  "schema_version": "1",
+  "experiment_id": "exp001_rebench_roles_mock",
+  "backend": "mock",
+  "execution": "local_mock",
+  "seed": 42,
+  "selection_fraction": 0.1,
+  "learning_rates": [
+    5e-06,
+    2e-05
+  ],
+  "modes": [
+    "random",
+    "static_m0"
+  ],
+  "effective_batch": 8,
+  "max_context_tokens": 32,
+  "lexec_use_model": true,
+  "lopt_timeout_seconds": 30,
+  "adapter": "self_curate.experiments.exp001.mock:build",
+  "adapter_settings": {
+    "prompts": "configs/experiments/exp001/prompts-rebench"
+  },
+  "gpu_uuids": []
+}

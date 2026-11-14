@@ -25,7 +25,7 @@ def load_source_registry(path, *, expected_sha256=None):
     for row in [
         value["model"],
         *value["datasets"].values(),
-        value["author_ids"],
+        *([value["author_ids"]] if "author_ids" in value else []),
         value["terminal_bench"],
     ]:
         require(
@@ -49,15 +49,22 @@ def load_source_registry(path, *, expected_sha256=None):
             not name.startswith("benchmark_") or row["split"] == "test",
             "Final benchmark must retain test split",
         )
-    require(
-        value["datasets"]["tool_trajectories"]["split"] == "tool"
-        and value["datasets"]["author_history"]["split"] == "train",
-        "Do not interchange historical selected rows and tool trajectories",
-    )
-    require(
-        value["terminal_bench"]["dataset"] == "terminal-bench/terminal-bench@4.0.0",
-        "Terminal benchmark release changed; create a reviewed registry version",
-    )
+    mode = value.get("training_selection", {}).get("mode", "historical_exact")
+    if mode == "rebench_success":
+        require(value["datasets"]["rebench_trajectories"]["repo_id"] == "nebius/SWE-rebench-openhands-trajectories"
+                and value["datasets"]["rebench_trajectories"]["split"] == "train"
+                and value["datasets"]["development_tasks"]["repo_id"] == "nebius/SWE-rebench",
+                "Rebench V1 task/trajectory source mismatch")
+        require(isinstance(value.get("skills"), list) and bool(value["skills"])
+                and len(set(value["skills"])) == len(value["skills"]), "Frozen external skill ontology required")
+        require(value["terminal_bench"].get("release") == "4.1", "Expected reviewed Terminal 4.1 release")
+    else:
+        require(mode == "historical_exact", "Unsupported training source mode")
+        require(value["datasets"]["tool_trajectories"]["split"] == "tool"
+                and value["datasets"]["author_history"]["split"] == "train",
+                "Do not interchange historical selected rows and tool trajectories")
+        require(value["terminal_bench"]["dataset"] == "terminal-bench/terminal-bench@4.0.0",
+                "Legacy terminal benchmark release changed")
     return value
 
 

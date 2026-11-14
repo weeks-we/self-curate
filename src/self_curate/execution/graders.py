@@ -9,8 +9,9 @@ from .artifacts import read_artifact
 
 
 class SWEJudge:
-    def __init__(self, *, python=sys.executable, process=execute):
+    def __init__(self, *, python=sys.executable, process=execute, pythons=None):
         self.python, self.process = python, process
+        self.pythons = dict(pythons or {})
 
     def grade(self, request, instance, patch, harness, output, *, timeout):
         output = Path(output)
@@ -36,7 +37,7 @@ class SWEJudge:
         atomic_json(output / "input.json", value)
         receipt = self.process(
             [
-                self.python,
+                self.pythons.get(harness, self.python),
                 "-m",
                 "self_curate.execution.judge_worker",
                 "--input",

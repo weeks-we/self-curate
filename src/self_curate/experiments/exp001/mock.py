@@ -114,8 +114,13 @@ class FixtureClient:
                 "program_hash": payload["work"]["program_hash"],
                 "context_hash": payload["work"]["context_hash"],
             }
+        elif role == "leval" and payload["work"].get("kind") == "initial-capability-report-v1":
+            content = {"source_feedback_hash": payload["work"]["source_feedback_hash"],
+                       "commentary": "Synthetic initial development interpretation; not research evidence.",
+                       "hypotheses": ["Synthetic selection hypothesis"]}
         else:
-            raise AssertionError("EXP001 must never invoke Leval")
+            raise AssertionError("Unexpected EXP001 role/task")
+
         return {
             "content": content,
             "usage": c.ResourceUsage(
@@ -287,7 +292,7 @@ class MockPorts:
         )
 
     def context(self, records, config):
-        k = math.floor(len(records) * config.selection_fraction)
+        k = config.selected_count(len(records))
         return count_context(records, model=self.model, count=k, seed=config.seed)
 
     def training_backend(self, branch):
@@ -304,4 +309,9 @@ class MockPorts:
 
 
 def build(config, output, asset_root):
-    return MockPorts(config, output, asset_root)
+    ports = MockPorts(config, output, asset_root)
+    settings = __import__("json").loads(config.adapter_settings_json)
+    if settings.get("prompts"):
+        from .ports import load_experiment_prompts
+        ports.prompts = load_experiment_prompts(settings["prompts"])
+    return ports

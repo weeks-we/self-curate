@@ -58,6 +58,18 @@ def skill_select(node, inputs, ctx, seed):
             accepted = _missing(p["missing_policy"], node, data_id, "skills")
             reasons[data_id] = "MISSING_SKILLS"
         else:
+            from self_curate.data.view import skill_statuses
+            states=skill_statuses(ctx.view.record(data_id))
+            unknown={k for k,v in states.items() if v in ("uncertain","not_assessed")}
+            negatives={k for k,v in states.items() if v=="absent"}
+            unresolved=(bool(wanted & unknown) and
+                        not (p["match"]=="any" and wanted.intersection(skills)) and
+                        not (p["match"]=="all" and wanted.intersection(negatives)))
+            if unresolved:
+                accepted=_missing(p["missing_policy"],node,data_id,"skills")
+                reasons[data_id]="MISSING_SKILLS"
+                if accepted:keep.append(data_id)
+                continue
             accepted = (
                 bool(wanted.intersection(skills))
                 if p["match"] == "any"

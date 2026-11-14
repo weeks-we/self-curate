@@ -1,6 +1,10 @@
+> EXP001 Rebench (2026-11-11): [workstation plan](EXP001_REBENCH_PLAN_ZH.md), [handoff](handoffs/EXP001_REBENCH_WORKSTATION_V1.md). New preparation contract; not a ready legacy server config.
+
 # 文档入口
 
-当前版本 0.16.0。EXP001 唯一交接：[V3 Handoff](handoffs/EXP001_SERVER_V3.md)。
+- [当前流程待配置、待实现与待验收清单](IMPLEMENTATION_GAPS_ZH.md) (2026-11-11)
+
+Rebench 实验一入口：[工作站/集群交接](handoffs/EXP001_REBENCH_WORKSTATION_V1.md)。旧5016实验的[V3交接](handoffs/EXP001_SERVER_V3.md)仅保留历史兼容，不作为本次入口。
 实际部署见 [容器部署](SERVER_CONTAINER_DEPLOYMENT_ZH.md)，已实现与待办见 [progress.md](progress.md)。
 
 ## 实验与原始需求

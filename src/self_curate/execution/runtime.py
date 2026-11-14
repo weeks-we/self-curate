@@ -13,6 +13,7 @@ APIS = {
     "mini": ("mini-swe-agent", "minisweagent.agents.default", "DefaultAgent"),
     "swe_smith": ("swesmith", "swesmith.harness.eval", "run_evaluation"),
     "swe_bench": ("swebench", "swebench.harness.run_evaluation", "run_instance"),
+    "swe_rebench": ("swebench", "swebench.harness.run_evaluation", "run_instance"),
     "harbor": ("harbor", "harbor.models.trial.config", "TrialConfig"),
 }
 
@@ -63,3 +64,16 @@ def lock_runtime(output, *, kinds):
             "real_model_smoke_passed": False,
         },
     )
+
+
+def main(argv=None):
+    import argparse,json
+    parser=argparse.ArgumentParser(description="CPU-only installed harness API/source lock")
+    parser.add_argument("--kinds",nargs="+",choices=list(APIS),required=True)
+    parser.add_argument("--output",required=True)
+    args=parser.parse_args(argv)
+    print(json.dumps(lock_runtime(args.output,kinds=tuple(args.kinds)).to_dict()))
+    return 0
+
+
+if __name__=="__main__":raise SystemExit(main())

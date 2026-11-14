@@ -44,7 +44,7 @@ def main(argv=None):
                 kinds=(
                     ("swe_smith", "swe_bench")
                     if value["harness"] == "swe_smith"
-                    else ("swe_bench",)
+                    else (value["harness"],)
                 ),
             )
         if value["harness"] == "swe_smith":
@@ -80,7 +80,7 @@ def main(argv=None):
                 if status in ("completed", "timeout")
                 else None
             )
-        elif value["harness"] == "swe_bench":
+        elif value["harness"] in ("swe_bench", "swe_rebench"):
             import importlib
 
             run_evaluation = importlib.import_module("swebench.harness.run_evaluation")

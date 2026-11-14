@@ -30,6 +30,7 @@ class CodingTaskRunner:
         backend="real",
         swe_judge=None,
         harbor=None,
+        pro=None,
         mini=run_mini,
         client_factory=CompletionClient,
         verify=verify_runtime,
@@ -45,6 +46,8 @@ class CodingTaskRunner:
             swe_judge or SWEJudge(),
             harbor or HarborJudge(),
         )
+        from .pro_v2 import ProV2Judge
+        self.pro = pro or ProV2Judge()
         self.mini, self.client_factory, self.verify = mini, client_factory, verify
 
     def execute(self, request, output):
@@ -80,20 +83,20 @@ class CodingTaskRunner:
             kind = environment["harness"]
             require(
                 kind == scorer["harness"]
-                and kind in ("swe_smith", "swe_bench", "harbor"),
+                and kind in ("swe_smith", "swe_bench", "swe_rebench", "harbor", "swe_pro_v2"),
                 "Task environment/scorer mismatch",
             )
             lock = read_artifact(artifact(scorer["runtime_lock"]))
-            self.verify(lock, kinds=("harbor",) if kind == "harbor" else ("mini", kind))
+            self.verify(lock, kinds=("harbor",) if kind in ("harbor", "swe_pro_v2") else (("mini",) if kind == "swe_rebench" else ("mini", kind)))
             atomic_json(output / "request.json", request.to_dict())
             with self.router.bind(request, output) as binding:
-                if kind == "harbor":
+                if kind in ("harbor", "swe_pro_v2"):
                     local_path(artifact(environment["task_directory"]), directory=True)
                     require(
                         environment["preserve_native_resources"] is True,
                         "Do not replace Harbor native task resources",
                     )
-                    row = self.harbor.run(
+                    row = (self.pro if kind == "swe_pro_v2" else self.harbor).run(
                         request,
                         payload["task_path"],
                         binding,
@@ -282,13 +285,16 @@ def build_task_runner(settings, model, *, execution):
             settings["tokenizer_path"], local_files_only=True, trust_remote_code=False
         )
 
+    from .pro_v2 import ProV2Judge
     return CodingTaskRunner(
         router,
         tokenizer_factory,
         execution=execution,
         swe_judge=SWEJudge(
-            python=settings.get("swe_python") or __import__("sys").executable
+            python=settings.get("swe_python") or __import__("sys").executable,
+            pythons={"swe_rebench": settings.get("rebench_python") or settings.get("swe_python") or __import__("sys").executable}
         ),
+        pro=ProV2Judge(executable=settings.get("harbor_executable", "harbor"), tooling=settings.get("pro_tooling")),
         harbor=HarborJudge(
             executable=settings.get("harbor_executable", "harbor"),
             gpu_pool=settings.get("harbor_gpu_pool", ()),

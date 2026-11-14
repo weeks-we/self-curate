@@ -9,7 +9,7 @@ import time
 from self_curate.training.recovery import atomic_json
 
 
-def execute(argv, *, cwd, output, timeout, env=None):
+def execute(argv, *, cwd, output, timeout, env=None, secret_values=()):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
     started = time.perf_counter()
@@ -17,7 +17,7 @@ def execute(argv, *, cwd, output, timeout, env=None):
     atomic_json(
         output / "command.json",
         {
-            "argv": list(argv),
+            "argv": [__import__("functools").reduce(lambda value, secret: value.replace(secret, "<redacted>") if secret else value, secret_values, str(arg)) for arg in argv],
             "cwd": str(cwd),
             "started_at": stamp,
             "timeout_seconds": timeout,

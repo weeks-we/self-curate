@@ -247,6 +247,11 @@ def execute(root, *, resume=False, cpu_smoke=False):
                           f"step_seconds {seconds:.2f}", flush=True)
                 if state["steps"] % job["settings"]["save_every_steps"] == 0 or stop == end:
                     save_state()
+                if not resume and job.get("preflight_stop_after_steps") == state["steps"]:
+                    require(request.training_id.startswith("preflight-"), "Unexpected interruption hook")
+                    if state["steps"] % job["settings"]["save_every_steps"] != 0 and stop != end:
+                        save_state()
+                    raise RuntimeError("Explicit FSDP preflight interruption after committed optimizer step")
                 if cpu_smoke and os.environ.get("SELF_CURATE_SMOKE_INTERRUPT_STEP") == str(state["steps"]):
                     raise RuntimeError("Explicit CPU interruption after committed optimizer step")
             # All ranks participate in full state gathering; only rank 0 writes adapter export.

@@ -226,7 +226,7 @@ class ServerPorts:
 
         verify_runtime(
             read_artifact(artifact(self.settings["runtime_lock"])),
-            kinds=("mini", "swe_smith", "swe_bench", "harbor"),
+            kinds=(("mini", "swe_bench", "harbor") if self.settings.get("selection_budget") else ("mini", "swe_smith", "swe_bench", "harbor")),
         )
         receipt = read_artifact(artifact(self.settings["capacity_receipt"]))
         require(
@@ -237,7 +237,7 @@ class ServerPorts:
             and receipt.get("max_context_tokens") == config.max_context_tokens
             and receipt.get("sft_backward_passed") is True
             and receipt.get("checkpoint_reload_passed") is True
-            and receipt.get("swe_smith_smoke_passed") is True
+            and ((receipt.get("rebench_smoke_passed") is True and receipt.get("pro_v2_regrade_smoke_passed") is True and receipt.get("fsdp_resume_passed") is True and receipt.get("offline_bundle_verified") is True) if self.settings.get("selection_budget") else receipt.get("swe_smith_smoke_passed") is True)
             and receipt.get("swe_bench_smoke_passed") is True
             and receipt.get("harbor_smoke_passed") is True,
             "Real capacity, adapter reload and all three harness smokes must pass on server",
@@ -266,7 +266,7 @@ class ServerPorts:
         return count_context(
             records,
             model=self.model,
-            count=math.floor(len(records) * config.selection_fraction),
+            count=config.selected_count(len(records)),
             seed=config.seed,
         )
 

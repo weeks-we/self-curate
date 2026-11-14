@@ -19,7 +19,7 @@ def register_swe_task(
     output,
     grader_timeout_seconds=3600,
 ):
-    require(harness in ("swe_smith", "swe_bench"), "Unknown SWE task source")
+    require(harness in ("swe_smith", "swe_bench", "swe_rebench"), "Unknown SWE task source")
     require(
         type(grader_timeout_seconds) is int and grader_timeout_seconds > 0,
         "Positive grader process timeout required",

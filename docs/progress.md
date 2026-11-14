@@ -1,6 +1,8 @@
 # 当前实现状态与待办
 
-更新：2026-11-09。版本 0.16.0。EXP001 唯一交接为 [V3 Handoff](handoffs/EXP001_SERVER_V3.md)，
+[当前流程待配置、待实现与待验收清单](IMPLEMENTATION_GAPS_ZH.md) (2026-11-11)
+
+更新：2026-11-11。版本 0.16.0。EXP001 唯一交接为 [V3 Handoff](handoffs/EXP001_SERVER_V3.md)，
 部署见 [容器部署](SERVER_CONTAINER_DEPLOYMENT_ZH.md)，文档导航见 [README.md](README.md)。
 
 ## 已实现
@@ -78,3 +80,31 @@
 新增 outer_recovery.py：完整恢复状态、前序hash链与原子journal，冻结输入/源码/后端/独立model和batch锚点核验，attempt OS lease及旧实例拒绝。恢复已完成训练与验证不重复执行，持久化接受/退回决定按同一上下文续交；M1 usage、外层实际训练曝光及费用同时恢复。失败后的显式retry最多两次，无法核验的外部在途调用不盲目重发。FSDP后端接收当前接受模型的checkpoint。仅支持新格式，不改写旧snapshot，不等同于全局服务模型提交。
 
 原self_curate.smoke入口、配置和NESTED_CPU_MOCK_HANDOFF.md保持使用，加入训练结果、验证结果、接受决定三个位置的模拟中断，并由独立Python进程恢复。仍为3×5、5次训练、42次rollout，无GPU和外网。各阶段恢复、错误锚点、损坏日志、失败重试与旧实例检查记录在忽略的runs目录；真实后端仍需服务器验收。
+
+
+## 2026-11-11：EXP001 Rebench 工作站准备与初始三角色
+用户固定Qwen3.8-27B、成功SWE-rebench轨迹、Verified/Pro/Terminal；技能/标注规则与规模待定。新增准备计划、工作站入口、独立Dockerfile与交接，旧5016入口不替换或冒充新数据适配。新prompt opt-in一次初测Leval→Lopt，独立历史和共享反馈资产；旧mock不启用。轻量粗筛接受tokenizer回调，基础设施错误向上传播。工作站负责联网下载/锁与Teacher、选定题单后准备环境；集群只做计算。Pro当前V2/default642与Terminal4.1经官方页核对；数据commit与环境仍待工作站实查。准备层尚非完整Rebench→M1/Teacher新schema装配，Pro干净环境重判与Terminal4.1离线资产验收不可省略。未进行目标权重下载或真实GPU/Docker/Teacher调用。
+
+
+### 本轮本机验证（2026-11-11）
+新增三角色mock完整完成：runs/rebench-final-20261111；all_reports_valid=true，四分支三阶段、逐阶段开发集、最终mock benchmark及ZIP。完成后--resume只复核通过。旧mock完整完成：runs/rebench-legacy-check-20261111，保持不调用Leval。直接CPU检查通过：任务抽样可复现/排除/重复ID拒绝，成功门禁/去重/工具对应/监督/长度/基础设施错误传播，Teacher预算，prompt加载、Python AST与JSON解析，ZIP CRC；下载器以假传输验证固定revision/不重复下载/篡改拒绝。真实HTTP直连受本机网络限制，未做真实下载；未构建Docker、调用Teacher或使用GPU。新来源完整M1装配与Pro V2 clean-sandbox regrade仍未完成，不把本轮准备入口描述成正式实验可启动。
+
+## 2026-11-11：Rebench 实验一工程实现与CPU验收
+
+已实现用户此次要求的准备/桥接、Pro V2官方两阶段判分调用、离线环境与交接接口；固定硬筛前成功轨迹10%和每技能50开发题，Random未遗漏。详见最新计划和交接；之前“尚无M1桥接/Pro实现”的描述仅代表当时状态。
+
+本轮已实际通过：
+- runs/rebench-stage-check-ac46ca89：模拟Teacher任务选择与真实本地Parquet按split导出；流式pool阶段写140条左右M1（确数见extended-cpu.json）、200条成功的K=20、技能absent/uncertain筛选语义、工具定义保留、共享Teacher缓存的本次预算、export-table CLI不覆盖JSONL、FSDP CPU inspect不伪报GPU通过。
+- runs/rebench-v2-check-b9602eb4：固定分母/短缺拒绝、每技能50及并集、M1/PreparedInputs往返、假传输下Pro agent→pristine replay且仅后者reward生效、离线文件篡改与镜像传输校验。
+- runs/rebench-nested-final2-20261111：既有3外层×5内层CPU联调通过，含跨进程恢复与zip。首次未设置可供子进程继承的PYTHONPATH而失败；显式设置后新输出根重跑通过，不改模块接口。
+- runs/rebench-legacy-final2-20261111：旧EXP001四分支三阶段及ZIP通过。
+- runs/rebench-fsdp-cpu-9a391e47：微型随机模型用实际Accelerate CPU训练，新增preflight中断钩子在提交第1步后退出，再恢复；最终参数与连续对照逐张量相同，8 rank曝光划分无重叠遗漏。真实8卡FSDP未执行。
+- 新预算完整mock及完成后恢复通过；最终源码的发布验收目录与后续复用/ZIP复核另记于下方。
+
+未下载目标权重，未调用付费Teacher，未构建/运行真实Docker，未使用GPU。真实来源revision解析/全池数据兼容、Teacher上下文与标注质量、Pro/Terminal官方离线容器、八卡容量/吞吐/重载等仍由工作站和集群验收。用户技能规则是明确的阻塞项，不擅自填入。
+
+### 最终发布验收（同日）
+
+最终源码完整mock：runs/rebench-budget-release-20261111，all_reports_valid=true，两种模式均K=4，四分支三阶段，13个模型节点的最终模拟benchmark、CSV/PNG与results.zip均生成；完成后 --resume 只复核通过。summary真实记录leval_calls=1、initial_feedback_available=true、inner_valuation_calls=0，反馈和初测/指标/策略均列入shared_assets。扩展准备验收实际写出143条M1，硬筛前200条成功→K20。详细机器相关证据都在被忽略runs，不提交原始运行输出。
+
+Final reuse check: runs/rebench-budget-release-reuse-20261111 completed; all five shared asset references identical to first run, new Leval calls=0 vs first run=1, K4 unchanged, both ZIP CRC checks passed. No target/GPU/Docker/Teacher acceptance implied.

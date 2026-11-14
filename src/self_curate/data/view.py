@@ -44,6 +44,25 @@ def _signal_context(model_ref, spec, reference):
     return (model_ref.model_hash, spec.spec_hash, ref_key)
 
 
+def skill_statuses(record):
+    labels=record.metadata
+    if labels is None:return {}
+    values=[(t.name.split(":",1)[1],t.value) for t in labels.tags if t.name.startswith("skill_status:")]
+    require(len(dict(values))==len(values),"Duplicate explicit skill status")
+    states=dict(values)
+    require(all(v in ("present","absent","uncertain","not_assessed") for v in states.values()),"Invalid explicit skill status")
+    return states
+
+
+def skill_labels(record):
+    if record.annotations is None:return None
+    states=skill_statuses(record)
+    if states:
+        require(set(states)=={m.skill for m in record.evidence_metrics},"Explicit skill status coverage mismatch")
+        return tuple(sorted(k for k,v in states.items() if v=="present"))
+    # Existing untagged M1 skill labels preserve their historical semantics.
+    return tuple(sorted(a.skill for a in record.annotations.skills))
+
 @dataclass(frozen=True)
 class MetricBatch:
     data_ids: tuple[str, ...]
@@ -170,11 +189,7 @@ class MetricView:
             static[data_id] = {
                 **{name: getattr(record.stats, name) for name in self.LENGTH_FIELDS},
                 "quality_status": record.quality.status,
-                "skills": (
-                    None
-                    if record.annotations is None
-                    else tuple(sorted(a.skill for a in record.annotations.skills))
-                ),
+                "skills": skill_labels(record),
                 "source_id": record.source.source_id,
                 "family_ids": record.source.family_ids,
                 "task_type": None if labels is None else labels.task_type,

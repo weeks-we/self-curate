@@ -112,10 +112,8 @@ def pool_summary(records, signals, skills):
             },
         }
 
-    labels = [
-        {s.skill for s in r.annotations.skills} if r.annotations is not None else set()
-        for r in records
-    ]
+    from self_curate.data.view import skill_labels
+    labels = [set(skill_labels(r) or ()) for r in records]
     return {
         "all_candidates": summarize(list(range(len(records)))),
         "by_skill": {

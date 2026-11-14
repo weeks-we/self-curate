@@ -72,6 +72,13 @@ class AnnotationClient:
                 "backend": self.settings["backend"],
             }
         )
+        usage_path = getattr(self, "usage_path", None)
+        if usage_path is not None:
+            usage_path = Path(usage_path)
+            with lease(usage_path.with_suffix(".lease")):
+                used_keys = read_json(usage_path) if usage_path.exists() else []
+                require(type(used_keys) is list and all(type(v) is str for v in used_keys), "Invalid annotation consumption receipt")
+                atomic_json(usage_path, sorted(set(used_keys) | {key}))
         folder = self.output / key
         with lease(self.output / ".provider.lease"):
             if (folder / "response.json").exists():
@@ -85,7 +92,8 @@ class AnnotationClient:
                     raise AnnotationUnavailable(
                         "Unknown in-flight Teacher call; reconcile before retrying"
                     )
-                used = len(list(self.output.glob("*/dispatched.json")))
+                scope = None if usage_path is None else set(read_json(usage_path))
+                used = sum(scope is None or p.parent.name in scope for p in self.output.glob("*/dispatched.json"))
                 if used >= self.settings["max_calls"]:
                     raise AnnotationUnavailable("Teacher call budget exhausted")
                 folder.mkdir(parents=True, exist_ok=True)

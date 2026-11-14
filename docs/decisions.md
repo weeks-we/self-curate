@@ -284,3 +284,19 @@ LoRA 以 server.template.json 的 adapter_settings.lora 为准。服务器使用
 新增 outer_recovery.py：完整恢复状态、前序hash链与原子journal，冻结输入/源码/后端/独立model和batch锚点核验，attempt OS lease及旧实例拒绝。恢复已完成训练与验证不重复执行，持久化接受/退回决定按同一上下文续交；M1 usage、外层实际训练曝光及费用同时恢复。失败后的显式retry最多两次，无法核验的外部在途调用不盲目重发。FSDP后端接收当前接受模型的checkpoint。仅支持新格式，不改写旧snapshot，不等同于全局服务模型提交。
 
 原self_curate.smoke入口、配置和NESTED_CPU_MOCK_HANDOFF.md保持使用，加入训练结果、验证结果、接受决定三个位置的模拟中断，并由独立Python进程恢复。仍为3×5、5次训练、42次rollout，无GPU和外网。各阶段恢复、错误锚点、损坏日志、失败重试与旧实例检查记录在忽略的runs目录；真实后端仍需服务器验收。
+
+
+## 2026-11-11：EXP001 Rebench 工作站准备与初始三角色
+用户固定Qwen3.8-27B、成功SWE-rebench轨迹、Verified/Pro/Terminal；技能/标注规则与规模待定。新增准备计划、工作站入口、独立Dockerfile与交接，旧5016入口不替换或冒充新数据适配。新prompt opt-in一次初测Leval→Lopt，独立历史和共享反馈资产；旧mock不启用。轻量粗筛接受tokenizer回调，基础设施错误向上传播。工作站负责联网下载/锁与Teacher、选定题单后准备环境；集群只做计算。Pro当前V2/default642与Terminal4.1经官方页核对；数据commit与环境仍待工作站实查。准备层尚非完整Rebench→M1/Teacher新schema装配，Pro干净环境重判与Terminal4.1离线资产验收不可省略。未进行目标权重下载或真实GPU/Docker/Teacher调用。
+
+## 2026-11-11：Rebench 实验一规模与工程接入
+
+本节取代前一节“规模待定、M1桥接/Pro未完成”的状态。用户确认硬筛前成功轨迹总数 N 的10%（floor）作为每种选择的K，候选不足不缩预算；Random与静态策略都从同一硬筛/隔离池选择。开发题每技能50题，独立分层选组，多标签重叠题只执行一次。技能ontology与两类Teacher规则仍由用户确认，不默认旧七技能。
+
+实现独立rebench_workstation六阶段入口（registry/model/tasks/pool/publish/config）、来源锁/Parquet按config和split导出、Teacher请求级缓存/本次预算、5%随机及争议复核、证据标注和M1发布。轨迹原tools完整保存并加入版本化system上下文；技能present/absent/uncertain分开，SkillSelect遵循unknown的缺失策略。原始池流式准入，逐条写M1；最终M1索引仍加载tokens，需工作站RAM验收。硬筛成功依据source resolved与静态完整性，fresh_execution明确not_performed。
+
+Pro V2对接官方locked agent和干净patch replay最终判分；Rebench fork和Verified隔离Python环境。增加冻结题目环境准备、安装快照、离线检查/镜像导入导出/资产seal接口，及独立Dockerfile.rebench。Pro真实Harbor/断网容器未在开发机验收，不能称已正式跑通。
+
+初测Leval→Lopt→Lexec共享M0且history隔离；反馈资产进入冻结清单，summary按实际新增role调用计数，inner_valuation_calls单独为0。旧两角色mock仍可独立运行。新增FSDP服务器专用中断恢复对照，CPU inspect始终不授予GPU通过；微型随机模型用真实Accelerate在CPU执行中断/恢复与逐张量对照。
+
+部署先在工作站下载/安装/Teacher/镜像缓存；集群只导入和核验后计算，不在GPU作业内联网安装。8卡单分支FSDP的micro1、accum1、global8沿用；实际GPU容量/吞吐/重载由集群单独验收。当前正式新方案与交接见EXP001_REBENCH_PLAN_ZH.md及handoffs/EXP001_REBENCH_WORKSTATION_V1.md。

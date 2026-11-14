@@ -261,7 +261,7 @@ def _run_experiment(
         inputs = ports.prepare(config, output / "preparation")
         inputs.validate(config)
         write_json(output / "development-suite.json", inputs.development.to_dict())
-        k = math.floor(len(inputs.records) * config.selection_fraction)
+        k = config.selected_count(len(inputs.records))
         require(k >= 3, "10% pool is too small for three nonempty waves")
         prepared_asset = inputs.register(
             store, output / "prepared-input-origin", producer=producer
@@ -635,7 +635,9 @@ def _finish(
         "development": dev_reports,
         "benchmark": benchmark_reports,
         "shared_assets": refs,
-        "leval_calls": 0,
+        "leval_calls": sum(e.operation == "role_call" and e.subject_id == "leval" for e in events),
+        "initial_feedback_available": "initial_feedback" in refs,
+        "inner_valuation_calls": 0,
         "signal_refreshes_after_initial": 0,
         "control_sft_executed": False,
         "checkpoint_acceptance_applied": False,

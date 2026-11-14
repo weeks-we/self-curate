@@ -107,6 +107,23 @@ class ExperimentConfig:
             "gpu_uuids": list(self.gpu_uuids),
         }
 
+    def selected_count(self, eligible_count):
+        import math
+        settings = load_json(self.adapter_settings_json)
+        budget = settings.get("selection_budget")
+        if budget is None:
+            return math.floor(eligible_count * self.selection_fraction)
+        require(budget.get("basis") == "raw_success_before_admission"
+                and type(budget.get("raw_success_count")) is int
+                and budget["raw_success_count"] >= 0
+                and self.selection_fraction == 0.1,
+                "Invalid frozen raw-success budget")
+        count = budget["raw_success_count"] // 10
+        require(count >= 3 and count <= eligible_count,
+                "Eligible pool cannot satisfy raw-success 10%; no refill or shrink")
+        require(budget.get("selected_count", count) == count, "Changed selection count")
+        return count
+
     def recipe(self, rate):
         require(rate in self.learning_rates, "Unregistered learning rate")
         return SFTRecipe(

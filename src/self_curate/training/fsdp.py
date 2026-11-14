@@ -56,12 +56,17 @@ def stages_from_disk(output, request):
 class AccelerateFSDPBackend:
     backend = "real"
 
-    def __init__(self, store, *, gpu_uuids, config=None, starting_checkpoint=None):
+    def __init__(self, store, *, gpu_uuids, config=None, starting_checkpoint=None, preflight_stop_after_steps=None):
         self.store, self.gpu_uuids, self.config = store, tuple(gpu_uuids), settings(config or {})
         require(len(self.gpu_uuids) == 8 and len(set(self.gpu_uuids)) == 8 and
                 all(u.startswith("GPU-") for u in self.gpu_uuids), "Eight explicit GPU UUIDs required")
         self.progress = None
         self.starting_checkpoint = starting_checkpoint
+        require(preflight_stop_after_steps is None or
+                (type(preflight_stop_after_steps) is int and preflight_stop_after_steps>0),
+                "Invalid isolated preflight interruption")
+        self.preflight_stop_after_steps = preflight_stop_after_steps
+
 
     @property
     def implementation_hash(self):
@@ -99,6 +104,9 @@ class AccelerateFSDPBackend:
                "store": {"base_path": str(self.store.base_path), "initial_adapter": str(self.store.initial_adapter),
                          "initial_model": self.store.model_ref.to_dict(), "lora": asdict(self.store.settings),
                          "base_fingerprint": self.store.model_ref.weights_hash, "loader": self.store.loader}}
+        if self.preflight_stop_after_steps is not None:
+            require(request.training_id.startswith("preflight-"), "Interruption hooks are preflight-only")
+            job["preflight_stop_after_steps"] = self.preflight_stop_after_steps
         if request.starting_model != self.store.model_ref:
             from .artifacts import verify_local_checkpoint
             from urllib.parse import urlsplit

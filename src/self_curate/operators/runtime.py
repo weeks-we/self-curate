@@ -87,7 +87,11 @@ def _semantic_exposure(ids, ctx):
             missing_labels += 1
             continue
         metrics = {m.skill: m for m in row.evidence_metrics}
+        from self_curate.data.view import skill_labels
+        present = set(skill_labels(row) or ())
         for annotation in row.annotations.skills:
+            if annotation.skill not in present:
+                continue
             stat = exposure.setdefault(
                 annotation.skill,
                 {
