@@ -17,7 +17,7 @@ def main():
     lock = sub.add_parser("lock-runtime")
     lock.add_argument("--output", required=True)
     lock.add_argument(
-        "--kinds", nargs="+", default=["mini", "swe_smith", "swe_bench", "harbor"]
+        "--kinds", nargs="+", default=["claude_sdk", "swe_smith", "swe_bench", "harbor"]
     )
     register = sub.add_parser("register-swe")
     register.add_argument("--instances", required=True)

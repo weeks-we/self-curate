@@ -201,13 +201,14 @@ def control_stage(bindings, phase):
               "slots":2,"base_weights_hash":prepared.model.weights_hash,
               "tokenizer_hash":prepared.model.tokenizer.tokenizer_hash,"api_key_env":"SELF_CURATE_INFERENCE_KEY",
               "container_base_url":"http://"+gateway+":"+str(port+100+i),
+              "native_capture_root":str(root/"services/native-tokens"/u),
               "relay_host":gateway,"relay_port":port+100+i,
               "relay_grant_root":str(root/"private/relay-grants")} for i,u in enumerate(bindings["gpu_uuids"])]
     serving=publish_json(protocols/"serving-pool.json",{"schema_version":"1","entries":entries})
     defaults={"model_store":{"base_path":base,"initial_adapter":initial,
                             "base_fingerprint":prepared.model.weights_hash,"loader":"AutoModelForImageTextToText"},
               "task_execution":{"serving_pool":serving.to_dict(),"initial_adapter":initial,
-                                "tokenizer_path":base,"swe_python":bindings.get("swe_python","/opt/graders/verified/bin/python"),
+                                "tokenizer_path":base,"harness":bindings.get("harness",{}),"swe_python":bindings.get("swe_python","/opt/graders/verified/bin/python"),
                                 "rebench_python":bindings.get("rebench_python","/opt/graders/rebench/bin/python"),
                                 "pro_tooling":bindings.get("pro_tooling","/opt/graders/pro/v2/tooling"),
                                 "harbor_executable":"harbor","harbor_installed_root":bindings["installed_environments"],

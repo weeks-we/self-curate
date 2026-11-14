@@ -16,11 +16,15 @@ async def install_snapshot(task_path, root):
 
     task_path, root = Path(task_path).resolve(), Path(root).resolve()
     root.mkdir(parents=True, exist_ok=True)
-    version = importlib.metadata.version("mini-swe-agent")
+    from self_curate.execution.claude_sdk import SDK_VERSION, settings
+    import os
+    require(os.environ.get("SELF_CURATE_HARNESS_CONFIG"), "Set workstation harness config with prepared Harbor images")
+    harness=settings(read_json(os.environ["SELF_CURATE_HARNESS_CONFIG"]))
+    version = SDK_VERSION
     identity = digest(
         {
             "task_checksum": checkpoint_fingerprint(task_path)[0],
-            "mini_version": version,
+            "harness_backend": "claude_agent_sdk", "sdk_version": version, "harness": harness,
             "harbor_version": importlib.metadata.version("harbor"),
             "harbor_source": importlib.metadata.distribution("harbor").read_text(
                 "direct_url.json"
@@ -51,6 +55,12 @@ async def install_snapshot(task_path, root):
         ]
     no_gpu = root / "installation-no-gpu.yaml"
     no_gpu.write_text("\n".join(lines) + "\n")
+    prepared_image=harness.get("harbor_task_images",{}).get(checkpoint_fingerprint(task_path)[0])
+    require(isinstance(prepared_image,str) and "@sha256:" in prepared_image,
+            "Build SDK-derived task image on workstation and bind exact task checksum")
+    sdk_overlay=root/"sdk-image.yaml"
+    sdk_overlay.write_text("services:\n  main:\n    image: "+json.dumps(prepared_image)+
+        "\n    pull_policy: never\n    build: !reset null\n",encoding="utf-8")
     config = TrialConfig.model_validate(
         {
             "task": {"path": str(task_path)},
@@ -58,9 +68,9 @@ async def install_snapshot(task_path, root):
             "trials_dir": str(root / "trials"),
             "install_only": True,
             "agent": {
-                "name": "mini-swe-agent",
-                "kwargs": {"version": version},
-                "model_name": "openai/preparation-only-never-infer",
+                "import_path": "self_curate.execution.harbor_claude:ClaudeSDKAgent",
+                "kwargs": {"harness": harness},
+                "model_name": "sc-preparation-only-never-infer",
                 "base_url": "http://127.0.0.1:9/v1",
                 "model_api_key_name": "SELF_CURATE_PREPARATION_ONLY_KEY",
                 "env": {"SELF_CURATE_PREPARATION_ONLY_KEY": "not-a-real-key"},
@@ -70,7 +80,7 @@ async def install_snapshot(task_path, root):
                 "delete": False,
                 "override_gpus": 0,
                 "kwargs": {"keep_containers": True},
-                "extra_docker_compose": [str(no_gpu)],
+                "extra_docker_compose": [str(no_gpu), str(sdk_overlay)],
             },
             "verifier": {"disable": True},
         }
@@ -108,7 +118,7 @@ async def install_snapshot(task_path, root):
             "task_checksum": checkpoint_fingerprint(task_path)[0],
             "image": name,
             "image_id": image.id,
-            "mini_version": version,
+            "harness_backend": "claude_agent_sdk", "sdk_version": version, "harness": harness,
             "install_only": True,
             "research_gpu_resources_changed": False,
         }

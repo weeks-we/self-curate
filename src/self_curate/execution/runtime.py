@@ -10,7 +10,7 @@ from self_curate.data.pool import file_sha256
 from .artifacts import publish_json
 
 APIS = {
-    "mini": ("mini-swe-agent", "minisweagent.agents.default", "DefaultAgent"),
+    "claude_sdk": ("claude-agent-sdk", "claude_agent_sdk", "query"),
     "swe_smith": ("swesmith", "swesmith.harness.eval", "run_evaluation"),
     "swe_bench": ("swebench", "swebench.harness.run_evaluation", "run_instance"),
     "swe_rebench": ("swebench", "swebench.harness.run_evaluation", "run_instance"),

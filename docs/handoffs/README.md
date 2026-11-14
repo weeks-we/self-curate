@@ -1,3 +1,5 @@
+当前 agent harness 已统一迁移到 Claude Agent SDK，见 [接入与验收说明](../HARNESS_CLAUDE_SDK_ZH.md)。
+
 # 实验交接
 
 当前 EXP001 唯一入口：[EXP001_SERVER_V3.md](EXP001_SERVER_V3.md)。状态为代码交接，

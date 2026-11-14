@@ -1,3 +1,5 @@
+当前 agent harness 已统一迁移到 Claude Agent SDK，见 [接入与验收说明](docs/HARNESS_CLAUDE_SDK_ZH.md)。
+
 # Self-Curate
 
 数据筛选与自改进实验项目，版本 0.16.0。工作目录按正式实验运行维护；开发测试与旧模块演示已归档。

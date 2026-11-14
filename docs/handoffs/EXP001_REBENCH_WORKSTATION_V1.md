@@ -1,3 +1,5 @@
+> 2026-11-14 更新：本页旧 mini-SWE 安装/调用描述已被 [Claude SDK harness 交接](CLAUDE_SDK_HARNESS_V1.md) 取代；其余研究定义不因此修改。
+
 ﻿# EXP001_REBENCH_WORKSTATION_V1
 
 给服务器 agent：只在独立 self-curate checkout 操作，先读根 AGENTS、`docs/EXP001_REBENCH_PLAN_ZH.md`。本交接用于 Rebench 新实验；不要运行旧 bootstrap 的 `stage all`，不要继承相邻 NICE 的样本数、seed 或学习率。不 commit/push，不修改旧运行快照。

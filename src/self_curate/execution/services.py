@@ -85,7 +85,9 @@ class ServiceManager:
         return [
             value.get("python", sys.executable),
             "-m",
-            "vllm.entrypoints.openai.api_server",
+            "self_curate.execution.vllm_capture",
+            "--middleware",
+            "self_curate.execution.vllm_capture.SeedMiddleware",
             "--model",
             value["base_path"],
             "--host",
@@ -141,6 +143,7 @@ class ServiceManager:
                 CUDA_VISIBLE_DEVICES=uuid,
                 VLLM_ALLOW_RUNTIME_LORA_UPDATING="True",
                 OMP_NUM_THREADS="1",
+                SELF_CURATE_NATIVE_CAPTURE_ROOT=str(Path(entry.get("native_capture_root", str(self.root / "native-tokens" / uuid))).resolve()),
             )
             if entry.get("api_key_env"):
                 require(

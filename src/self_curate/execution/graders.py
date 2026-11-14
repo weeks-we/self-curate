@@ -79,25 +79,26 @@ class HarborJudge:
     def run(self, request, task_path, binding, output, *, timeout):
         output = Path(output)
         output.mkdir(parents=True, exist_ok=False)
+        require(binding.get("relay_grant_root"), "Harbor SDK requires a scoped inference relay")
+        require(self.installed_root is not None, "Prepare SDK Harbor images on workstation before running")
         config = {
             "task": {"path": str(Path(task_path).resolve())},
             "trial_name": "sc-" + request.record_hash[:24],
             "trials_dir": str((output / "trials").resolve()),
             "timeout_multiplier": 1.0,
             "agent": {
-                "name": "mini-swe-agent",
-                "model_name": "openai/" + binding["model_name"],
+                "import_path": "self_curate.execution.harbor_claude:ClaudeSDKAgent",
+                "model_name": binding["model_name"],
                 "base_url": binding.get(
                     "container_base_url", binding["base_url"]
-                ).rstrip("/")
-                + "/v1",
+                ).rstrip("/"),
                 "model_api_key_name": binding.get("api_key_env"),
                 "kwargs": {
-                    "config": {
-                        "model": {
-                            "model_kwargs": {"seed": request.seed, "temperature": 0}
-                        }
-                    }
+                    "harness": binding.get("harness", {}),
+                    "gate": __import__("self_curate.execution.claude_sdk", fromlist=["policy_config"]).policy_config(
+                        request.task.budget, read_artifact(request.protocol), seed=request.seed, temperature=read_artifact(request.sampling)["temperature"]),
+                    "max_turns": request.task.budget.max_steps,
+                    "tool_seconds": read_artifact(request.protocol)["tool_timeout_seconds"],
                 },
             },
             "environment": {"type": "docker"},
@@ -128,9 +129,8 @@ class HarborJudge:
             )
             overlay = runtime_overlay(installed, output / "installed-environment.yaml")
             config["environment"]["extra_docker_compose"] = [str(overlay.resolve())]
-            config["agent"]["kwargs"].update(
-                version=installed["mini_version"], skip_install=True
-            )
+            require(installed.get("harness_backend") == "claude_agent_sdk",
+                    "Old mini-SWE installation cannot authorize Claude execution")
             config["agent"]["env"] = {"UV_OFFLINE": "1"}
             config["environment"][
                 "delete"

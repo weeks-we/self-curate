@@ -15,7 +15,7 @@ def inspect_server(gpu_uuids, *, run=subprocess.run):
         "transformers",
         "peft",
         "vllm",
-        "mini-swe-agent",
+        "claude-agent-sdk",
         "swesmith",
         "swebench",
         "harbor",

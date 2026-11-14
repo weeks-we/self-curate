@@ -43,13 +43,12 @@ class ProV2Judge:
         from self_curate.contracts.parsing import artifact
         task_path=Path(task_path).resolve()
         output=Path(output).resolve(); output.mkdir(parents=True,exist_ok=False)
-        require(self.tooling is not None and (self.tooling/"locked_mini_swe.py").is_file()
-                and (self.tooling/"patch_replay.py").is_file(),"Pinned official Pro V2 tooling missing")
+        require(self.tooling is not None and (self.tooling/"patch_replay.py").is_file(),"Pinned official Pro V2 tooling missing")
         environment=read_artifact(request.task.environment)
         protocol=read_artifact(artifact(environment["pro_protocol_receipt"]))
         require(getattr(request,"backend","mock")!="real" or protocol.get("backend")=="real",
                 "Synthetic Pro probes cannot authorize real evaluation")
-        require(protocol.get("schema_version")=="pro-v2-offline-v1"
+        require(protocol.get("schema_version")=="pro-v2-claude-sdk-offline-v1"
                 and protocol.get("offline_agent_verified") is True
                 and protocol.get("offline_verifier_verified") is True
                 and protocol.get("fresh_sandbox_verified") is True,
@@ -65,14 +64,14 @@ class ProV2Judge:
         env["PYTHONPATH"]=str(self.tooling)+os.pathsep+env.get("PYTHONPATH","")
         env["SELF_CURATE_TRIAL_KEY"]=scoped_key
         env["HF_HUB_OFFLINE"]="1"
-        endpoint=binding.get("container_base_url",binding["base_url"]).rstrip("/")+"/v1"
+        endpoint=binding.get("container_base_url",binding["base_url"]).rstrip("/")
         require(protocol.get("environment")=="docker","Pro execution requires verified local Docker")
         require(endpoint in protocol.get("model_endpoints",()),"Model endpoint differs from verified network policy")
         from self_curate.execution.artifacts import local_path
         network_overlay=local_path(artifact(protocol["network_overlay"]))
         prepared=protocol.get("prepared_environments",{}).get(task_path.name)
         require(isinstance(prepared,dict) and prepared.get("agent_image") and prepared.get("verifier_image")
-                and prepared.get("mini_version"),"Both offline Pro phase environments must be prepared")
+                and prepared.get("harness_backend")=="claude_agent_sdk","Both offline Pro phase environments must be prepared")
         def trial(stage,agent):
             image=prepared["agent_image" if stage=="agent" else "verifier_image"]
             require(__import__("re").fullmatch(r"sha256:[0-9a-f]{64}",image),"Pro cached phase image must be immutable")
@@ -87,12 +86,16 @@ class ProV2Judge:
             result=self.process([self.executable,"trials","start","--config",str(path)],
                                 cwd=output,output=output/(stage+"-process"),timeout=timeout,env=env)
             require(result.get("returncode")==0 and not result.get("timed_out"),"Official Pro phase failed")
-        agent={"import_path":"locked_mini_swe:LockedMiniSwe","model_name":"openai/"+binding["model_name"],
-               "base_url":endpoint,"model_api_key_name":"SELF_CURATE_TRIAL_KEY",
-               "kwargs":{"version":prepared["mini_version"],"skip_install":True,
-                         "config_file":str(self.tooling/"configs"/"mini_toolcall.yaml"),
-                         "config":{"model":{"model_kwargs":{"temperature":0,"seed":request.seed}}}},
-               "env":{"SELF_CURATE_TRIAL_KEY":scoped_key,"UV_OFFLINE":"1"}}
+        from .claude_sdk import policy_config
+        agent={"import_path":"self_curate.execution.harbor_claude:ClaudeSDKAgent",
+               "model_name":binding["model_name"],"base_url":endpoint,
+               "model_api_key_name":"SELF_CURATE_TRIAL_KEY",
+               "kwargs":{"harness":binding.get("harness",{}),
+                         "gate":policy_config(request.task.budget,read_artifact(request.protocol),seed=request.seed, temperature=read_artifact(request.sampling)["temperature"]),
+                         "max_turns":request.task.budget.max_steps,
+                         "tool_seconds":read_artifact(request.protocol)["tool_timeout_seconds"],
+                         "capture_patch":True},
+               "env":{"UV_OFFLINE":"1"}}
         atomic_json(output/"dispatch.json",{"request_hash":request.record_hash,
                     "task":task_path.name,"protocol":protocol,"stages":["agent","pristine_regrade"]})
         trial("agent",agent)

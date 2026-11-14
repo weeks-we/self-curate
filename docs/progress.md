@@ -1,3 +1,27 @@
+
+## 2026-11-14：harness 二次复查与小额 DS 连通测试
+
+发现并修复启动入口 importlib 作用域错误、SDK终态与HTTP usage提交竞争、非法seed返回500、
+角色后续checkpoint无法传递、预算停止的已知计量丢失，以及Pro短期token写入trial JSON。
+32项CPU适配、7项复查回归、真实SDK0.2.87的模拟transport控制协议检查、3×5联调、
+EXP001预演/完成态恢复及ZIP CRC通过。DS真实JSON和两轮工具调用成功，合计成功输出76 token；
+首次强制工具请求HTTP400保留记录。key不落盘。DS连通测试不证明Qwen/LoRA/CLI/容器/NICE真实验收。
+完整证据：`runs/claude-harness-review-20261114/verification.json`。
+
+本轮实际本机验收：32项显式CPU替身检查、最终版本3×5嵌套联调（45次角色/42次任务，含跨进程恢复）、
+EXP001 Random/static四分支三节点预演、完成态恢复、两份ZIP CRC及原嵌套文件checksum均通过。
+结果见 `runs/claude-harness-migration-20261114/verification.json`。没有运行真实SDK二进制、目标模型、Docker或GPU。
+
+
+## 2026-11-14：统一 Claude Agent SDK harness
+
+三角色JSON会话、SWE/NICE rollout、Pro/Terminal解题改接固定SDK0.2.87+Claude2.1.153，
+仍使用AdapterRouter的同一Qwen/adapter；workflow和确定性算子/梯度/训练/官方判分不交给harness。
+新增vLLM0.22.0引擎token采集与NICE replay适配、种子middleware、预算网关及工作站SDK任务派生镜像。
+旧mini安装/Pro协议和旧harness初测不能直接复用。原公共工作流契约保留。
+实现与验收边界见 [harness说明](HARNESS_CLAUDE_SDK_ZH.md) 和
+[交接](handoffs/CLAUDE_SDK_HARNESS_V1.md)。本机仅CPU模拟，真实CLI/GPU/Docker/NICE反向仍须服务器验收。
+
 # 当前实现状态与待办
 
 [当前流程待配置、待实现与待验收清单](IMPLEMENTATION_GAPS_ZH.md) (2026-11-11)

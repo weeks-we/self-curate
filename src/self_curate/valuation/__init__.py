@@ -23,3 +23,5 @@ __all__ = [
     "ValuationFailure",
     "create_validator",
 ]
+
+from .claude_replay import replay_from_rollout

@@ -50,47 +50,7 @@ def task_execution_identity(settings):
     )
 
 
-class SharedRoleClient:
-    def __init__(self, router, model, output, seed):
-        self.router, self.model_ref, self.output = router, model, Path(output)
-        self.calls = 0
-        self.seed = seed
-
-    def generate_json(self, *, role, system_prompt, payload, timeout_seconds):
-        from types import SimpleNamespace
-
-        work = self.output / (role + "-" + str(self.calls))
-        self.calls += 1
-        work.mkdir(parents=True, exist_ok=False)
-        with self.router.bind(
-            SimpleNamespace(model_ref=self.model_ref, checkpoint=None), work
-        ) as binding:
-            client = CompletionClient(binding, work / "calls")
-            response = client.complete(
-                [
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": json.dumps(payload, ensure_ascii=False),
-                    },
-                ],
-                max_tokens=8192,
-                seed=self.seed,
-                timeout=timeout_seconds,
-                response_format={"type": "json_object"},
-            )
-            value = response["choices"][0]["message"]["content"]
-            try:
-                content = json.loads(value)
-            except (json.JSONDecodeError, TypeError):
-                content = value
-            return {
-                "content": content,
-                "usage": ResourceUsage(
-                    agent_input_tokens=response["usage"]["prompt_tokens"],
-                    agent_output_tokens=response["usage"]["completion_tokens"],
-                ).to_dict(),
-            }
+from self_curate.agents.claude_client import ClaudeSharedRoleClient as SharedRoleClient
 
 
 class ServerPorts:
@@ -119,16 +79,24 @@ class ServerPorts:
         self.validator = ParallelTaskValidator(self.task_runner, workers=16)
         self.benchmark_runner = self.task_runner
         self.client = SharedRoleClient(
-            self.task_runner.router, self.model, self.output / "role-calls", config.seed
+            self.task_runner.router, self.model, self.output / "role-calls", config.seed,
+            harness=self.settings["task_execution"].get("harness")
         )
         self.task_execution_hash = task_execution_identity(self.settings)
         from self_curate.data.pool import file_sha256
 
         self.agent_implementation_hash = digest(
             {
-                "format": "local-chat-json-v1",
+                "format": "claude-agent-sdk-json-v1",
                 "sampling": self.agent_sampling.to_dict(),
                 "code": file_sha256(Path(__file__)),
+                "harness_code": {
+                    p.name:file_sha256(p) for p in (
+                        Path(__file__).parents[2]/"agents/claude_client.py",
+                        Path(__file__).parents[2]/"execution/claude_sdk.py",
+                        Path(__file__).parents[2]/"execution/claude_gateway.py")
+                },
+                "harness_settings":self.settings["task_execution"].get("harness",{}),
             }
         )
         self._scorer = None

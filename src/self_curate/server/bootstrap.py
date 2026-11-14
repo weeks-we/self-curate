@@ -177,14 +177,14 @@ def bootstrap(plan_path, *, gpu_uuids, stage, execution, resume=False):
             )
             verify_runtime(
                 read_json(runtime_file),
-                kinds=("mini", "swe_smith", "swe_bench", "harbor"),
+                kinds=("claude_sdk", "swe_smith", "swe_bench", "harbor"),
             )
             runtime = artifact(
                 {"uri": runtime_file.as_uri(), "sha256": file_sha256(runtime_file)}
             )
         else:
             runtime = lock_runtime(
-                runtime_file, kinds=("mini", "swe_smith", "swe_bench", "harbor")
+                runtime_file, kinds=("claude_sdk", "swe_smith", "swe_bench", "harbor")
             )
         common_lock = (
             root
@@ -453,6 +453,7 @@ def bootstrap(plan_path, *, gpu_uuids, stage, execution, resume=False):
                 + bridge
                 + ":"
                 + str(plan["base_port"] + 100 + i),
+                "native_capture_root": str(execution_root / "services/native-tokens" / uuid),
                 "relay_host": bridge,
                 "relay_port": plan["base_port"] + 100 + i,
                 "relay_grant_root": str(execution_root / "private/relay-grants"),

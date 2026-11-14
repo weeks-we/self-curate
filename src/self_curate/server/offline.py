@@ -116,6 +116,8 @@ def publish_pro_protocol(manifest, checks_root, tooling, tasks, prepared, output
     require(manifest.get("location")=="workstation" and manifest.get("backend") in ("real","mock"),"Declare probe provenance")
     completed=run_workstation_checks(manifest,checks_root)
     task_map={Path(p).name:checkpoint_fingerprint(Path(p))[0] for p in tasks}
+    require(all(v.get("harness_backend")=="claude_agent_sdk" for v in prepared.values()),
+            "Old mini agent preparation is incompatible with Claude protocol")
     require(set(prepared)==set(task_map),"Prepared Pro environments do not cover exact task set")
     kinds={name:set() for name in task_map}
     network=False
@@ -133,14 +135,14 @@ def publish_pro_protocol(manifest, checks_root, tooling, tasks, prepared, output
             require(any(e.get("model_endpoint_allowed") is True and e.get("outside_network_blocked") is True
                         for e in item["evidence"].values()),"Network probe lacks allow/deny evidence")
             network=True
-        if kind=="cli_probe" and any(e.get("temperature")==0 and "seed" in e for e in item["evidence"].values()):
+        if kind=="cli_probe" and any(e.get("temperature")==0 and e.get("harness_backend")=="claude_agent_sdk" for e in item["evidence"].values()):
             sampling=True
-    require(sampling,"Probe actual model requests for fixed greedy sampling and seed")
+    require(sampling,"Probe actual model requests for fixed greedy sampling and Claude harness routing")
     require(network and all({"oracle","nop","dependency_probe"}<=v for v in kinds.values()),"Incomplete offline Pro probe coverage")
     require(type(manifest.get("model_endpoints")) is list and bool(manifest["model_endpoints"]),"Freeze allowed model endpoints")
     require(manifest.get("network_overlay") is not None,"Freeze the Docker model-only network overlay")
     local_path(artifact(manifest["network_overlay"]))
-    value={"schema_version":"pro-v2-offline-v1","backend":manifest["backend"],
+    value={"schema_version":"pro-v2-claude-sdk-offline-v1","backend":manifest["backend"],
            "offline_agent_verified":True,"offline_verifier_verified":True,"fresh_sandbox_verified":True,
            "greedy_sampling_verified":True,
            "environment":"docker","tooling_checksum":checkpoint_fingerprint(Path(tooling))[0],

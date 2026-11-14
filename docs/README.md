@@ -1,3 +1,5 @@
+当前 agent harness 已统一迁移到 Claude Agent SDK，见 [接入与验收说明](HARNESS_CLAUDE_SDK_ZH.md)。
+
 > EXP001 Rebench (2026-11-11): [workstation plan](EXP001_REBENCH_PLAN_ZH.md), [handoff](handoffs/EXP001_REBENCH_WORKSTATION_V1.md). New preparation contract; not a ready legacy server config.
 
 # 文档入口

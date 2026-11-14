@@ -1,3 +1,5 @@
+> 2026-11-14 更新：本页旧 mini-SWE 安装/调用描述已被 [Claude SDK harness 交接](CLAUDE_SDK_HARNESS_V1.md) 取代；其余研究定义不因此修改。
+
 > SFT execution updated 2026-11-10: see [FSDP handoff](SFT_FSDP_RECOVERY_HANDOFF.md). Earlier four independent single-GPU worker instructions are superseded.
 
 # EXP001_SERVER_V3：联网准备与 GPU 执行分离

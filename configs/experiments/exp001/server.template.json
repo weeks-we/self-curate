@@ -72,7 +72,18 @@
       "initial_adapter": null,
       "tokenizer_path": null,
       "swe_python": null,
-      "harbor_executable": "harbor"
+      "harbor_executable": "harbor",
+      "harness": {
+        "backend": "claude_agent_sdk",
+        "sdk_version": "0.2.87",
+        "cli_version": "2.1.153",
+        "cli_path": "/opt/self-curate-sdk/bin/claude-pinned",
+        "python": "/opt/self-curate-sdk/bin/python",
+        "context_management": "claude_native",
+        "network": null,
+        "network_policy_verified": false,
+        "task_images": {}
+      }
     },
     "training_backend": "accelerate_fsdp",
     "fsdp": {

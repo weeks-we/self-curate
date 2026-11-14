@@ -120,7 +120,7 @@ def install(bindings):
         agent=asyncio.run(install_snapshot(folder,root/"installed"/name))
         verifier=asyncio.run(verifier_snapshot(folder,root/"verifiers"/name))
         prepared[name]={"agent_image":agent["image_id"],"verifier_image":verifier["image_id"],
-                        "mini_version":agent["mini_version"]}
+                        "harness_backend":agent["harness_backend"],"sdk_version":agent["sdk_version"]}
         images.update((agent["image_id"],verifier["image_id"]))
     for row in terminal:
         name=row["instance_id"].split(":",1)[1]

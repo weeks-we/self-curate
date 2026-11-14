@@ -347,6 +347,8 @@ class RoleRuntime:
                 )
                 return RoleReply(role, call_id, canonical_json(content), usage)
             except BaseException as exc:
+                if isinstance(getattr(exc,"usage",None), ResourceUsage):
+                    usage=exc.usage
                 if usage.compute.wall_seconds is None:
                     usage = replace(
                         usage,

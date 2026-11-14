@@ -8,7 +8,7 @@ from self_curate.contracts.parsing import artifact
 from self_curate.contracts.types import require
 from self_curate.training.recovery import atomic_json
 from .artifacts import read_artifact, publish_json, local_path
-from .agent import run_mini
+from .claude_task import run_claude
 from .model import CompletionClient, AdapterRouter
 from .graders import SWEJudge, HarborJudge
 from .runtime import verify_runtime
@@ -31,7 +31,7 @@ class CodingTaskRunner:
         swe_judge=None,
         harbor=None,
         pro=None,
-        mini=run_mini,
+        mini=run_claude,
         client_factory=CompletionClient,
         verify=verify_runtime,
     ):
@@ -76,10 +76,14 @@ class CodingTaskRunner:
             policy = read_artifact(request.protocol)
             sampling = read_artifact(request.sampling)
             require(
-                sampling
-                == {"schema_version": "1", "temperature": 0, "seed_policy": "request"},
-                "EXP001 task runner currently supports fixed greedy sampling",
+                sampling.get("schema_version")=="1" and sampling.get("seed_policy")=="request"
+                and type(sampling.get("temperature")) in (int,float)
+                and __import__("math").isfinite(sampling["temperature"])
+                and 0<=sampling["temperature"]<=2
+                and set(sampling)=={"schema_version","temperature","seed_policy"},
+                "Declare fixed greedy or sampled rollout policy with request seed",
             )
+            policy={**policy,"sampling_temperature":sampling["temperature"]}
             kind = environment["harness"]
             require(
                 kind == scorer["harness"]
@@ -87,7 +91,7 @@ class CodingTaskRunner:
                 "Task environment/scorer mismatch",
             )
             lock = read_artifact(artifact(scorer["runtime_lock"]))
-            self.verify(lock, kinds=("harbor",) if kind in ("harbor", "swe_pro_v2") else (("mini",) if kind == "swe_rebench" else ("mini", kind)))
+            self.verify(lock, kinds=("harbor",) if kind in ("harbor", "swe_pro_v2") else (() if kind == "swe_rebench" else (kind,)))
             atomic_json(output / "request.json", request.to_dict())
             with self.router.bind(request, output) as binding:
                 if kind in ("harbor", "swe_pro_v2"):
@@ -166,7 +170,7 @@ class CodingTaskRunner:
                     )
                     calls = client.calls
                     tool_calls = sum(
-                        len(m.get("extra", {}).get("actions", []))
+                        sum(1 for b in m.get("content", []) if isinstance(b, dict) and b.get("name") and b.get("id"))
                         for m in row.get("actions", [])
                     )
                     generated = (
@@ -209,6 +213,10 @@ class CodingTaskRunner:
                             status = "task_failed"
                             reason += ";official_test_timeout"
                     trace = row
+                    if status != "environment_failed" and reason in (
+                        "step_limit","wall_time_limit","token_limit","context_limit",
+                        "output_token_limit","wall_limit"):
+                        status="budget_exhausted"
             actions = publish_json(
                 output / "actions.json",
                 {"request_hash": request.record_hash, "trace": trace},
@@ -267,7 +275,7 @@ def build_task_runner(settings, model, *, execution):
 
     pool = read_json(local_path(artifact(settings["serving_pool"])))
     router = AdapterRouter(
-        pool["entries"],
+        [{**e, "harness": settings.get("harness", {})} for e in pool["entries"]],
         model,
         settings["initial_adapter"],
         transport=http_json,

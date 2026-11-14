@@ -34,6 +34,8 @@ def handler(target, grant_root, key_env):
 
         def grant(self):
             authorization = self.headers.get("Authorization", "")
+            if not authorization and self.headers.get("x-api-key"):
+                authorization = "Bearer " + self.headers["x-api-key"]
             if not authorization.startswith("Bearer "):
                 return None
             token = authorization[len("Bearer ") :]
@@ -84,7 +86,12 @@ def handler(target, grant_root, key_env):
             if grant is None:
                 self.respond(401, {"error": "invalid or expired trial grant"})
                 return
-            if self.path not in ("/v1/chat/completions", "/v1/completions"):
+            from urllib.parse import urlsplit, parse_qs
+            route=urlsplit(self.path)
+            if route.query and parse_qs(route.query,keep_blank_values=True)!={"beta":["true"]}:
+                self.respond(403,{"error":"unsupported inference query"}); return
+            self.path=route.path
+            if self.path not in ("/v1/chat/completions", "/v1/completions", "/v1/messages", "/v1/messages/count_tokens"):
                 self.respond(403, {"error": "inference-only endpoint"})
                 return
             try:
@@ -114,6 +121,7 @@ def handler(target, grant_root, key_env):
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": "Bearer " + key,
+                    **{k:self.headers[k] for k in ("X-Request-Id","X-Self-Curate-Seed") if self.headers.get(k)},
                 },
             )
             try:

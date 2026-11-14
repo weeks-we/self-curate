@@ -21,6 +21,14 @@ RUN pip install -e '.[server]' \
     "swesmith[validate] @ git+https://github.com/SWE-bench/SWE-smith.git@${SWESMITH_COMMIT}" \
     "swebench @ git+https://github.com/SWE-bench/SWE-bench.git@${SWEBENCH_COMMIT}" \
     "harbor @ git+https://github.com/harbor-framework/harbor.git@${HARBOR_COMMIT}"
+# Host roles use the same isolated SDK; this does not modify task/testbed interpreters.
+ARG CLAUDE_SHA256
+COPY docker/requirements-sdk.txt /opt/self-curate-sdk-requirements.txt
+RUN python3 -m venv /opt/self-curate-sdk \
+    && /opt/self-curate-sdk/bin/pip install -r /opt/self-curate-sdk-requirements.txt \
+    && /opt/self-curate-sdk/bin/pip install --no-deps /opt/self-curate
+COPY docker/install_claude.py /opt/self-curate-sdk/install_claude.py
+RUN CLAUDE_SHA256=${CLAUDE_SHA256} /opt/self-curate-sdk/bin/python /opt/self-curate-sdk/install_claude.py
 COPY configs ./configs
 COPY docs ./docs
 RUN mkdir -p /opt/build-evidence && pip freeze --all > /opt/build-evidence/requirements.lock.txt \
