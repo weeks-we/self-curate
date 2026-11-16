@@ -14,6 +14,7 @@ from self_curate.preparation.rebench import (
 )
 from self_curate.preparation.isolation import IsolationIndex
 from self_curate.preparation.provider import AnnotationClient
+from self_curate.preparation.teacher import load_settings
 from self_curate.preparation.pipeline import annotation_ledger
 from self_curate.experiments.exp001.workstation import rows,sample_tasks
 
@@ -28,19 +29,26 @@ def renderer_from(bindings,model):
 def stage(bindings,phase, *, client=None,review=None,renderer=None):
     root=Path(bindings["output"]).resolve(); root.mkdir(parents=True,exist_ok=True)
     require(bindings.get("execution_location")=="workstation","Preparation cannot run on the cluster")
-    settings=read_json(bindings["ontology"])
-    skills=ontology(settings) # Missing rules are a real gate, never use seven defaults.
+    settings=load_settings(bindings["ontology"])
+    if "review_mode" in bindings:settings={**settings,"review_mode":bindings["review_mode"]}
+    from .teacher import review_mode
+    mode=review_mode(settings)
+    skills=ontology(settings)
+    require(bindings.get("development_per_skill",50)==50,"This experiment fixes 50 tasks per primary skill")
     require(bindings.get("execution_location")=="workstation","Preparation cannot run on the cluster")
     task_rows=list(rows(bindings["tasks"]))
     test_rows=list(rows(bindings["benchmark_instances"]))
     index=IsolationIndex(bindings.get("near_duplicate_threshold",0.85))
     for row in test_rows:index.add(row)
     if bindings.get("candidate_count") is None:
-        bindings = {**bindings, "candidate_count": min(sum(not index.conflicts(t) for t in task_rows),max(1000,200*len(skills)))}
+        covered={r["instance_id"] for r in rows(bindings["trajectories"]) if r.get("resolved")==1}
+        population=bindings.get("task_population","success_covered")
+        available=sum(not index.conflicts(t) and (population=="all_tasks" or (t["instance_id"] not in covered if population=="success_uncovered" else t["instance_id"] in covered)) for t in task_rows)
+        bindings = {**bindings, "candidate_count": min(available,max(1000,200*len(skills)))}
     if bindings.get("backend","real") == "real":
         registry=read_json(bindings["source_registry"])
         for name,source in (("tasks","development_tasks"),("trajectories","rebench_trajectories")):
-            if name=="trajectories" and phase=="tasks":
+            if name=="trajectories" and phase=="tasks" and not bindings.get("helper_trajectories",True):
                 continue
             source_receipt=read_json(str(bindings[name])+".source.json")
             spec=registry["datasets"][source]
@@ -53,16 +61,28 @@ def stage(bindings,phase, *, client=None,review=None,renderer=None):
     intent={"phase":phase,"ontology":digest(settings),
             "implementation_hash":digest({str(p.name):file_sha256(p) for p in (
                 Path(__file__),Path(__file__).with_name("rebench.py"),
+                Path(__file__).with_name("teacher.py"),Path(__file__).with_name("development_asset.py"),
+                Path(__file__).with_name("provider.py"),Path(__file__).with_name("teacher_grouped.py"),
+                Path(__file__).parents[1]/"data/task_links.py",
                 Path(__file__).parents[1]/"experiments/exp001/workstation.py")}),
             "tasks":file_sha256(Path(bindings["tasks"])),
             "benchmarks":file_sha256(Path(bindings["benchmark_instances"])),
-            "seed":bindings.get("seed",42),
-            "teacher":bindings.get("teacher"),"review_teacher":bindings.get("review_teacher"),
+            "seed":bindings.get("seed",42),"trajectory_grouping":bindings.get("trajectory_grouping",{}),
+            "teacher":bindings.get("teacher"),"review_teacher":bindings.get("review_teacher"),"review_mode":mode,
             "max_context_tokens":bindings.get("max_context_tokens",131072),
             "model_sha256":file_sha256(Path(bindings["model"])) if phase!="tasks" else None,
             "registered_inputs":{k:file_sha256(Path(bindings[k])) for k in ("registered_development","registered_benchmarks","source_registry","source_lock") if phase=="publish"}}
+    if phase=="publish":
+        intent["evaluation_protocols"]={k:file_sha256(Path(v)) for k,v in bindings.get("benchmark_protocol_files",{}).items()}
+        intent["development_protocol"]=bindings.get("protocol") or file_sha256(Path(bindings.get("task_protocol_file","configs/experiments/exp001/swe-task-protocol.json")))
+        intent["sampling"]=bindings.get("sampling")
+        intent["task_generation"]=bindings.get("task_generation",{})
     if phase=="tasks":
         intent["candidate_count"]=bindings["candidate_count"]
+        intent["task_population"]=bindings.get("task_population","success_covered")
+        intent["helper_trajectories"]=bindings.get("helper_trajectories",True)
+        intent["helper_source_sha256"]=file_sha256(Path(bindings["trajectories"])) if bindings.get("helper_trajectories",True) else None
+        intent["development_asset"]=bindings.get("development_asset")
     else:
         intent["trajectories"]=file_sha256(Path(bindings["trajectories"]))
         intent["development"]=file_sha256(root/"selected-development.json")
@@ -70,22 +90,82 @@ def stage(bindings,phase, *, client=None,review=None,renderer=None):
     if frozen.exists():require(read_json(frozen)==intent,"Stage inputs changed; use a new preparation root")
     else:atomic_json(frozen,intent)
     teacher = {**bindings["teacher"], "max_calls": bindings["teacher"].get("max_calls") or __import__("math").ceil(1.25*bindings["candidate_count"])}
-    client=client or AnnotationClient({**teacher,"backend":"real","execution":"server"},Path(bindings.get("teacher_cache",root/"teacher")))
-    review=review or (AnnotationClient({**bindings["review_teacher"],"max_calls":bindings["review_teacher"].get("max_calls") or __import__("math").ceil(.1*bindings["candidate_count"]),"backend":"real","execution":"server"},Path(bindings.get("review_cache",root/"review"))) if bindings.get("review_teacher") else None)
+    client=client or AnnotationClient({**teacher,"backend":bindings.get("backend","real"),"execution":"workstation"},Path(bindings.get("teacher_cache",root/"teacher")))
+    review=None if mode=="off" else (review or (AnnotationClient({**bindings["review_teacher"],"max_calls":bindings["review_teacher"].get("max_calls") or __import__("math").ceil(.1*bindings["candidate_count"]),"backend":bindings.get("backend","real"),"execution":"workstation"},Path(bindings.get("review_cache",root/"review"))) if bindings.get("review_teacher") else None))
+    client.settings["max_calls_is_explicit"]=bindings["teacher"].get("max_calls") is not None
+    if review is not None:review.settings["max_calls_is_explicit"]=bindings.get("review_teacher",{}).get("max_calls") is not None
     client.usage_path = root/"primary-requests.json"
     if review is not None:review.usage_path = root/"review-requests.json"
     if phase=="tasks":
-        eligible=[t for t in task_rows if not index.conflicts(t)]
+        if bindings.get("development_asset"):
+            from .development_asset import load
+            result=load(bindings["development_asset"],expected_ontology_hash=digest(settings),
+                expected_source={"tasks_sha256":file_sha256(Path(bindings["tasks"])),
+                                 "trajectory_revision":bindings.get("trajectory_revision")})
+            require(all(not index.conflicts(t) for t in result["tasks"]),"Reused development tasks overlap new benchmarks")
+            result={**result,"development_asset":bindings["development_asset"]}
+            atomic_json(root/"selected-development.json",result)
+            return result
+        covered={r["instance_id"] for r in rows(bindings["trajectories"]) if r.get("resolved")==1}
+        population=bindings.get("task_population","success_covered")
+        require(population in ("success_covered","success_uncovered","all_tasks"),"Unknown development task population")
+        eligible=[t for t in task_rows if not index.conflicts(t) and
+                  (population=="all_tasks" or (t["instance_id"] not in covered if population=="success_uncovered" else t["instance_id"] in covered))]
+        require(len(eligible)>=bindings["candidate_count"],"Not enough isolated tasks in the declared task population")
+        if settings.get("task_labels_only"):
+            require(population=="success_uncovered","Task-only profile requires development tasks outside successful trajectories")
+            from .task_label_pool import label_tasks
+            successful_tasks=[t for t in task_rows if t["instance_id"] in covered]
+            require({t["instance_id"] for t in successful_tasks}==covered,"Successful trajectory/task join incomplete")
+            needed=__import__('math').ceil(1.25*(len(covered)+bindings["candidate_count"]))
+            if not client.settings.get("max_calls_is_explicit"):client.settings["max_calls"]=needed
+            label_tasks(successful_tasks,settings,client,root/"training-task-labels",review)
+            atomic_json(root/"task-populations.json",{"successful_task_count":len(covered),
+                "development_population":"success_uncovered","eligible_development_count":len(eligible)})
         candidates=sample_tasks(eligible,bindings["candidate_count"],bindings.get("seed",42))
         atomic_json(root/"task-candidates.json",candidates)
-        labels=annotate_tasks(candidates,settings,client,root/"task-labels",review)
+        helpers={}
+        if settings.get("annotation_contract")=="coding-teacher-v1" and bindings.get("helper_trajectories",True):
+            candidate_ids={t["instance_id"] for t in candidates}
+            for row in rows(bindings["trajectories"]):
+                key=row["instance_id"]
+                if key in candidate_ids and row.get("resolved")==1:
+                    if key not in helpers or row["trajectory_id"]<helpers[key]["trajectory_id"]:helpers[key]=row
+        labels=annotate_tasks(candidates,settings,client,root/"task-labels",review,helpers=helpers)
         selected,assignments,groups=select_skill_groups(candidates,labels,skills,seed=bindings.get("seed",42),per_skill=50)
+        if settings.get("group_policy")=="unique-primary-v1":
+            require(len(selected)==50*len(skills),"Primary skill groups must contain unique tasks")
         result={"candidate_count":bindings["candidate_count"],"tasks":list(selected),"assignments":assignments,"groups":groups,
                 "per_skill":50,"unique_tasks":len(selected),"ontology_hash":digest(settings)}
+        # Match the portable JSON representation on both first publication and reuse.
+        result=json.loads(canonical_json(result))
+        from self_curate.data.task_links import task_identity,validate_task_join
+        task_spec=(read_json(bindings["source_registry"])["datasets"]["development_tasks"]
+                   if bindings.get("backend","real")=="real" else
+                   {"repo_id":bindings.get("task_source_id","fixture-task-source"),"revision":bindings.get("task_source_revision","fixture")})
+        selected_by_id={t["instance_id"]:t for t in result["tasks"]}
+        members={key:[] for key in selected_by_id}
+        for raw in rows(bindings["trajectories"]):
+            if raw.get("instance_id") in members:
+                validate_task_join(raw,selected_by_id[raw["instance_id"]])
+                require(type(raw.get("trajectory_id")) is str and raw["trajectory_id"],"Missing linked trajectory ID")
+                members[raw["instance_id"]].append(raw["trajectory_id"])
+        result["task_links"]={key:{**task_identity(t,source_id=task_spec["repo_id"],revision=task_spec["revision"]),
+                                  "trajectory_ids":sorted(set(members[key]))} for key,t in selected_by_id.items()}
+        atomic_json(root/"selected-task-relations.json",result["task_links"])
+        if settings.get("annotation_contract")=="coding-teacher-v1":
+            from .development_asset import publish
+            result["development_asset"]=publish(result,settings,
+                {"tasks_sha256":file_sha256(Path(bindings["tasks"])),
+                 "trajectory_revision":bindings.get("trajectory_revision")},root/"task-labels",root/"development-asset")
         atomic_json(root/"selected-development.json",result)
         return result
     require(phase in ("pool","publish"),"Unknown preparation stage")
     selected=read_json(root/"selected-development.json")
+    if selected.get("development_asset"):
+        from .development_asset import load
+        checked=load(selected["development_asset"],expected_ontology_hash=digest(settings))
+        require(checked=={k:v for k,v in selected.items() if k!="development_asset"},"Development reference changed")
     require(selected["ontology_hash"]==digest(settings) and selected["per_skill"]==50,"Development ontology/quota changed")
     for task in selected["tasks"]: index.add(task)
     model=model_ref(read_json(bindings["model"]))
@@ -98,7 +178,11 @@ def stage(bindings,phase, *, client=None,review=None,renderer=None):
         try:
             pool,budget=prepare_records(lambda:rows(bindings["trajectories"]),task_rows,renderer,
             {**settings,"source_id":"nebius/SWE-rebench-openhands-trajectories","source_revision":bindings.get("trajectory_revision") or read_json(bindings["download_lock"])["sources"]["trajectories"]["revision"],
-             "task_candidates":selected["candidate_count"]},
+             "task_candidates":selected["candidate_count"],
+             "task_source_id":read_json(bindings["source_registry"])["datasets"]["development_tasks"]["repo_id"],
+             "task_source_revision":read_json(bindings["source_registry"])["datasets"]["development_tasks"]["revision"],
+             "trajectory_grouping":bindings.get("trajectory_grouping",{}),
+             "task_labels_root":str(root/"training-task-labels")},
             client,root/"pool",held_out=index,max_context=bindings.get("max_context_tokens",131072),
             review_client=review,backend=bindings.get("backend","real"),
             record_sink=lambda r:stream.write(canonical_json(r.to_dict())+"\n"))
@@ -119,14 +203,22 @@ def stage(bindings,phase, *, client=None,review=None,renderer=None):
         task=by_id[key]
         require(read_artifact(task.payload)["instance"]==source[key],"Registered development content differs from labelled task")
         development.append(replace(task,skills=tuple(selected["assignments"][key]),split="development"))
-    sampling=artifact(bindings["sampling"]) if bindings.get("sampling") else publish_json(root/"task-sampling.json",{"schema_version":"1","temperature":0,"seed_policy":"request"})
+    sampling=artifact(bindings["sampling"]) if bindings.get("sampling") else publish_json(root/"task-sampling.json",{"schema_version":"1","temperature":bindings.get("task_generation",{}).get("temperature",1.0),"seed_policy":"request"})
     protocol=artifact(bindings["protocol"]) if bindings.get("protocol") else publish_json(root/"task-protocol.json",read_json(bindings.get("task_protocol_file","configs/experiments/exp001/swe-task-protocol.json")))
     suite=TaskSuite("rebench-development",tuple(development),(bindings.get("seed",42),),sampling,protocol,
                     "task_mean",bindings.get("backend","real"))
     benchmarks=[]
-    for name,values in read_json(bindings["registered_benchmarks"]).items():
+    registered=read_json(bindings["registered_benchmarks"])
+    if bindings.get("backend","real")=="real":
+        require(set(bindings.get("benchmark_protocol_files",{}))==set(registered),
+                "Freeze one explicit protocol file for every registered benchmark")
+    for name,values in registered.items():
+        benchmark_protocol=protocol
+        files=bindings.get("benchmark_protocol_files",{})
+        if name in files:
+            benchmark_protocol=publish_json(root/(name+"-protocol.json"),read_json(files[name]))
         benchmarks.append(BenchmarkSuite(name,tuple(parse_task_record(v) for v in values),
-                          (bindings.get("seed",42),),sampling,protocol,bindings.get("backend","real")))
+                          (bindings.get("seed",42),),sampling,benchmark_protocol,bindings.get("backend","real")))
     benchmark_ids={r["instance_id"] for r in test_rows}
     require({t.task_id for b in benchmarks for t in b.tasks} == benchmark_ids,
             "Registered benchmarks differ from the isolation catalog")
@@ -149,7 +241,7 @@ def control_stage(bindings, phase):
     require(bindings.get("execution_location")=="workstation","Control preparation is workstation-only")
     if phase=="registry":
         from self_curate.preparation.rebench import registry_and_receipts
-        settings=read_json(bindings["ontology"])
+        settings=load_settings(bindings["ontology"])
         skills=ontology(settings)
         registry,lock=registry_and_receipts(read_json(bindings["download_lock"]),bindings["sources"],
                                            read_json(bindings["terminal_source"]),skills)
@@ -197,8 +289,10 @@ def control_stage(bindings, phase):
     gateway=bindings.get("container_gateway")
     require(isinstance(gateway,str) and gateway,"Freeze the actual execution Docker gateway, not a guessed workstation address")
     port=bindings.get("base_port",8100)
+    slots=bindings.get("inference_slots_per_gpu",2)
+    require(type(slots) is int and 1<=slots<=8,"Invalid declared inference slots")
     entries=[{"base_url":"http://127.0.0.1:"+str(port+i),"port":port+i,"gpu_uuid":u,
-              "slots":2,"base_weights_hash":prepared.model.weights_hash,
+              "slots":slots,"base_weights_hash":prepared.model.weights_hash,
               "tokenizer_hash":prepared.model.tokenizer.tokenizer_hash,"api_key_env":"SELF_CURATE_INFERENCE_KEY",
               "container_base_url":"http://"+gateway+":"+str(port+100+i),
               "native_capture_root":str(root/"services/native-tokens"/u),
@@ -216,8 +310,8 @@ def control_stage(bindings, phase):
               "objective":str(protocols/"objective.json"),"edit_policy":str(protocols/"edit-policy.json"),
               "agent_sampling":sampling.to_dict(),"capacity_receipt":None,
               "runtime_lock":bindings["runtime_lock"],
-              "services":{"runtime_root":str(root/"services"),"base_path":base,"max_context_tokens":source["max_context_tokens"],
-                          "gpu_memory_utilization":.85,"tool_call_parser":"qwen3_coder",
+              "services":{"runtime_root":str(root/"services"),"base_path":base,"max_context_tokens":max([prepared.development.tasks[0].budget.max_context_tokens]+[t.budget.max_context_tokens for b in prepared.benchmarks for t in b.tasks]),
+                          "gpu_memory_utilization":.85,"max_num_seqs":slots,"tool_call_parser":"qwen3_coder",
                           "reasoning_parser":"qwen3","lora_rank":bindings["lora"]["rank"],
                           "startup_timeout_seconds":1800,"telemetry":True}}
     for key,value in defaults.items():

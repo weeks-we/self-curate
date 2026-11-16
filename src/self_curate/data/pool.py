@@ -496,7 +496,7 @@ def _read_pool(path: str | Path) -> PoolSnapshot:
                 "annotations",
                 "usage",
                 "tokenization",
-            )
+            ) if k in row
         }
         if "signals" in row:
             raw["signals"] = row["signals"]
@@ -508,7 +508,7 @@ def _read_pool(path: str | Path) -> PoolSnapshot:
         )
         # Keep old evidence readable and byte-identical; enrichment explicitly
         # upgrades a returned record, never rewrites the original pool.
-        if row.get("normalization_version") in {"m1-v1", "m1-v2"}:
+        if row.get("normalization_version") in {"m1-v1", "m1-v2", "m1-v4"}:
             record = replace(record, normalization_version=row["normalization_version"])
         require(
             canonical_json(record.to_dict()) == canonical_json(row),

@@ -96,7 +96,8 @@ class HarborJudge:
                 "kwargs": {
                     "harness": binding.get("harness", {}),
                     "gate": __import__("self_curate.execution.claude_sdk", fromlist=["policy_config"]).policy_config(
-                        request.task.budget, read_artifact(request.protocol), seed=request.seed, temperature=read_artifact(request.sampling)["temperature"]),
+                        request.task.budget, read_artifact(request.protocol), seed=request.seed, temperature=read_artifact(request.sampling)["temperature"],
+                        wall_seconds=__import__("self_curate.execution.claude_sdk",fromlist=["native_agent_seconds"]).native_agent_seconds(task_path,request.task.budget,read_artifact(request.protocol))),
                     "max_turns": request.task.budget.max_steps,
                     "tool_seconds": read_artifact(request.protocol)["tool_timeout_seconds"],
                 },

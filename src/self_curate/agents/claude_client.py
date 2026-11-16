@@ -21,7 +21,7 @@ class ClaudeSharedRoleClient:
             cfg={'agent':{'wall_seconds':timeout_seconds,'total_output_tokens':8192},
                 'generation':{'context_length':self.harness.get('role_context_tokens',131072),
                     'max_new_tokens':8192,'temperature':0,'top_p':1,'top_k':0,'seed':self.seed,
-                    'thinking':True,'preserve_thinking':True,'reasoning_effort':'high'}}
+                    'thinking':True,'preserve_thinking':True,'reasoning_effort':'xhigh'}}
             row=asyncio.run(self.session_fn(json.dumps(payload,ensure_ascii=False),binding,
                 self.harness,work,cfg,cwd=work,system_prompt=system_prompt,
                 tools=(),max_turns=1))

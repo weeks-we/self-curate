@@ -122,6 +122,10 @@ def publish_pro_protocol(manifest, checks_root, tooling, tasks, prepared, output
     kinds={name:set() for name in task_map}
     network=False
     sampling=False
+    required_generation=manifest.get("generation_policy")
+    generation_keys={"temperature","top_p","top_k","thinking","preserve_thinking","reasoning_effort","min_p","presence_penalty","repetition_penalty"}
+    require(isinstance(required_generation,dict) and set(required_generation)==generation_keys,
+            "Freeze the complete actual Qwen generation policy for the Pro probe")
     for item in manifest["checks"]:
         kind=item["kind"]
         if kind in ("oracle","nop","dependency_probe"):
@@ -135,16 +139,20 @@ def publish_pro_protocol(manifest, checks_root, tooling, tasks, prepared, output
             require(any(e.get("model_endpoint_allowed") is True and e.get("outside_network_blocked") is True
                         for e in item["evidence"].values()),"Network probe lacks allow/deny evidence")
             network=True
-        if kind=="cli_probe" and any(e.get("temperature")==0 and e.get("harness_backend")=="claude_agent_sdk" for e in item["evidence"].values()):
+        if kind=="cli_probe" and any(e.get("harness_backend")=="claude_agent_sdk"
+                and all(e.get("effective_generation."+k)==v for k,v in required_generation.items())
+                and all(e.get("effective_sampling."+k)==required_generation[k] for k in ("temperature","top_p","top_k","min_p","presence_penalty","repetition_penalty"))
+                for e in item["evidence"].values()):
             sampling=True
-    require(sampling,"Probe actual model requests for fixed greedy sampling and Claude harness routing")
+    require(sampling,"Probe actual engine generation, thinking and sampling plus Claude harness routing")
     require(network and all({"oracle","nop","dependency_probe"}<=v for v in kinds.values()),"Incomplete offline Pro probe coverage")
     require(type(manifest.get("model_endpoints")) is list and bool(manifest["model_endpoints"]),"Freeze allowed model endpoints")
     require(manifest.get("network_overlay") is not None,"Freeze the Docker model-only network overlay")
     local_path(artifact(manifest["network_overlay"]))
-    value={"schema_version":"pro-v2-claude-sdk-offline-v1","backend":manifest["backend"],
+    value={"schema_version":"pro-v2-claude-sdk-offline-v2","backend":manifest["backend"],
            "offline_agent_verified":True,"offline_verifier_verified":True,"fresh_sandbox_verified":True,
-           "greedy_sampling_verified":True,
+           "sampling_verified":True,"generation_policy":required_generation,
+           "greedy_sampling_verified":required_generation["temperature"]==0,
            "environment":"docker","tooling_checksum":checkpoint_fingerprint(Path(tooling))[0],
            "task_checksums":task_map,"prepared_environments":prepared,
            "model_endpoints":manifest["model_endpoints"],"network_overlay":manifest["network_overlay"],

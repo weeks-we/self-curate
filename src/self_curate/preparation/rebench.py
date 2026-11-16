@@ -117,8 +117,10 @@ def checked_annotation(client,review,prompt,payload,validate,random_review=False
         checked=validate(value,path)
     return value,path,checked
 
-def annotate_tasks(tasks, settings, client, output, review_client=None):
+def annotate_tasks(tasks, settings, client, output, review_client=None, helpers=None):
     skills = ontology(settings)
+    if settings.get("annotation_contract")=="coding-teacher-v1":
+        return annotate_tasks_v1(tasks,settings,client,output,review_client,helpers=helpers)
     output=Path(output); output.mkdir(parents=True,exist_ok=True)
     labels={}
     random_ids={t["instance_id"] for t in sorted(tasks,key=digest)[:len(tasks)//20]}
@@ -140,6 +142,10 @@ def prepare_records(rows, tasks, renderer, settings, client, output, *,
                     held_out, max_context, review_client=None, backend="real", record_sink=None):
     from self_curate.experiments.exp001.workstation import light_gate
     skills=ontology(settings)
+    if settings.get("task_labels_only"):
+        from .task_label_pool import prepare_task_label_pool
+        return prepare_task_label_pool(rows,tasks,renderer,settings,client,output,held_out=held_out,
+            max_context=max_context,review_client=review_client,record_sink=record_sink)
     budget=success_budget(rows)
     require(budget["selected_count"]>=3,"Success pool cannot support three training stages")
     lookup={t["instance_id"]:t for t in tasks}
@@ -167,15 +173,21 @@ def prepare_records(rows, tasks, renderer, settings, client, output, *,
     accepted=set(accepted_ids)
     from self_curate.experiments.exp001.workstation import teacher_budgets
     calls = teacher_budgets(settings.get("task_candidates",0), len(accepted_ids))
-    client.settings["max_calls"] = calls["primary_max_calls"]
+    client.settings["max_calls"] = (min(client.settings["max_calls"],calls["primary_max_calls"])
+        if client.settings.get("max_calls_is_explicit",True) else calls["primary_max_calls"])
     if review_client is not None:
-        review_client.settings["max_calls"] = calls["review_max_calls"]
+        review_client.settings["max_calls"] = (min(review_client.settings["max_calls"],calls["review_max_calls"])
+            if review_client.settings.get("max_calls_is_explicit",True) else calls["review_max_calls"])
     atomic_json(output/"teacher-budget.json",calls)
     atomic_json(output/"selection-budget.json",budget)
     atomic_json(output/"admission-report.json",{"decisions":audit,"raw_success":budget["raw_success_count"],
                "eligible":len(accepted_ids),"fresh_execution":"not_performed","policy":"source-resolved-and-light-static-v1"})
-    records=[]
-    review_ids=set(sorted(accepted_ids,key=digest)[:len(accepted_ids)//20])
+    records=[];annotation_audit=[];retained=0
+    grouped_refs={}
+    review_ids=set(sorted(accepted_ids,key=digest)[:__import__('math').ceil(len(accepted_ids)*settings.get("review_fraction",.05))])
+    if settings.get("annotation_contract")=="coding-teacher-v1" and settings.get("trajectory_grouping",{}).get("enabled",False):
+        from .teacher_grouped import prepare_group_annotations
+        grouped_refs=prepare_group_annotations(source,lookup,renderer,settings,client,review_client,output,accepted,review_ids)
     for original_row in source():
         if original_row["trajectory_id"] not in accepted:continue
         raw={**original_row,"trajectory":source_messages(original_row)}
@@ -197,22 +209,71 @@ def prepare_records(rows, tasks, renderer, settings, client, output, *,
                  "task":task["problem_statement"],"messages":[{"message_index":i,"role":m.role,
                      "content":rendered[chars[i][0]:chars[i][1]] if m.tool_calls else m.content}
                      for i,m in enumerate(messages)]}
-        value,response,annotations=checked_annotation(client,review_client,settings["trajectory_prompt"],payload,
-            lambda v,p:trajectory_annotations(v,messages,renderer,p,skills=settings["skills"]),
-            raw["trajectory_id"] in review_ids)
-        require(not any(s.get("status")=="not_assessed" for s in value["skills"]),"Incomplete trajectory annotation; do not silently remove rows")
+        if settings.get("annotation_contract")=="coding-teacher-v1":
+            from .teacher import trajectory_packet,annotate,to_m1,annotation_receipt
+            packet=trajectory_packet(original_row,task,messages,renderer,settings)
+            try:
+                if raw['trajectory_id'] in grouped_refs:
+                    saved=read_json(grouped_refs[raw['trajectory_id']])
+                    require(saved['packet_hash']==digest(packet),'Grouped annotation packet changed')
+                    value,response,provenance=saved['annotation'],Path(saved['response']),saved['provenance']
+                    require(file_sha256(response)==saved['response_sha256'],'Grouped response changed')
+                else:
+                    value,response,provenance=annotate('trajectory',packet,settings,client,review_client,
+                        random_review=raw['trajectory_id'] in review_ids)
+            except Exception as exc:
+                atomic_json(item/"blocked.json",{"trajectory_id":raw["trajectory_id"],"type":type(exc).__name__,
+                    "classification":"unresolved_not_no_skill"})
+                raise
+            annotation_artifact=annotation_receipt(packet,value,response,provenance,item/"teacher-annotation.json")
+            proof=annotation_artifact
+            excluded=value["annotation_decision"]=="exclude_no_skill"
+            annotation_audit.append({"trajectory_id":raw["trajectory_id"],"instance_id":raw["instance_id"],
+                "decision":value["annotation_decision"],"reason":value["decision_reason"],"evidence":proof.to_dict()})
+            atomic_json(item/"annotation-decision.json",annotation_audit[-1])
+            if excluded:
+                require(settings.get("drop_no_skill") is True,"No-skill exclusion policy is not enabled")
+                continue
+            annotations=to_m1(value,packet,messages,renderer,response)
+        else:
+            value,response,annotations=checked_annotation(client,review_client,settings["trajectory_prompt"],payload,
+                lambda v,p:trajectory_annotations(v,messages,renderer,p,skills=settings["skills"]),
+                raw["trajectory_id"] in review_ids)
+            require(not any(s.get("status")=="not_assessed" for s in value["skills"]),"Incomplete trajectory annotation; do not silently remove rows")
         candidate["annotations"]=json.loads(canonical_json(annotations.to_dict()))
         record=normalize_trajectory(candidate,renderer,skills)
         from self_curate.contracts import ArtifactRef
         from self_curate.contracts.features import DataLabels,DataTag
         from self_curate.data.features import make_metadata_record,attach_metadata_record
-        labels=DataLabels(repository=task.get("repo"),tags=tuple(
-            DataTag("skill_status:"+v["skill"],v["status"]) for v in value["skills"]))
+        from self_curate.data.task_links import task_identity,task_tags
+        relation=task_identity(task,source_id=settings.get("task_source_id",settings["source_id"]),
+                               revision=settings.get("task_source_revision",settings["source_revision"]))
+        atomic_json(item/"task-link.json",relation)
+        labels=DataLabels(repository=task.get("repo"),tags=task_tags(relation)+tuple(
+            DataTag("skill_status:"+v.get("skill_id",v.get("skill")),
+                    {"demonstrated":"present","not_observed":"absent"}.get(v["status"],v["status"])) for v in value["skills"]))
         proof=ArtifactRef(Path(response).resolve().as_uri(),file_sha256(response))
+        if settings.get("annotation_contract")=="coding-teacher-v1":
+            from self_curate.data.features import make_annotation_record,attach_annotation_record
+            envelope=make_annotation_record(record,annotations,provenance=(proof,annotation_artifact))
+            record=attach_annotation_record(record,envelope)
         record=attach_metadata_record(record,make_metadata_record(record,labels,provenance=(proof,)))
         atomic_json(item/"record.json",record.to_dict())
+        atomic_json(item/"skill-features.json",{
+            "data_id":record.data_id,"record_hash":record.record_hash,
+            "tokenizer_hash":record.tokenization.identity.tokenizer_hash,
+            "template_hash":record.tokenization.identity.template_hash,
+            "metrics":[m.to_dict() for m in record.evidence_metrics],
+            "share_denominator":"union_of_all_supervised_skill_evidence",
+            "density_denominator":"all_assistant_supervised_tokens"})
+        retained+=1
         if record_sink is None:records.append(record)
         else:record_sink(record)
+    atomic_json(output/"annotation-decisions.json",{"records":annotation_audit})
+    atomic_json(output/"annotation-summary.json",{"hard_screened":len(accepted_ids),"retained":retained,
+        "excluded_no_skill":sum(r["decision"]=="exclude_no_skill" for r in annotation_audit),
+        "budget_denominator_changed":False})
+    require(retained>=budget["selected_count"],"Skill-labelled pool cannot satisfy original raw-success 10% budget")
     return tuple(records),budget
 
 
@@ -281,3 +342,33 @@ def registry_and_receipts(source_lock, source_root, terminal, skills):
               "training_selection":{"mode":"rebench_success"},"skills":list(skills),
               "required_sources":["model",*names.values(),"terminal_bench"]}
     return registry,{"source_receipts":receipts}
+
+
+def annotate_tasks_v1(tasks,settings,client,output,review_client=None,helpers=None):
+    from .teacher import task_packet,annotate,AnnotationNeedsContext
+    output=Path(output);output.mkdir(parents=True,exist_ok=True)
+    labels={};audit=[]
+    count=__import__('math').ceil(len(tasks)*settings.get('review_fraction',.05))
+    review_ids={t['instance_id'] for t in sorted(tasks,key=lambda t:digest(t['instance_id']))[:count]}
+    for task in tasks:
+        packet=task_packet(task,settings,(helpers or {}).get(task['instance_id']))
+        try:
+            value,path,provenance=annotate('task',packet,settings,client,review_client,
+                random_review=task['instance_id'] in review_ids)
+        except Exception as exc:
+            atomic_json(output/'blocked.json',{'instance_id':task['instance_id'],'type':type(exc).__name__,
+                'classification':'infrastructure_or_unresolved_not_no_skill'})
+            raise
+        primary=value['primary_skill']
+        eligible=(value['classification_state']=='classified' and primary is not None
+                  and not value['missing_context'] and not value['task_risks'] and value['confidence']!='low')
+        # Quotas use one primary only; keep all secondary labels in the saved annotation.
+        labels[task['instance_id']]=(primary,) if eligible else ()
+        record={'instance_id':task['instance_id'],'task_hash':digest(task),'ontology_hash':digest(settings),
+            'packet':packet,'response_sha256':file_sha256(path),'provenance':provenance,
+            'labels':list(labels[task['instance_id']]),'annotation':value}
+        atomic_json(output/(digest(task['instance_id'])+'.json'),record)
+        audit.append({'instance_id':task['instance_id'],'primary':primary,'eligible':eligible,
+            'reason':'PRIMARY_CLASSIFIED' if eligible else 'COMPOSITE_RISK_UNCERTAIN_OR_UNCOVERED'})
+        atomic_json(output/'audit.json',{'tasks':audit})
+    return labels

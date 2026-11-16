@@ -9,7 +9,6 @@ from self_curate.contracts.program import normalize_params, OPERATOR_VERSION
 def policy_catalog(*, skills, count, seed):
     raw = {
         "SkillSelect": {"skills": [skills[0]], "match": "any"},
-        "EvidenceSelect": {"target_skill": skills[0], "min_tokens": 1},
         "NLLSelect": {
             "scope": "assistant",
             "scale": "raw",
@@ -25,6 +24,7 @@ def policy_catalog(*, skills, count, seed):
         "LengthSelect": {"supervised_token_range": [1, None]},
         "DedupSelect": {"mode": "exact", "representative_rule": "lowest_id"},
         "SampleSelect": {"method": "ranked", "size": count, "seed": seed},
+        "TaskLimitSelect": {"max_per_task":2,"minimum_size":count,"representative_rule":"first"},
         "MixAllocate": {
             "branch_token_shares": {"left": 0.5, "right": 0.5},
             "seed": seed,
@@ -75,6 +75,8 @@ def policy_catalog(*, skills, count, seed):
             "End with ranked SampleSelect size=count, and use the single supplied seed everywhere.",
             "If unsure a hard filter retains count candidates, prefer a broad ranking without that filter.",
             "Examples specify valid shape, not a measured winning policy.",
+            "TaskLimitSelect is optional: preserve ranked order, cap repeated tasks, and report insufficient capacity without relaxing K. No task-level score inheritance.",
+            "For a global cap before MixAllocate, apply TaskLimitSelect to a common ancestor of every branch; per-branch caps do not imply a global cap.",
         ],
     }
 
@@ -89,8 +91,11 @@ def pool_summary(records, signals, skills):
             for q in (0, 0.1, 0.25, 0.5, 0.75, 0.9, 1)
         }
 
+    from self_curate.data.task_links import TaskRelationView
+    relations=TaskRelationView(records)
     def summarize(indices):
         return {
+            "task_coverage":relations.summary(records[i].data_id for i in indices),
             "rows": len(indices),
             "supervised_tokens": sum(
                 records[i].stats.supervised_tokens for i in indices

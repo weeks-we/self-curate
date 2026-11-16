@@ -31,7 +31,7 @@ def attach_usage(record, history: UsageHistory):
             "Terminal training decision cannot change",
             ErrorCode.USAGE_CONFLICT,
         )
-    return replace(record, usage=history, normalization_version="m1-v3")
+    return replace(record, usage=history, normalization_version="m1-v4" if record.normalization_version=="m1-v4" else "m1-v3")
 
 
 def record_candidate_training(record, use: TrainingUse):

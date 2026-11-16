@@ -1,7 +1,7 @@
 """Bounded OpenAI-compatible annotation calls; disk cache and unknown-call guards."""
 
 from pathlib import Path
-import json, os, time, urllib.request, urllib.error
+import json, math, os, time, urllib.request, urllib.error
 from self_curate.contracts import digest
 from self_curate.contracts.types import require
 from self_curate.training.recovery import atomic_json, read_json, lease
@@ -31,9 +31,17 @@ class AnnotationClient:
             and settings["max_output_tokens"] > 0,
             "Annotation output budget required",
         )
+        self._settled_ceiling_costs={}
+        require(type(settings.get("max_input_bytes",900000)) is int and settings.get("max_input_bytes",900000)>0,
+                "Positive Teacher input byte guard required")
+        if settings.get("max_cost_cny") is not None:
+            cap=settings["max_cost_cny"];rates=settings.get("price_ceiling_cny_per_million",{})
+            require(type(cap) in (int,float) and math.isfinite(cap) and cap>0,"Finite positive currency cap required")
+            require(all(type(rates.get(k)) in (int,float) and math.isfinite(rates[k]) and rates[k]>0
+                        for k in ("input","output")),"Finite positive price ceilings required")
         if settings["backend"] == "real":
             require(
-                bool(settings["model"]) and settings["execution"] == "server",
+                bool(settings["model"]) and settings["execution"] in ("server","workstation"),
                 "Real Teacher needs explicit server execution and model",
             )
 
@@ -65,6 +73,13 @@ class AnnotationClient:
             "max_tokens": self.settings["max_output_tokens"],
             "response_format": {"type": "json_object"},
         }
+        if self.settings.get("thinking") is not None:
+            request["thinking"]=self.settings["thinking"]
+        if self.settings.get("reasoning_effort"):
+            request["reasoning_effort"]=self.settings["reasoning_effort"]
+        request_bytes=len(json.dumps(request,ensure_ascii=False).encode("utf-8"))
+        if request_bytes>self.settings.get("max_input_bytes",900000):
+            raise AnnotationUnavailable("Teacher request exceeds explicit byte guard; never truncate")
         key = digest(
             {
                 "request": request,
@@ -96,11 +111,35 @@ class AnnotationClient:
                 used = sum(scope is None or p.parent.name in scope for p in self.output.glob("*/dispatched.json"))
                 if used >= self.settings["max_calls"]:
                     raise AnnotationUnavailable("Teacher call budget exhausted")
+                reservation=None
+                if self.settings.get("max_cost_cny") is not None:
+                    rates=self.settings.get("price_ceiling_cny_per_million")
+                    require(isinstance(rates,dict) and rates.get("input",0)>0 and rates.get("output",0)>0,
+                            "Currency guard requires frozen conservative prices")
+                    # UTF-8 bytes plus framing allowance is a conservative planning ceiling,
+                    # never reported as measured tokens or actual provider billing.
+                    reservation=((request_bytes+8192)*rates["input"]+
+                                 request["max_tokens"]*rates["output"])/1e6
+                    spent=0.0
+                    for old in self.output.glob("*/dispatched.json"):
+                        cost_key=(old.parent.name,rates["input"],rates["output"])
+                        if cost_key in self._settled_ceiling_costs:
+                            spent+=self._settled_ceiling_costs[cost_key];continue
+                        old_response=old.parent/"response.json"
+                        raw=read_json(old_response) if old_response.exists() else {}
+                        usage=raw.get("usage",{})
+                        if all(type(usage.get(n)) is int and usage[n]>=0 for n in ("prompt_tokens","completion_tokens")):
+                            settled=(usage["prompt_tokens"]*rates["input"]+usage["completion_tokens"]*rates["output"])/1e6
+                            self._settled_ceiling_costs[cost_key]=settled;spent+=settled
+                        else:spent+=(read_json(old).get("reserved_cost_cny") or self.settings["max_cost_cny"])
+                    if spent+reservation>self.settings["max_cost_cny"]:
+                        raise AnnotationUnavailable("Teacher currency ceiling reached; unknown calls keep reservations")
                 folder.mkdir(parents=True, exist_ok=True)
                 atomic_json(folder / "request.json", request)
                 atomic_json(
                     folder / "dispatched.json",
-                    {"request_hash": key, "started_at": time.time()},
+                    {"request_hash": key, "started_at": time.time(),"reserved_cost_cny":reservation,
+                     "cost_scope":"provider_cache_root","price_ceiling":self.settings.get("price_ceiling_cny_per_million")},
                 )
                 started = time.perf_counter()
                 try:
@@ -140,6 +179,7 @@ class AnnotationClient:
             type(response.get("model")) is str and bool(response["model"]),
             "Teacher omitted returned model identity",
         )
-        value = json.loads(choice["message"]["content"])
+        from self_curate.contracts.parsing import load_json
+        value = load_json(choice["message"]["content"])
         require(type(value) is dict, "Teacher must return a JSON object")
         return value, folder / "response.json"

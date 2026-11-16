@@ -74,6 +74,9 @@ class ServiceManager:
 
     def command(self, entry):
         value = self.settings
+        require(type(value.get("max_num_seqs",max(e["slots"] for e in self.entries))) is int
+                and value.get("max_num_seqs",max(e["slots"] for e in self.entries))>=max(e["slots"] for e in self.entries),
+                "Serving sequence capacity is below declared task concurrency")
         require(
             entry["base_url"]
             in (
@@ -99,7 +102,7 @@ class ServiceManager:
             "--max-model-len",
             str(value["max_context_tokens"]),
             "--max-num-seqs",
-            "2",
+            str(value.get("max_num_seqs",max(e["slots"] for e in self.entries))),
             "--gpu-memory-utilization",
             str(value["gpu_memory_utilization"]),
             "--enable-lora",
@@ -110,6 +113,9 @@ class ServiceManager:
             "--max-cpu-loras",
             "16",
             "--enable-prefix-caching",
+            "--enable-chunked-prefill",
+            "--max-num-batched-tokens",
+            str(value.get("max_num_batched_tokens",8192)),
             "--enable-auto-tool-choice",
             "--tool-call-parser",
             value["tool_call_parser"],

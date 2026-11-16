@@ -2,8 +2,10 @@
 
 # 实验交接
 
-当前 EXP001 唯一入口：[EXP001_SERVER_V3.md](EXP001_SERVER_V3.md)。状态为代码交接，
-真实服务器容量与环境仍需验收。V1/V2 已退役并从正式目录删除。
+当前 Rebench EXP001 唯一总入口：[EXP001_REBENCH_WORKSTATION_V1.md](EXP001_REBENCH_WORKSTATION_V1.md)。
+按该文档依次调用 [Teacher交接](TEACHER_V1_WORKSTATION.md)、[Claude SDK交接](CLAUDE_SDK_HARNESS_V1.md) 和 FSDP验收。
+EXP001_SERVER_V3.md 是旧 SWE-smith 方案，仅供历史恢复；不得启动当前实验。
+状态为代码交接；真实来源、任务环境、GPU容量和吞吐仍需工作站/集群验收。
 
 每个新逻辑实验新增一份版本化 handoff，使用 [TEMPLATE.md](TEMPLATE.md)，调用已有模块。
 恢复原运行沿用原 handoff、源码、环境、配置和 run_id；改变协议时新建版本与运行。

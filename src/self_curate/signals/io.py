@@ -81,7 +81,6 @@ def parse_scoring_record(row):
             "quality",
             "tokenization",
             "usage",
-            "evidence_metrics",
         ),
         tuple(
             n
@@ -95,8 +94,7 @@ def parse_scoring_record(row):
                 "quality",
                 "tokenization",
                 "usage",
-                "evidence_metrics",
-            )
+                )
         ),
     )
 
@@ -129,9 +127,9 @@ def parse_scoring_record(row):
         if name in row:
             raw[name] = row[name]
     record = normalize_trajectory(
-        raw, StoredTokens(), tuple(v["skill"] for v in row["evidence_metrics"])
+        raw, StoredTokens(), tuple(v["skill"] for v in row.get("evidence_metrics",[]))
     )
-    if row.get("normalization_version") in ("m1-v1", "m1-v2"):
+    if row.get("normalization_version") in ("m1-v1", "m1-v2", "m1-v4"):
         record = replace(record, normalization_version=row["normalization_version"])
     require(
         canonical_json(record.to_dict()) == canonical_json(row),

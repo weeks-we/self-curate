@@ -264,12 +264,27 @@ def check_backward(config, output):
     return rows
 
 
-def check_inference(router, model, *, max_context, max_output, output):
+def check_inference(router, model, *, max_context, max_output, output, service_settings=None):
     from concurrent.futures import ThreadPoolExecutor
     from types import SimpleNamespace
 
     root = Path(output)
     root.mkdir(parents=True, exist_ok=True)
+    from self_curate.contracts import digest
+    from self_curate.training.recovery import read_json
+    from collections import Counter
+    import threading
+    count=sum(e["slots"] for e in router.entries)
+    intent={"model_hash":model.model_hash,"max_context":max_context,"max_output":max_output,
+            "prefix_policy":"independent-slot-token-v1",
+            "slots":{e["gpu_uuid"]:e["slots"] for e in router.entries},
+            "service_profile_hash":digest(service_settings) if service_settings is not None else None}
+    frozen=root/"intent.json"
+    if frozen.exists():require(read_json(frozen)==intent,"Inference capacity inputs changed")
+    else:atomic_json(frozen,intent)
+    completed=[(root/("slot-"+str(i))/"result.json").exists() for i in range(count)]
+    require(not any(completed) or all(completed),"Partial capacity probe cannot prove concurrent capacity; reconcile then use a new probe root")
+    barrier=threading.Barrier(count) if not all(completed) else None
 
     def run(index):
         work = root / ("slot-" + str(index))
@@ -283,6 +298,9 @@ def check_inference(router, model, *, max_context, max_output, output):
         with router.bind(
             SimpleNamespace(model_ref=model, checkpoint=None), work
         ) as binding:
+            # All declared slots are held before any request is sent.
+            # A failed worker breaks the barrier and prevents a false capacity pass.
+            barrier.wait(timeout=300)
             atomic_json(
                 work / "dispatched.json",
                 {
@@ -297,7 +315,7 @@ def check_inference(router, model, *, max_context, max_output, output):
                 "/v1/completions",
                 {
                     "model": binding["model_name"],
-                    "prompt": [100] * (max_context - max_output),
+                    "prompt": [100+index] * (max_context - max_output),
                     "max_tokens": max_output,
                     "ignore_eos": True,
                     "temperature": 0,
@@ -316,14 +334,17 @@ def check_inference(router, model, *, max_context, max_output, output):
             result = {
                 "passed": True,
                 "gpu_uuid": binding["gpu_uuid"],
+                "prefix_token_id":100+index,
                 "usage": response["usage"],
                 "wall_seconds": time.perf_counter() - start,
             }
             atomic_json(work / "result.json", result)
             return result
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
-        rows = list(executor.map(run, range(16)))
+    with ThreadPoolExecutor(max_workers=count) as executor:
+        rows = list(executor.map(run, range(count)))
+    require(Counter(r["gpu_uuid"] for r in rows)==Counter(intent["slots"]),
+            "Inference capacity did not fill every declared slot")
     require(
         {r["gpu_uuid"] for r in rows} == {e["gpu_uuid"] for e in router.entries},
         "Inference capacity did not cover every authorized GPU",
@@ -333,7 +354,9 @@ def check_inference(router, model, *, max_context, max_output, output):
         {
             "passed": True,
             "slots": rows,
-            "protocol": "two simultaneous requests per service; synthetic tokens, not task scores",
+            "protocol": "all declared slots dispatched after a common barrier; synthetic tokens, not task scores",
+            "intent":intent,
+            "intent_hash":digest(intent),
         },
     )
     return rows

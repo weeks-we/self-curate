@@ -243,7 +243,7 @@ def _run_experiment(
                 None if handoff is None else file_sha256(output / "handoff.md")
             ),
             "training_rule": "three_continuous_waves_no_acceptance",
-            "benchmark_rule": "all_checkpoints_after_all_training",
+            "benchmark_rule": "initial_and_final_checkpoints_after_all_training",
         },
     )
     producer = Producer(
@@ -555,11 +555,12 @@ def _finish(
     from .benchmark import evaluate_benchmark
 
     benchmark_reports = {}
-    models = [("initial", inputs.model, None)] + [
-        (b + "-stage" + str(v.stage), v.model_ref, v.checkpoint)
-        for b, values in checkpoints_by_branch.items()
-        for v in values
-    ]
+    models = [("initial", inputs.model, None)]
+    for branch, values in checkpoints_by_branch.items():
+        require(sorted(v.stage for v in values) == [1, 2, 3],
+                "Final benchmark requires all three completed training stages")
+        final = max(values, key=lambda v: v.stage)
+        models.append((branch + "-stage3", final.model_ref, final.checkpoint))
     final_caches = {name: {} for name, _, _ in models}
     for suite in inputs.benchmarks:
         if hasattr(ports, "enter_phase"):

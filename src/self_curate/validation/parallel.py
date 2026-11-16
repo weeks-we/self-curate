@@ -28,7 +28,7 @@ class ParallelTaskValidator(TaskValidator):
     def __init__(self, runner, workers=16):
         super().__init__(runner)
         require(
-            type(workers) is int and 1 <= workers <= 16,
+            type(workers) is int and 1 <= workers <= 64,
             "Invalid development task concurrency",
         )
         self.workers = workers

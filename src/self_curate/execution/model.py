@@ -64,7 +64,7 @@ class AdapterRouter:
             )
             require(
                 type(e["slots"]) is int
-                and 1 <= e["slots"] <= 2
+                and 1 <= e["slots"] <= 8
                 and e["gpu_uuid"].startswith("GPU-"),
                 "Invalid authorized serving slot",
             )

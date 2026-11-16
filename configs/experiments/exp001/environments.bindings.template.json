@@ -13,15 +13,21 @@
   "rebench_runtime_lock": null,
   "pro_protocol_receipt": null,
   "swe_budget": {
-    "max_steps": 75,
+    "max_steps": 250,
     "max_output_tokens": 262144,
-    "max_context_tokens": 131072,
-    "max_wall_seconds": 3600
+    "max_context_tokens": 262144,
+    "max_wall_seconds": 7200
   },
-  "harbor_budget": {
-    "max_steps": 75,
+  "pro_budget": {
+    "max_steps": 250,
     "max_output_tokens": 262144,
-    "max_context_tokens": 131072,
+    "max_context_tokens": 262144,
+    "max_wall_seconds": 172800
+  },
+  "terminal_budget": {
+    "max_steps": 250,
+    "max_output_tokens": 262144,
+    "max_context_tokens": 262144,
     "max_wall_seconds": 172800
   }
 }

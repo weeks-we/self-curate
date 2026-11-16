@@ -1,4 +1,4 @@
-"""The eight deterministic operators. Model computation is always external."""
+"""Deterministic selection operators. Model computation is always external."""
 
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -79,57 +79,6 @@ def skill_select(node, inputs, ctx, seed):
         if accepted:
             keep.append(data_id)
     return _result(ids, keep, reasons)
-
-
-def evidence_select(node, inputs, ctx, seed):
-    ids, p = inputs[0].ids, node.params
-    names = (
-        "share",
-        "density",
-        "supervised_evidence_tokens",
-        "complete_events",
-        "behaviors",
-        "status",
-    )
-    batch = ctx.view.evidence_batch(ids, p["target_skill"], fields=names)
-    keep, reasons = [], {}
-    thresholds = (
-        ("share", "min_share"),
-        ("density", "min_density"),
-        ("supervised_evidence_tokens", "min_tokens"),
-        ("complete_events", "min_events"),
-    )
-    for index, data_id in enumerate(ids):
-        missing, failed = [], []
-        if batch.column("status")[index] != "annotated":
-            missing.append("evidence")
-        for field, param in thresholds:
-            if p[param] is not None:
-                value = batch.column(field)[index]
-                if value is None:
-                    missing.append(field)
-                elif value < p[param]:
-                    failed.append(field)
-        if p["required_behaviors"]:
-            value = batch.column("behaviors")[index]
-            if value is None:
-                missing.append("behaviors")
-            elif not set(p["required_behaviors"]).issubset(value):
-                failed.append("behaviors")
-        if failed:
-            reasons[data_id] = "EVIDENCE_REQUIREMENTS:" + ",".join(failed)
-        elif missing and not _missing(
-            p["missing_policy"], node, data_id, ",".join(missing)
-        ):
-            reasons[data_id] = "MISSING_EVIDENCE:" + ",".join(missing)
-        else:
-            keep.append(data_id)
-    return _result(
-        ids,
-        keep,
-        reasons,
-        {"annotation_versions": list(zip(ids, batch.context["annotation_versions"]))},
-    )
 
 
 def _inside(value, interval):
@@ -361,6 +310,24 @@ def _token_take(ids, target, ctx):
     return chosen
 
 
+
+def task_limit_select(node, inputs, ctx, seed):
+    ids,p=inputs[0].ids,node.params
+    relations=ctx.view.task_relations
+    ordered=ids if p['representative_rule']=='first' else stable_order(ids,seed)
+    counts=defaultdict(int);chosen=set();reasons={}
+    available=defaultdict(int)
+    for data_id in ordered:
+        key=relations.task_key(data_id);available[key]+=1
+        if counts[key]<p['max_per_task']:
+            counts[key]+=1;chosen.add(data_id)
+        else:reasons[data_id]='TASK_LIMIT_REACHED'
+    keep=tuple(i for i in ids if i in chosen)
+    problem=None if len(keep)>=p['minimum_size'] else {
+        'reason':'TASK_LIMIT_SHORTFALL','requested':p['minimum_size'],'available':len(keep)}
+    return _result(ids,keep,reasons,{'unique_tasks':len(available),'max_per_task':p['max_per_task'],
+        'available_under_limit':len(keep),'selected_by_task':dict(counts)},problem)
+
 def sample_select(node, inputs, ctx, seed):
     ids, p = inputs[0].ids, node.params
     chosen, reasons, groups = [], {}, {}
@@ -518,11 +485,11 @@ def mix_allocate(node, inputs, ctx, seed):
 
 HANDLERS = {
     "SkillSelect": skill_select,
-    "EvidenceSelect": evidence_select,
     "NLLSelect": score_select,
     "EntropySelect": score_select,
     "LengthSelect": length_select,
     "DedupSelect": dedup_select,
     "SampleSelect": sample_select,
+    "TaskLimitSelect": task_limit_select,
     "MixAllocate": mix_allocate,
 }

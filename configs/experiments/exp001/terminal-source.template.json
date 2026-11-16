@@ -1,0 +1,9 @@
+{
+  "release": "4.1",
+  "dataset": "terminal-bench/terminal-bench@4.1.0",
+  "repo_id": "harbor-framework/terminal-bench",
+  "revision": "4070d6cef56a7d20cb5dc98d5e10ada88a6b9440",
+  "root": "/storage/self-curate-rebench/terminal/tasks",
+  "url": "https://github.com/harbor-framework/terminal-bench/tree/4070d6cef56a7d20cb5dc98d5e10ada88a6b9440",
+  "registry_url": "https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/5"
+}

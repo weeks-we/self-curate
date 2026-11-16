@@ -41,7 +41,7 @@ def attach_annotation_record(record, envelope: AnnotationRecord, **stale_policy)
         ErrorCode.STALE_CACHE,
     )
     updated = attach_annotations(record, envelope.annotations, **stale_policy)
-    return replace(updated, annotation_record=envelope, normalization_version="m1-v3")
+    return replace(updated, annotation_record=envelope, normalization_version="m1-v4" if record.normalization_version=="m1-v4" else "m1-v3")
 
 
 def make_metadata_record(record, labels: DataLabels | None, *, provenance):
@@ -62,7 +62,7 @@ def attach_metadata_record(record, envelope: MetadataRecord):
         record,
         metadata=envelope.labels,
         metadata_record=envelope,
-        normalization_version="m1-v3",
+        normalization_version="m1-v4" if record.normalization_version=="m1-v4" else "m1-v3",
     )
 
 
@@ -169,7 +169,7 @@ def attach_gradients(record, features):
             record.usage,
             gradient_extraction=tuple(sorted(refs, key=lambda r: (r.uri, r.sha256))),
         ),
-        normalization_version="m1-v3",
+        normalization_version="m1-v4" if record.normalization_version=="m1-v4" else "m1-v3",
     )
 
 

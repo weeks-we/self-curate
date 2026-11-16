@@ -138,14 +138,16 @@ def register(bindings):
     lock=artifact(bindings["runtime_lock"])
     rebench_lock=artifact(bindings.get("rebench_runtime_lock",bindings["runtime_lock"]))
     swe_budget=TaskBudget(**bindings["swe_budget"])
-    harbor_budget=TaskBudget(**bindings["harbor_budget"])
+    pro_budget=TaskBudget(**bindings.get("pro_budget",bindings.get("harbor_budget",{})))
+    terminal_budget=TaskBudget(**bindings.get("terminal_budget",bindings.get("harbor_budget",{})))
     development=[];benchmarks={"swe_verified":[],"swe_pro_v2":[],"terminal_bench":[]}
     def swe(row,kind,split,skills):
         destination=root/"registered"/kind/row["instance_id"]
         if (destination/"task.json").exists():
             task=parse_task_record(read_json(destination/"task.json"))
             from self_curate.execution.artifacts import read_artifact
-            require(read_artifact(task.payload)["instance"]==row,"Task registration changed")
+            require(read_artifact(task.payload)["instance"]==row and task.budget==swe_budget,"Task registration changed")
+            require(read_artifact(task.scorer)["runtime_lock"]==(rebench_lock if kind=="swe_rebench" else lock).to_dict(),"Registered runtime changed")
             return task
         task=register_swe_task(row,harness=kind,split=split,skills=skills,budget=swe_budget,
             image=pins[row["instance_id"]],runtime_lock=rebench_lock if kind=="swe_rebench" else lock,output=destination)
@@ -161,14 +163,20 @@ def register(bindings):
             name=row["instance_id"].split(":",1)[-1] if suite=="terminal_bench" else row["instance_id"]
             destination=root/"registered"/suite/name
             saved=destination/"task.json"
-            if saved.exists():task=parse_task_record(read_json(saved))
+            if saved.exists():
+                task=parse_task_record(read_json(saved))
+                require(task.budget==(pro_budget if suite=="swe_pro_v2" else terminal_budget),"Registered Harbor budget changed; use new environment output")
+                from self_curate.execution.artifacts import read_artifact
+                require(read_artifact(task.scorer)["runtime_lock"]==lock.to_dict(),"Registered Harbor runtime changed")
+                if suite=="swe_pro_v2":
+                    require(read_artifact(task.environment)["pro_protocol_receipt"]==artifact(bindings["pro_protocol_receipt"]).to_dict(),"Registered Pro receipt changed")
             elif suite=="swe_pro_v2":
-                task=register_pro_task(parent/name,task_id=row["instance_id"],skills=("benchmark",),budget=harbor_budget,
+                task=register_pro_task(parent/name,task_id=row["instance_id"],skills=("benchmark",),budget=pro_budget,
                      runtime_lock=lock,protocol_receipt=artifact(bindings["pro_protocol_receipt"]),output=destination)
                 task=replace(task,family_ids=family_ids(row))
                 atomic_json(saved,task.to_dict())
             else:
-                task=register_harbor_task(parent/name,task_id=row["instance_id"],skills=("benchmark",),budget=harbor_budget,
+                task=register_harbor_task(parent/name,task_id=row["instance_id"],skills=("benchmark",),budget=terminal_budget,
                      runtime_lock=lock,output=destination)
                 task=replace(task,family_ids=family_ids(row))
                 atomic_json(saved,task.to_dict())

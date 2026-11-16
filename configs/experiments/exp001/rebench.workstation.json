@@ -4,10 +4,9 @@
   "storage_root": "/storage/self-curate-rebench",
   "seed": 42,
   "skills": {
-    "status": "pending_user_definition",
-    "schema_path": null,
-    "task_prompt_path": null,
-    "trajectory_prompt_path": null
+    "status": "approved",
+    "schema_path": "configs/preparation/coding-task-labels.v1.json",
+    "task_prompt_path": "configs/preparation/teacher-v1/task-labels-only.md"
   },
   "task_candidate_count": null,
   "development_count": null,
@@ -23,7 +22,7 @@
     "trajectories": {
       "repo_id": "nebius/SWE-rebench-openhands-trajectories",
       "repo_type": "dataset",
-      "revision": null,
+      "revision": "35455389ab51bf5e2306bfd436ef72d0f98bf882",
       "config": "default",
       "split": "train",
       "success_field": "resolved",
@@ -32,7 +31,7 @@
     "tasks": {
       "repo_id": "nebius/SWE-rebench",
       "repo_type": "dataset",
-      "revision": null,
+      "revision": "89cdfbab4ab1bd8f5a658bb212d1b63624f4f881",
       "config": "default",
       "split": "test",
       "identity": "instance_id"
@@ -48,7 +47,7 @@
     "pro": {
       "repo_id": "ScaleAI/SWE-bench_Pro",
       "repo_type": "dataset",
-      "revision": null,
+      "revision": "2d52cb3df914a3fcf80c7f66738b3a88ae37fc50",
       "config": "default",
       "split": "test",
       "version": "2.0.0",
@@ -60,27 +59,31 @@
   "terminal": {
     "version": "4.1",
     "registry_url": "https://hub.harborframework.com/datasets/terminal-bench/terminal-bench/5?tab=tasks",
-    "revision": null,
-    "resolve_policy": "verify_official_registry_before_freeze",
-    "note": "Official Terminal-Bench 4.1 homepage links to registry entry 5; do not infer dataset CLI version from URL number."
+    "revision": "4070d6cef56a7d20cb5dc98d5e10ada88a6b9440",
+    "resolve_policy": "pinned_release_commit",
+    "note": "Official full release; registry entry 5 and CLI @4.1.0 verified on 2026-11-15.",
+    "dataset": "terminal-bench/terminal-bench@4.1.0",
+    "repo_id": "harbor-framework/terminal-bench",
+    "url": "https://github.com/harbor-framework/terminal-bench/releases/tag/v4.1.0"
   },
   "teacher": {
     "base_url": "https://api.deepseek.com",
     "model": "deepseek-flash",
     "api_key_env": "DEEPSEEK_API_KEY",
-    "max_output_tokens": 16384,
+    "max_output_tokens": 4096,
     "timeout_seconds": 900,
     "max_calls": null,
-    "call_budget_rule": "ceil(1.25*(task_candidates+eligible_trajectories))",
+    "call_budget_rule": "ceil(1.25*(unique_success_tasks+development_candidates))",
     "review_teacher": {
-      "model": "deepseek-v4-pro",
+      "model": "deepseek-flash",
       "max_output_tokens": 16384,
       "timeout_seconds": 900,
       "max_calls": null,
       "call_budget_rule": "ceil(0.10*(task_candidates+eligible_trajectories))"
     },
-    "pilot_size": 64,
-    "no_silent_truncation": true
+    "pilot_size": 100,
+    "no_silent_truncation": true,
+    "review_mode": "off"
   },
   "roles": {
     "prompts": "configs/experiments/exp001/prompts-rebench",
@@ -99,16 +102,26 @@
     "lora": {
       "rank": 16,
       "alpha": 32,
-      "dropout": 0
+      "dropout": 0,
+      "loss_chunk_tokens": 256
     },
     "gpu_uuids": [],
     "capacity_status": "requires_cluster_acceptance"
   },
-  "workflow_status": "implemented_pending_ontology_and_real_workstation_acceptance",
+  "workflow_status": "implemented_pending_workstation_and_cluster_acceptance",
   "development_per_skill": 50,
   "training_budget_basis": "raw_success_before_admission",
   "modes": [
     "random",
     "static_policy"
-  ]
+  ],
+  "pro_tooling": {
+    "repo_id": "scaleapi/SWE-bench_Pro-os",
+    "revision": "66f92766bba642462d4bbe5479e83f91f9211862",
+    "release": "v2.0.0",
+    "tasks": "v2/tasks",
+    "tooling": "v2/tooling"
+  },
+  "annotation_mode": "task_required_labels_only",
+  "task_population": "success_uncovered"
 }

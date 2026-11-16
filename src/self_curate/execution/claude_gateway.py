@@ -16,9 +16,10 @@ from urllib.parse import urlsplit, parse_qs
 from self_curate.training.recovery import atomic_json as save
 
 
-def http_json(url, data=None, timeout=60, key=None):
+def http_json(url, data=None, timeout=60, key=None, generation=None):
     request = urllib.request.Request(url, data=None if data is None else json.dumps(data).encode(),
-                                    headers={'Content-Type':'application/json', **({'Authorization':'Bearer '+key} if key else {})})
+                                    headers={'Content-Type':'application/json', **({'Authorization':'Bearer '+key} if key else {}),
+                                             **({'X-Self-Curate-Generation':json.dumps(generation,separators=(',',':'))} if generation is not None else {})})
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     with opener.open(request, timeout=timeout) as response:
         content=response.read()
@@ -60,6 +61,7 @@ class Budget:
         body.update(temperature=g['temperature'], top_p=g['top_p'], top_k=g['top_k'])
         body['chat_template_kwargs'] = {'enable_thinking':g['thinking'],
             'preserve_thinking':g['preserve_thinking'], 'reasoning_effort':g['reasoning_effort']}
+        body.update(min_p=g.get('min_p',0.0),presence_penalty=g.get('presence_penalty',0.0),repetition_penalty=g.get('repetition_penalty',1.0))
         return body
 
     def finish(self, input_tokens, output_tokens, body):
@@ -140,7 +142,7 @@ class Gateway:
                             'preserve_thinking':owner.cfg['generation']['preserve_thinking'],
                             'reasoning_effort':owner.cfg['generation']['reasoning_effort']}
                         count_body = {k:v for k,v in body.items() if k in {'model','messages','system','tools','tool_choice','chat_template_kwargs'}}
-                        count = http_json(owner.upstream+'/v1/messages/count_tokens', count_body, key=owner.upstream_key)['input_tokens']
+                        count = http_json(owner.upstream+'/v1/messages/count_tokens', count_body, key=owner.upstream_key,generation=owner.cfg['generation'])['input_tokens']
                         if type(count) is not int or count < 0:
                             raise ValueError('Invalid input token count')
                         if self.path.endswith('/count_tokens'):
@@ -151,7 +153,7 @@ class Gateway:
                         budget.persist()
                         save(budget.path.with_name('request-%06d.json' % budget.requests), body)
                         request = urllib.request.Request(owner.upstream+'/v1/messages',
-                            data=json.dumps(body).encode(), headers={'Content-Type':'application/json', 'X-Request-Id':budget.current_capture_id, 'X-Self-Curate-Seed':str(owner.cfg['generation'].get('seed',0)+budget.requests), **({'Authorization':'Bearer '+owner.upstream_key} if owner.upstream_key else {})})
+                            data=json.dumps(body).encode(), headers={'Content-Type':'application/json', 'X-Request-Id':budget.current_capture_id, 'X-Self-Curate-Seed':str(owner.cfg['generation'].get('seed',0)+budget.requests), 'X-Self-Curate-Generation':json.dumps(owner.cfg['generation'],separators=(',',':')), **({'Authorization':'Bearer '+owner.upstream_key} if owner.upstream_key else {})})
                         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
                         budget.incomplete_usage=True
                         with opener.open(request, timeout=owner.cfg['agent']['wall_seconds']) as response:

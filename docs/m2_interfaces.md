@@ -1,6 +1,6 @@
 # M2 算子与批次交接接口
 
-M2 最近语义复查为 0.2.1；当前包 0.16.0 完成 P0/P1 文档对齐复查。程序/上下文/清单 schema 为 `1`，算子语义仍为 `m2-v2`。
+M2 最近语义复查为 0.2.1；当前包 0.16.0 完成 P0/P1 文档对齐复查。程序/上下文/清单 schema 为 `1`，算子语义当前为 `m2-v3`（新增可选TaskLimitSelect；原八类算子的参数不变）。
 带成本和未执行工作流的 P1 正式入口见 [p1_handoff_interfaces.md](p1_handoff_interfaces.md)，原 select/execute_program 保留。
 旧的 m2-v1 冻结上下文不在新语义下静默重放；原交付证据保留。
 上游字段见 [m1_operator_data_contract.md](m1_operator_data_contract.md)。
@@ -62,7 +62,7 @@ M2 不记录新的训练曝光；后续训练模块在训练真正发生时通�
 `QualityGate`、`BudgetPack` 不是可编辑算子。`program_id/parent_id` 是谱系信息，不参与语义 `recipe_hash`；seed、参数、依赖顺序和算子版本参与。
 `program_hash` 进一步绑定系统政策与执行上下文；`execution_hash` 绑定此次快照。
 
-## 八算子参数
+## 原八类算子参数（TaskLimitSelect见页末关联接口）
 
 除明确要求排序/抽样的算子外，筛选保留输入顺序。区间均为闭区间，`null` 表示该端无界，不表示缺失值可通过。
 
@@ -128,7 +128,7 @@ M2 保证交接数据可核验；后续模块仍需真正实现并遵守这些�
 
 
 
-示例贯通全部八类算子：12 条合成轨迹，每条 8 个监督 fixture token，最终 8 条/64 token，两个分支各 32 token，effective_batch=8。
+历史示例贯通原八类算子：12 条合成轨迹，每条 8 个监督 fixture token，最终 8 条/64 token，两个分支各 32 token，effective_batch=8。
 其中分数、标签、判分证据均显式为 fixture，不代表真实 NLL/entropy/质量验证。
 若不安装，可以在当前终端临时设置 `$env:PYTHONPATH='src'` 后运行；不需要目标模型或第三方运行时依赖。
 
@@ -149,3 +149,8 @@ M2 只读 M1 标签和已有指标，不标注、不计算模型信号/梯度、
 程序是严格 JSON DAG，不执行任意代码；QualityGate 和 BudgetPack 固定，Agent 不能编辑。
 ordered-greedy 只组完整轨迹，是确定性启发式，不宣称穷尽所有组合；不足时报告缺口，
 不静默放宽预算或截断。missing_policy=request 只生成计算请求，不隐式运行模型。
+
+2026-11-15新增：[任务—轨迹关联、分组Teacher及TaskLimitSelect](TASK_TRAJECTORY_LINKS_ZH.md)。M1核心schema不变，关系为版本绑定tags；算子语义版本m2-v3，旧m2-v2上下文不能直接重放。
+
+
+2026-11-16：当前EXP001使用任务继承标签与M1v4（不发布技能证据片段/比例字段）；EvidenceSelect及evidence_batch删除，operator版本m2-v4。旧M1类型只作历史读取兼容，不能将旧程序当新算子版本恢复。详见CODING_TASK_LABELS_ONLY_ZH.md。

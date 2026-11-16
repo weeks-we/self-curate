@@ -121,7 +121,7 @@ def handler(target, grant_root, key_env):
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": "Bearer " + key,
-                    **{k:self.headers[k] for k in ("X-Request-Id","X-Self-Curate-Seed") if self.headers.get(k)},
+                    **{k:self.headers[k] for k in ("X-Request-Id","X-Self-Curate-Seed","X-Self-Curate-Generation") if self.headers.get(k)},
                 },
             )
             try:

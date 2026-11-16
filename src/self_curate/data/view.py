@@ -55,8 +55,10 @@ def skill_statuses(record):
 
 
 def skill_labels(record):
-    if record.annotations is None:return None
     states=skill_statuses(record)
+    inherited=record.metadata is not None and any(t.name=="skill_label_basis" and t.value=="task_required" for t in record.metadata.tags)
+    if record.annotations is None:
+        return tuple(sorted(k for k,v in states.items() if v=="present")) if inherited else None
     if states:
         require(set(states)=={m.skill for m in record.evidence_metrics},"Explicit skill status coverage mismatch")
         return tuple(sorted(k for k,v in states.items() if v=="present"))
@@ -191,6 +193,8 @@ class MetricView:
                 "quality_status": record.quality.status,
                 "skills": skill_labels(record),
                 "source_id": record.source.source_id,
+                "task_key": __import__("self_curate.data.task_links",fromlist=["record_task_identity"]).record_task_identity(record)["task_key"],
+                "instance_id": record.source.record_id,
                 "family_ids": record.source.family_ids,
                 "task_type": None if labels is None else labels.task_type,
                 "repository": None if labels is None else labels.repository,
@@ -275,6 +279,7 @@ class MetricView:
                     key
                 ] = feature.cache_key
         self._records = MappingProxyType(by_id)
+        self._task_relations = None
         self._static = MappingProxyType(
             {k: MappingProxyType(v) for k, v in static.items()}
         )
@@ -289,6 +294,13 @@ class MetricView:
     def data_ids(self):
         """Read-only membership of the snapshot used by execution identities."""
         return self._data_ids
+
+    @property
+    def task_relations(self):
+        from .task_links import TaskRelationView
+        if self._task_relations is None:
+            self._task_relations=TaskRelationView(self._records.values())
+        return self._task_relations
 
     def record(self, data_id):
         text(data_id, "data_id")
@@ -347,6 +359,8 @@ class MetricView:
             "quality_status",
             "skills",
             "source_id",
+            "task_key",
+            "instance_id",
             "family_ids",
             "task_type",
             "repository",
@@ -409,38 +423,6 @@ class MetricView:
                 "spec_hash": context[1],
                 "reference_hash": context[2],
                 "feature_keys": keys,
-            },
-        )
-
-    def evidence_batch(
-        self,
-        data_ids,
-        skill,
-        *,
-        fields=("share", "density", "supervised_evidence_tokens"),
-        missing="none",
-    ):
-        ids = self._ids(data_ids)
-        text(skill, "skill")
-        require(
-            all(f in self.EVIDENCE_FIELDS for f in fields), "Unknown evidence field"
-        )
-
-        def getter(data_id, name):
-            metric = self._evidence.get((data_id, skill))
-            return None if metric is None else getattr(metric, name)
-
-        return self._batch(
-            ids,
-            fields,
-            getter,
-            missing,
-            {
-                "kind": "evidence",
-                "skill": skill,
-                "annotation_versions": tuple(
-                    self._static[d]["annotation_version"] for d in ids
-                ),
             },
         )
 

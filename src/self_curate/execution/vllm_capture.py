@@ -5,9 +5,10 @@ This hook observes tokens; it does not reconstruct them from SDK text.
 """
 from pathlib import Path
 from functools import wraps
-import hashlib,importlib.metadata,os,runpy,time
+import hashlib,importlib.metadata,os,runpy,time,json
 from contextvars import ContextVar
 REQUEST_SEED=ContextVar("self_curate_seed",default=None)
+REQUEST_GENERATION=ContextVar("self_curate_generation",default=None)
 
 class SeedMiddleware:
     def __init__(self,app):self.app=app
@@ -23,9 +24,18 @@ class SeedMiddleware:
                         'headers':[(b'content-type',b'application/json')]})
             await send({'type':'http.response.body','body':b'{"error":"invalid request seed"}'})
             return
-        token=REQUEST_SEED.set(seed)
+        raw=dict(scope.get("headers",())).get(b"x-self-curate-generation")
+        try:
+            policy=None if raw is None else json.loads(raw)
+            if policy is not None:
+                require(isinstance(policy,dict) and policy.get("thinking") is True and policy.get("preserve_thinking") is True,"Invalid trusted generation policy")
+        except (ValueError,TypeError):
+            await send({"type":"http.response.start","status":400,"headers":[]})
+            await send({"type":"http.response.body","body":b"invalid generation policy"});return
+        token=REQUEST_SEED.set(seed);generation=REQUEST_GENERATION.set(policy)
         try:await self.app(scope,receive,send)
-        finally:REQUEST_SEED.reset(token)
+        finally:
+            REQUEST_SEED.reset(token);REQUEST_GENERATION.reset(generation)
 from self_curate.training.recovery import atomic_json
 from self_curate.contracts.types import require
 
@@ -64,7 +74,8 @@ def install_capture(engine_class,root):
                     atomic_json(path,{'schema_version':'vllm-native-capture-v1','request_id':request_id,
                         'model_alias':getattr(lora,'lora_name',None),'prompt_token_ids':prompt_ids,
                         'generated_token_ids':tokens[0],'complete':True,'started_at':started,
-                        'seed':seed,'vllm_version':'0.22.0','token_origin':'engine_request_output'})
+                        'seed':seed,'effective_generation':REQUEST_GENERATION.get(),
+                        'effective_sampling':{k:getattr(sampling_params,k,None) for k in ('temperature','top_p','top_k','min_p','presence_penalty','repetition_penalty')},'vllm_version':'0.22.0','token_origin':'engine_request_output'})
                     complete=True
                 yield result
         finally:
@@ -74,6 +85,23 @@ def install_capture(engine_class,root):
     generate._self_curate_capture=True
     engine_class.generate=generate
 
+
+def install_anthropic_generation(serving_class):
+    """Set real ChatCompletionRequest fields before Anthropic conversion drops extras."""
+    original=serving_class._build_base_request.__func__
+    require(not getattr(original,'_self_curate_generation',False),'Generation policy installed twice')
+    def convert(cls,request,messages):
+        result=original(cls,request,messages)
+        policy=REQUEST_GENERATION.get()
+        if policy is not None:
+            result.chat_template_kwargs={'enable_thinking':policy['thinking'],
+                'preserve_thinking':policy['preserve_thinking'],'reasoning_effort':policy['reasoning_effort']}
+            for field in ('temperature','top_p','top_k','min_p','presence_penalty','repetition_penalty'):
+                setattr(result,field,policy.get(field,{'min_p':0.,'presence_penalty':0.,'repetition_penalty':1.}.get(field)))
+        return result
+    convert._self_curate_generation=True
+    serving_class._build_base_request=classmethod(convert)
+
 def main():
     require(importlib.metadata.version('vllm')=='0.22.0','Native capture requires pinned vLLM 0.22.0')
     root=os.environ.get('SELF_CURATE_NATIVE_CAPTURE_ROOT')
@@ -81,7 +109,10 @@ def main():
     from vllm.v1.engine.async_llm import AsyncLLM
     # -m executes this file as __main__; middleware imports its canonical name.
     # Share the same ContextVar rather than installing a second module instance.
-    __import__('importlib').import_module('self_curate.execution.vllm_capture').install_capture(AsyncLLM,root)
+    module=__import__('importlib').import_module('self_curate.execution.vllm_capture')
+    module.install_capture(AsyncLLM,root)
+    from vllm.entrypoints.anthropic.serving import AnthropicServingMessages
+    module.install_anthropic_generation(AnthropicServingMessages)
     runpy.run_module('vllm.entrypoints.openai.api_server',run_name='__main__')
 
 if __name__=='__main__':main()

@@ -1,3 +1,5 @@
+[Teacher 六技能准备与资产复用](TEACHER_ANNOTATION_V1_ZH.md)
+
 当前 agent harness 已统一迁移到 Claude Agent SDK，见 [接入与验收说明](HARNESS_CLAUDE_SDK_ZH.md)。
 
 > EXP001 Rebench (2026-11-11): [workstation plan](EXP001_REBENCH_PLAN_ZH.md), [handoff](handoffs/EXP001_REBENCH_WORKSTATION_V1.md). New preparation contract; not a ready legacy server config.
@@ -11,7 +13,7 @@ Rebench 实验一入口：[工作站/集群交接](handoffs/EXP001_REBENCH_WORKS
 
 ## 实验与原始需求
 
-- [EXP001 定义](EXP001_RANDOM_STATIC_M0_ZH.md)：Random/static_m0、两档学习率、三波训练和最终测试。
+- [当前 EXP001 定义](EXP001_REBENCH_PLAN_ZH.md)：Rebench、Random/static_m0、两档学习率与三阶段训练；旧 EXP001_RANDOM_STATIC_M0_ZH.md 仅作历史背景。
 - [共享资产](EXPERIMENT_ASSETS_ZH.md)：初始能力、指标、策略的保存与复用。
 - [交接规则](handoffs/README.md)、[下一实验模板](handoffs/TEMPLATE.md)。
 - [递进研究计划](RSI_Progressive_Experiment_Plan.md)：后续 V0–V4 与消融顺序。
@@ -36,3 +38,7 @@ Rebench 实验一入口：[工作站/集群交接](handoffs/EXP001_REBENCH_WORKS
 
 旧审计合集、旧就绪/执行总览、退役 handoff 和实现前草稿已从正式目录删除。
 原始字节与清单保存在本地被忽略的 `runs/redundancy-cleanup-20261109/`，不作为执行入口。
+
+2026-11-15最新测评、固定来源与规模依据见 [实验一补充](EXP001_EVALUATION_AND_SCALE_20261115_ZH.md)。
+
+2026-11-15新增：[任务—轨迹关联、分组Teacher及TaskLimitSelect](TASK_TRAJECTORY_LINKS_ZH.md)。M1核心schema不变，关系为版本绑定tags；算子语义版本m2-v3，旧m2-v2上下文不能直接重放。

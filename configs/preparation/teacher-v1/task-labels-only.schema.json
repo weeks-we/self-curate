@@ -1,0 +1,178 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "instance_id",
+    "ontology_version",
+    "classification_state",
+    "primary_skill",
+    "task_summary",
+    "skills",
+    "task_risks",
+    "missing_context",
+    "confidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "teacher-task-labels-v1"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "instance_id": {
+      "type": "string"
+    },
+    "ontology_version": {
+      "const": "coding-skills-v1"
+    },
+    "classification_state": {
+      "enum": [
+        "classified",
+        "composite",
+        "uncertain",
+        "uncovered"
+      ]
+    },
+    "primary_skill": {
+      "enum": [
+        "behavior_state",
+        "data_representation",
+        "interface_integration",
+        "platform_build",
+        "resource_concurrency",
+        "algorithm_math",
+        null
+      ]
+    },
+    "task_summary": {
+      "type": "string"
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "skill_id",
+          "status",
+          "subtype",
+          "reason"
+        ],
+        "properties": {
+          "skill_id": {
+            "enum": [
+              "behavior_state",
+              "data_representation",
+              "interface_integration",
+              "platform_build",
+              "resource_concurrency",
+              "algorithm_math"
+            ]
+          },
+          "status": {
+            "enum": [
+              "core",
+              "supporting",
+              "not_required",
+              "uncertain"
+            ]
+          },
+          "subtype": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "task_risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "reason",
+          "evidence"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "underspecified",
+              "hidden_requirement",
+              "spec_test_conflict",
+              "missing_context",
+              "other"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/evidence_ref"
+            }
+          }
+        }
+      }
+    },
+    "missing_context": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "message_id",
+        "field",
+        "quote"
+      ],
+      "properties": {
+        "source": {
+          "enum": [
+            "task",
+            "trajectory",
+            "helper_trajectory"
+          ]
+        },
+        "message_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "field": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

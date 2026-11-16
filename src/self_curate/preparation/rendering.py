@@ -11,12 +11,18 @@ from self_curate.contracts.types import require
 
 
 def canonical_messages(rows):
-    result = []
+    result = [];call_names={}
     for row in rows:
         require(
-            set(row) <= {"role", "content", "tool_calls", "tool_call_id"},
+            set(row) <= {"role", "content", "tool_calls", "tool_call_id", "name"},
             "Unsupported source message fields; preserve raw and quarantine",
         )
+        # Rebench uses name=null on regular messages and a redundant tool name
+        # on observations. Validate it against the linked call, never discard a conflict.
+        if row.get("name") is not None:
+            require(row["role"]=="tool" and row.get("tool_call_id") in call_names
+                    and row["name"]==call_names[row["tool_call_id"]],
+                    "Source tool-result name disagrees with its tool_call_id")
         value = {"role": row["role"], "content": row.get("content") or ""}
         require(
             row.get("content") is None or isinstance(row["content"], str),
@@ -44,6 +50,9 @@ def canonical_messages(rows):
                 else:
                     calls.append(call)
             value["tool_calls"] = calls
+            for call in calls:
+                require(call["call_id"] not in call_names,"Duplicate source tool call ID")
+                call_names[call["call_id"]]=call["name"]
         if row.get("tool_call_id") is not None:
             value["tool_call_id"] = row["tool_call_id"]
         result.append(value)

@@ -1,3 +1,5 @@
+> EXP001当前预算、thinking及采样证据以 [最新SDK测评协议](../EXP001_SDK_EVALUATION_PROTOCOL_ZH.md) 为准，旧greedy/v1回执不授权新正式实验。
+
 # CLAUDE_SDK_HARNESS_V1
 
 本交接覆盖所有解题/角色 harness，优先于旧文档中的 mini-SWE 安装和调用说明。

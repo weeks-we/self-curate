@@ -88,8 +88,6 @@ def _branch_skills(program, source):
         node = nodes[source]
         if node.op == "SkillSelect":
             skills.update(node.params["skills"])
-        if node.op == "EvidenceSelect":
-            skills.add(node.params["target_skill"])
         source = node.inputs[0]
     return skills
 
@@ -135,19 +133,6 @@ def _rule_candidate(parent, feedback, policy):
                         f"针对 {hint.skill} 的外部反馈，调整 {branch}/{other} 的监督 token 配额。",
                         hint.reason,
                     )
-        for node in parent.nodes:
-            if (
-                node.op == "EvidenceSelect"
-                and node.params["target_skill"] == hint.skill
-                and hint.direction == "increase"
-            ):
-                p = by_id[node.id]["params"]
-                p["min_tokens"] = (p["min_tokens"] or 0) + policy.evidence_token_step
-                return (
-                    raw,
-                    f"为 {hint.skill} 提高最低技能证据量；实际配额可行性由 P1 检查。",
-                    hint.reason,
-                )
     return (
         None,
         "未找到可唯一定位的目标技能分支或证据节点；需要结构化模型提案。",

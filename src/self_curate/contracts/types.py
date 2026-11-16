@@ -529,7 +529,7 @@ class TrajectoryRecord(Record):
         )
         require(
             self.schema_version == SCHEMA_VERSION
-            and self.normalization_version in {"m1-v1", "m1-v2", "m1-v3"},
+            and self.normalization_version in {"m1-v1", "m1-v2", "m1-v3", "m1-v4"},
             "Unsupported trajectory version",
         )
         require(
@@ -559,7 +559,7 @@ class TrajectoryRecord(Record):
             "Duplicate gradient identity",
         )
         require(
-            self.normalization_version == "m1-v3"
+            self.normalization_version in ("m1-v3", "m1-v4")
             or (
                 self.metadata is None
                 and not self.gradients
@@ -618,6 +618,12 @@ class TrajectoryRecord(Record):
 
     def to_dict(self):
         result = super().to_dict()
+        if self.normalization_version == "m1-v4":
+            require(self.annotations is None and self.annotation_record is None,
+                    "Task-label records cannot carry trajectory evidence")
+            for name in ("annotations", "annotation_record", "evidence_metrics"):
+                result.pop(name, None)
+            result["stats"].pop("evidence_union_tokens", None)
         if self.normalization_version == "m1-v1":
             result.pop("signals")
         if self.normalization_version in {"m1-v1", "m1-v2"}:

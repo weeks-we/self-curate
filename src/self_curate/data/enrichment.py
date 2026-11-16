@@ -198,7 +198,7 @@ def attach_signals(
         record,
         signals=tuple(merged[k] for k in sorted(merged)),
         usage=usage,
-        normalization_version="m1-v3",
+        normalization_version="m1-v4" if record.normalization_version=="m1-v4" else "m1-v3",
     )
 
 
@@ -280,7 +280,7 @@ def attach_annotations(
         signals=(),
         gradients=(),
         annotation_record=None,
-        normalization_version="m1-v3",
+        normalization_version="m1-v4" if record.normalization_version=="m1-v4" else "m1-v3",
     )
     valid = []
     for signal in record.signals:

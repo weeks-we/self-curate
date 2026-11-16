@@ -76,7 +76,9 @@ class ServerPorts:
         )
         from self_curate.validation.parallel import ParallelTaskValidator
 
-        self.validator = ParallelTaskValidator(self.task_runner, workers=16)
+        self.validator = ParallelTaskValidator(
+            self.task_runner, workers=sum(e["slots"] for e in self.task_runner.router.entries)
+        )
         self.benchmark_runner = self.task_runner
         self.client = SharedRoleClient(
             self.task_runner.router, self.model, self.output / "role-calls", config.seed,
@@ -94,7 +96,9 @@ class ServerPorts:
                     p.name:file_sha256(p) for p in (
                         Path(__file__).parents[2]/"agents/claude_client.py",
                         Path(__file__).parents[2]/"execution/claude_sdk.py",
-                        Path(__file__).parents[2]/"execution/claude_gateway.py")
+                        Path(__file__).parents[2]/"execution/claude_gateway.py",
+                        Path(__file__).parents[2]/"execution/vllm_capture.py",
+                        Path(__file__).parents[2]/"execution/relay.py")
                 },
                 "harness_settings":self.settings["task_execution"].get("harness",{}),
             }
@@ -103,7 +107,7 @@ class ServerPorts:
         self._store = None
         self.manager = None
         self.closed = False
-        self.benchmark_workers = 16
+        self.benchmark_workers = sum(e["slots"] for e in self.task_runner.router.entries)
         import os, atexit
 
         if self.settings.get("services") and not os.environ.get(
@@ -143,7 +147,8 @@ class ServerPorts:
             active = self.manager.transition(phase, reserved=reserved)
         if active:
             self.task_runner.router.set_active(active)
-        self.benchmark_workers = min(16, 2 * len(active)) if active else 1
+        self.benchmark_workers = sum(e["slots"] for e in self.task_runner.router.entries if e["gpu_uuid"] in active) if active else 1
+        self.validator.workers = self.benchmark_workers
         if phase != "scoring":
             self.release_initial()
 
@@ -210,6 +215,20 @@ class ServerPorts:
             and receipt.get("harbor_smoke_passed") is True,
             "Real capacity, adapter reload and all three harness smokes must pass on server",
         )
+        if self.settings.get("selection_budget"):
+            evaluation_context=max([t.budget.max_context_tokens for t in self.inputs.development.tasks]+[t.budget.max_context_tokens for b in self.inputs.benchmarks for t in b.tasks])
+            require(self.settings["services"]["max_context_tokens"]>=evaluation_context,"Inference service context is shorter than frozen evaluation tasks")
+        if self.settings.get("selection_budget") and max(e["slots"] for e in self.task_runner.router.entries)>2:
+            from collections import Counter
+            probe=read_artifact(artifact(receipt["inference_capacity_report"]))
+            expected={"model_hash":self.model.model_hash,"max_context":self.settings["services"]["max_context_tokens"],"max_output":32768,
+                      "prefix_policy":"independent-slot-token-v1",
+                      "slots":{e["gpu_uuid"]:e["slots"] for e in self.task_runner.router.entries},
+                      "service_profile_hash":digest(self.settings["services"])}
+            require(probe.get("passed") is True and probe.get("intent")==expected
+                    and Counter(r["gpu_uuid"] for r in probe["slots"])==Counter(expected["slots"])
+                    and all(r.get("passed") is True for r in probe["slots"]),
+                    "Configured concurrency needs a matching full-context parallel capacity receipt")
         require(
             all(
                 e["gpu_uuid"] in config.gpu_uuids

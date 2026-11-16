@@ -18,12 +18,14 @@ PYTHONPATH=src python -m self_curate.smoke --output runs/nested-cpu-new --verify
 
 ## 运行入口
 
-- [EXP001 V3 Handoff](docs/handoffs/EXP001_SERVER_V3.md)：正式实验交接与输出。
+- [当前 Rebench EXP001 Handoff](docs/handoffs/EXP001_REBENCH_WORKSTATION_V1.md)：唯一总交接入口。
 - [容器部署](docs/SERVER_CONTAINER_DEPLOYMENT_ZH.md)：无 GPU 联网准备、GPU 验收与执行。
 - [文档索引](docs/README.md)、[当前状态](docs/progress.md)、[运行链路](docs/CODE_READING_TUTORIAL_ZH.md)。
 
-`configs/experiments/exp001/server_bootstrap.template.json` 是服务器计划模板，
-`server.template.json` 保存正式参数模板（含唯一 LoRA 超参），`sources.json` 固定来源。
+当前使用 `rebench.workstation.json` 和 `workstation.bindings.template.json`，按总交接生成
+冻结的 `server.resolved.json`。`server_bootstrap.template.json`、`sources.json` 和旧 V3
+交接中的 SWE-smith 来源不是本次入口；不要直接执行旧 bootstrap 的 stage all。
+`server.template.json` 仅作为配置生成的底稿，必须由 Rebench 准备流程替换来源及真实回执。
 实际数据、权重、镜像和 GPU 容量必须在服务器核验；不能把模板当成已验收配置。
 
 ```bash

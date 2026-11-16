@@ -1,6 +1,6 @@
 # P0 核心契约与跨模块交接
 
-本页契约在 0.4.1 补齐；当前包 0.16.0，schema_version=1，校验语义 p0-v3；M1 数据格式和 M2 的 m2-v2 语义保持不变。
+本页契约在 0.4.1 补齐；当前包 0.16.0，schema_version=1，校验语义 p0-v3；M1/P0 schema保持不变；M2当前为m2-v3任务关联扩展。
 
 0.10.1 的 [NLL/entropy producer](SIGNAL_COMPUTATION_ZH.md) 复用 ModelRef/ResourceUsage/CostLedger 和 M1 SignalRecord；不把前向统计当任务能力报告，也不改变 P0 工作流格式。
 此前审计中的五个缺失核心契约均已补齐。
@@ -104,7 +104,7 @@ RoundRecord 保存 attempt_id、accepted_version 前后值、起始/最终已接
 ## WorkflowBundle 的检查范围
 
 Bundle 保存一个候选程序/批次、活动模型、selection_context_hash、固定目标、相关任务/rollout/梯度/报告、账本及可选 round。
-按现有 m2-v2 的 hash 关系验证程序、系统上下文和 BatchManifest；所有联接使用 ID、cache_key 或内容版本，不按数组位置匹配。
+按当前 m2-v3 的 hash 关系验证程序、系统上下文和 BatchManifest；所有联接使用 ID、cache_key 或内容版本，不按数组位置匹配。
 同时检查成本内容引用、mock/real 域、目标任务隔离、精确训练数据/顺序和轮次模型关系。
 它用于已有候选清单的跨模块交接；尚未选样或无可行清单的轮次可单独保存 RoundRecord，不需要伪造 BatchManifest。
 

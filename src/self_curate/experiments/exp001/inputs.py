@@ -150,8 +150,8 @@ class PreparedInputs:
                 r.quality.status == "pass"
                 and r.tokenization.identity == self.model.tokenizer
                 and r.stats.context_tokens <= config.max_context_tokens
-                and r.annotations is not None
-                and set(s.skill for s in r.annotations.skills).issubset(self.skills)
+                and __import__("self_curate.data.view",fromlist=["skill_labels"]).skill_labels(r) is not None
+                and set(__import__("self_curate.data.view",fromlist=["skill_labels"]).skill_labels(r)).issubset(self.skills)
                 and not r.usage.candidate_sft
                 for r in self.records
             ),

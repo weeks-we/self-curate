@@ -45,7 +45,8 @@ def options_for(model, cwd, env, config, *, system_prompt=None, tools=(), max_tu
     require(set(tools)<=set(TOOLS), 'Unsupported Claude tool')
     # An allow-list prevents inherited OAuth, cloud-provider or user settings.
     allowed={'PATH','HOME','USER','LANG','LC_ALL','TMPDIR','SSL_CERT_FILE','SSL_CERT_DIR',
-             'ANTHROPIC_BASE_URL','ANTHROPIC_API_KEY','ANTHROPIC_AUTH_TOKEN','CLAUDE_CONFIG_DIR'}
+             'ANTHROPIC_BASE_URL','ANTHROPIC_API_KEY','ANTHROPIC_AUTH_TOKEN','CLAUDE_CONFIG_DIR',
+             'CLAUDE_CODE_AUTO_COMPACT_WINDOW','CLAUDE_AUTOCOMPACT_PCT_OVERRIDE'}
     clean={k:v for k,v in env.items() if k in allowed}
     clean.update(ANTHROPIC_MODEL=model, CLAUDE_CODE_SUBAGENT_MODEL=model,
         ANTHROPIC_AUTH_TOKEN=env['ANTHROPIC_API_KEY'], DISABLE_AUTOUPDATER='1',
@@ -117,14 +118,19 @@ async def session(prompt, model, cwd, env, config, output, *, system_prompt=None
     atomic_json(output/'sdk-result.json',result)
     return result
 
-def policy_config(budget, policy, *, seed=0, temperature=0):
-    return {'agent':{'wall_seconds':budget.max_wall_seconds,
+def policy_config(budget, policy, *, seed=0, temperature=0, wall_seconds=None):
+    wall_seconds=budget.max_wall_seconds if wall_seconds is None else wall_seconds
+    require(type(wall_seconds) in (int,float) and 0<wall_seconds<=budget.max_wall_seconds,"Invalid effective agent deadline")
+    return {'agent':{'wall_seconds':wall_seconds,
                      'total_output_tokens':budget.max_output_tokens},
         'generation':{'context_length':budget.max_context_tokens,
-            'max_new_tokens':policy['per_call_output_tokens'], 'temperature':policy.get('sampling_temperature',temperature),
+            'max_new_tokens':policy['per_call_output_tokens'], 'temperature':policy.get('temperature',policy.get('sampling_temperature',temperature)),
             'seed':seed,
-            'top_p':1.0,'top_k':0,'thinking':True,'preserve_thinking':True,
-            'reasoning_effort':policy.get('reasoning_effort','high')}}
+            'top_p':policy.get('top_p',1.0),'top_k':policy.get('top_k',0),
+            'thinking':policy.get('thinking',True),'preserve_thinking':policy.get('preserve_thinking',True),
+            'min_p':policy.get('min_p',0.0),'presence_penalty':policy.get('presence_penalty',0.0),
+            'repetition_penalty':policy.get('repetition_penalty',1.0),
+            'reasoning_effort':policy.get('reasoning_effort','xhigh')}}
 
 async def gated_session(prompt, binding, config, output, gate_config, *, cwd,
                         system_prompt=None, tools=(), max_turns=1, tool_seconds=300):
@@ -144,7 +150,9 @@ async def gated_session(prompt, binding, config, output, gate_config, *, cwd,
         budget.persist()
         try:
             env={**os.environ,'ANTHROPIC_BASE_URL':'http://127.0.0.1:'+str(gateway.server.server_port),
-                 'ANTHROPIC_API_KEY':token,'CLAUDE_CONFIG_DIR':str(output/'claude-home')}
+                 'ANTHROPIC_API_KEY':token,'CLAUDE_CONFIG_DIR':str(output/'claude-home'),
+                 'CLAUDE_CODE_AUTO_COMPACT_WINDOW':str(gate_config['generation']['context_length']),
+                 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE':'80'}
             try:
                 row=await session(prompt,binding['model_name'],cwd,env,config,output,
                     system_prompt=system_prompt,tools=tools,max_turns=max_turns,
@@ -166,3 +174,19 @@ async def gated_session(prompt, binding, config, output, gate_config, *, cwd,
             return row
         finally:
             budget.cancel.set();gateway.close()
+
+
+def native_agent_seconds(task_path, budget, policy):
+    """Harbor phase timeouts own agent time; TaskBudget wall is an outer watchdog."""
+    import tomllib
+    native=tomllib.loads((Path(task_path)/'task.toml').read_text(encoding='utf-8'))
+    value=native.get('agent',{}).get('timeout_sec')
+    if type(value) not in (int,float):
+        from harbor.models.task.config import TaskConfig
+        value=TaskConfig.model_validate(native).agent.timeout_sec
+    cap=policy.get('agent_wall_seconds',value)
+    require(type(value) in (int,float) and value>0 and type(cap) in (int,float) and cap>0,
+            'Invalid native agent timeout')
+    effective=min(value,cap)
+    require(effective<=budget.max_wall_seconds,'Outer watchdog shortens native agent phase')
+    return effective

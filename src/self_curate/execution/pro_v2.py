@@ -48,12 +48,16 @@ class ProV2Judge:
         protocol=read_artifact(artifact(environment["pro_protocol_receipt"]))
         require(getattr(request,"backend","mock")!="real" or protocol.get("backend")=="real",
                 "Synthetic Pro probes cannot authorize real evaluation")
-        require(protocol.get("schema_version")=="pro-v2-claude-sdk-offline-v1"
+        require(protocol.get("schema_version")=="pro-v2-claude-sdk-offline-v2"
                 and protocol.get("offline_agent_verified") is True
                 and protocol.get("offline_verifier_verified") is True
                 and protocol.get("fresh_sandbox_verified") is True,
                 "Workstation must verify offline Pro phases and pristine regrade")
-        require(protocol.get("greedy_sampling_verified") is True,"Pro greedy/seed behavior needs workstation evidence")
+        from .claude_sdk import policy_config
+        effective=policy_config(request.task.budget,read_artifact(request.protocol),seed=request.seed,temperature=read_artifact(request.sampling)["temperature"])["generation"]
+        required={k:effective[k] for k in ("temperature","top_p","top_k","thinking","preserve_thinking","reasoning_effort","min_p","presence_penalty","repetition_penalty")}
+        require(protocol.get("sampling_verified") is True and protocol.get("generation_policy")==required,
+                "Pro effective sampling/thinking policy differs from the engine probe receipt")
         require(protocol["tooling_checksum"]==checkpoint_fingerprint(self.tooling)[0],
                 "Pro official tooling changed")
         require(protocol["task_checksums"].get(task_path.name)==checkpoint_fingerprint(task_path)[0],
@@ -86,12 +90,13 @@ class ProV2Judge:
             result=self.process([self.executable,"trials","start","--config",str(path)],
                                 cwd=output,output=output/(stage+"-process"),timeout=timeout,env=env)
             require(result.get("returncode")==0 and not result.get("timed_out"),"Official Pro phase failed")
-        from .claude_sdk import policy_config
+        from .claude_sdk import policy_config,native_agent_seconds
         agent={"import_path":"self_curate.execution.harbor_claude:ClaudeSDKAgent",
                "model_name":binding["model_name"],"base_url":endpoint,
                "model_api_key_name":"SELF_CURATE_TRIAL_KEY",
                "kwargs":{"harness":binding.get("harness",{}),
-                         "gate":policy_config(request.task.budget,read_artifact(request.protocol),seed=request.seed, temperature=read_artifact(request.sampling)["temperature"]),
+                         "gate":policy_config(request.task.budget,read_artifact(request.protocol),seed=request.seed, temperature=read_artifact(request.sampling)["temperature"],
+                             wall_seconds=native_agent_seconds(task_path,request.task.budget,read_artifact(request.protocol))),
                          "max_turns":request.task.budget.max_steps,
                          "tool_seconds":read_artifact(request.protocol)["tool_timeout_seconds"],
                          "capture_patch":True},

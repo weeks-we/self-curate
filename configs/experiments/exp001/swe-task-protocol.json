@@ -2,6 +2,15 @@
   "schema_version": "1",
   "recent_tool_observations": 5,
   "per_call_output_tokens": 32768,
-  "tool_timeout_seconds": 300,
-  "model_timeout_seconds": 3600
+  "tool_timeout_seconds": 1200,
+  "model_timeout_seconds": 7200,
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "top_k": 20,
+  "thinking": true,
+  "preserve_thinking": true,
+  "reasoning_effort": "xhigh",
+  "min_p": 0.0,
+  "presence_penalty": 0.0,
+  "repetition_penalty": 1.0
 }

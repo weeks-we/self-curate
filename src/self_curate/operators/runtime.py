@@ -83,17 +83,16 @@ def _semantic_exposure(ids, ctx):
     exposure, missing_labels = {}, 0
     for data_id in ids:
         row = ctx.view.record(data_id)
-        if row.annotations is None:
+        from self_curate.data.view import skill_labels
+        if skill_labels(row) is None:
             missing_labels += 1
             continue
         metrics = {m.skill: m for m in row.evidence_metrics}
         from self_curate.data.view import skill_labels
         present = set(skill_labels(row) or ())
-        for annotation in row.annotations.skills:
-            if annotation.skill not in present:
-                continue
+        for skill in sorted(present):
             stat = exposure.setdefault(
-                annotation.skill,
+                skill,
                 {
                     "sample_count": 0,
                     "trajectory_supervised_tokens": 0,
@@ -103,7 +102,7 @@ def _semantic_exposure(ids, ctx):
             )
             stat["sample_count"] += 1
             stat["trajectory_supervised_tokens"] += row.stats.supervised_tokens
-            metric = metrics.get(annotation.skill)
+            metric = metrics.get(skill)
             if metric is None or metric.supervised_evidence_tokens is None:
                 stat["evidence_missing_samples"] += 1
             else:

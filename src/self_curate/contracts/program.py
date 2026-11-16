@@ -8,15 +8,15 @@ from .errors import ContractError, ErrorCode
 from .parsing import fields, load_json, sequence
 from .types import Record, canonical_json, digest, integer, require, text, sha256
 
-OPERATOR_VERSION = "m2-v2"
+OPERATOR_VERSION = "m2-v4"
 OPERATOR_NAMES = (
     "SkillSelect",
-    "EvidenceSelect",
     "NLLSelect",
     "EntropySelect",
     "LengthSelect",
     "DedupSelect",
     "SampleSelect",
+    "TaskLimitSelect",
     "MixAllocate",
 )
 
@@ -80,43 +80,6 @@ def normalize_params(operator, params):
                     "missing_policy",
                 ),
             }
-        if operator == "EvidenceSelect":
-            fields(
-                params,
-                ("target_skill",),
-                (
-                    "min_share",
-                    "min_density",
-                    "min_tokens",
-                    "min_events",
-                    "required_behaviors",
-                    "missing_policy",
-                ),
-            )
-            text(params["target_skill"], "target_skill")
-            out = {
-                "target_skill": params["target_skill"],
-                "missing_policy": _choice(
-                    params.get("missing_policy", "exclude"),
-                    ("error", "exclude", "include"),
-                    "missing_policy",
-                ),
-            }
-            for name in ("min_share", "min_density", "min_tokens", "min_events"):
-                value = params.get(name)
-                if value is not None:
-                    (
-                        integer(value, name)
-                        if name in ("min_tokens", "min_events")
-                        else _number(value, name, maximum=1)
-                    )
-                out[name] = value
-            out["required_behaviors"] = _names(
-                params.get("required_behaviors", []),
-                "required_behaviors",
-                nonempty=False,
-            )
-            return out
         if operator in ("NLLSelect", "EntropySelect"):
             fields(
                 params,
@@ -238,6 +201,12 @@ def normalize_params(operator, params):
                     "missing_policy",
                 ),
             }
+        if operator == "TaskLimitSelect":
+            fields(params,("max_per_task",),("minimum_size","representative_rule"))
+            integer(params["max_per_task"],"max_per_task",1)
+            integer(params.get("minimum_size",0),"minimum_size",0)
+            return {"max_per_task":params["max_per_task"],"minimum_size":params.get("minimum_size",0),
+                    "representative_rule":_choice(params.get("representative_rule","first"),("first","seeded"),"task representative rule")}
         if operator == "SampleSelect":
             fields(
                 params,

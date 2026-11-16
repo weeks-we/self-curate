@@ -33,8 +33,10 @@ class LoRASettings:
     use_rslora: bool = False
     cpu_activation_offload: bool = False
     offload_min_tokens: int = 65536
+    loss_chunk_tokens: int = 32
 
     def __post_init__(self):
+        require(type(self.loss_chunk_tokens) is int and self.loss_chunk_tokens>0,"Positive loss chunk tokens required")
         require(
             type(self.rank) is int
             and self.rank > 0
@@ -267,7 +269,7 @@ class PeftModelStore:
                 hidden = language(
                     input_ids=input_ids, attention_mask=attention_mask, use_cache=False
                 ).last_hidden_state
-                return causal_loss_sum(hidden, labels, head, chunk_size=32)
+                return causal_loss_sum(hidden, labels, head, chunk_size=self.settings.loss_chunk_tokens)
 
         model.self_curate_loss_sum = MethodType(loss_sum, model)
 

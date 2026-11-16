@@ -12,7 +12,7 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 # Full commit identities are required; this is not the legacy SWE-smith image.
 ARG REBENCH_COMMIT
-ARG PRO_COMMIT
+ARG PRO_COMMIT=66f92766bba642462d4bbe5479e83f91f9211862
 ARG VERIFIED_COMMIT
 ARG HARBOR_COMMIT
 RUN python -c 'import os,re; assert all(re.fullmatch("[0-9a-f]{40}",os.environ.get(k,"")) for k in ("REBENCH_COMMIT","PRO_COMMIT","VERIFIED_COMMIT","HARBOR_COMMIT")), "Full harness commits required"'

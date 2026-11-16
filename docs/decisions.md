@@ -1,3 +1,5 @@
+> Teacher v1已按2026-11-14用户决定启用六技能。正式入口与复用方式见 [Teacher交接](handoffs/TEACHER_V1_WORKSTATION.md)；本文旧的待定技能、重叠任务组和复用标注prompt的描述已被取代。
+
 
 ## 2026-11-14：harness 二次复查与小额 DS 连通测试
 
@@ -320,3 +322,36 @@ Pro V2对接官方locked agent和干净patch replay最终判分；Rebench fork�
 初测Leval→Lopt→Lexec共享M0且history隔离；反馈资产进入冻结清单，summary按实际新增role调用计数，inner_valuation_calls单独为0。旧两角色mock仍可独立运行。新增FSDP服务器专用中断恢复对照，CPU inspect始终不授予GPU通过；微型随机模型用真实Accelerate在CPU执行中断/恢复与逐张量对照。
 
 部署先在工作站下载/安装/Teacher/镜像缓存；集群只导入和核验后计算，不在GPU作业内联网安装。8卡单分支FSDP的micro1、accum1、global8沿用；实际GPU容量/吞吐/重载由集群单独验收。当前正式新方案与交接见EXP001_REBENCH_PLAN_ZH.md及handoffs/EXP001_REBENCH_WORKSTATION_V1.md。
+
+
+Teacher V1 本地交付验收（2026-11-14）：31 项临时 CPU 检查通过；330 条模拟任务标注选出 300 道互异题，跨准备目录复用为 0 次 Teacher 调用。真实 API 小试完成 3 条任务、2 条完整轨迹的 schema 和逐字证据校验；早期失败保留。最终源码下 3×5 内外层 mock、EXP001 Random/static mock、恢复与 ZIP CRC 通过。真实 Qwen tokenizer 尚未接入本次小试，不能声称真实 token 比例已验收；正式 100+100 试标和语义人工抽检待工作站执行。验收记录：runs/teacher-v1-verification-20261114/summary.json。
+
+
+2026-11-14 EXP001文档收口：唯一总入口改为Rebench工作站handoff；旧SERVER_V3标为历史恢复，README同步。统一六技能、300互异题、100+100试标及Claude SDK；新增阶段输入/输出/阻塞/恢复/交付清单。仅文档变更，未改运行接口或配置身份，未执行GPU。
+
+2026-11-15：按用户要求固定Rebench任务/轨迹SHA、Flash复核；先官方协议再文献，分离Pro/Terminal预算并将原生agent timeout传入SDK，拒绝复用旧预算注册。推理槽与worker可配置，目标4/卡并以真实并发容量报告门禁；loss分块256保持相同监督目标，global8与10%预算不变。来源与规模/协议证据见EXP001_EVALUATION_AND_SCALE_20261115_ZH.md；真实GPU与容器仍未验收。
+
+2026-11-15最终CPU验收：18项专项、5项任务注册、31项Teacher与300题复用、EXP001 K4完整mock及恢复、3×5嵌套、两份ZIP CRC通过。记录runs/nov15-final-verification/summary.json；没有GPU/容器/新付费Teacher通过证据。另核对Qwen官方Pro256K+采样与当前128K贪心的协议差异，详见本次实验补充，不冒称复现。
+
+2026-11-15用户纠正NICE最新SDK配置：以reevaluation.yaml为对齐源，统一250轮、262K上下文/总输出、单次32K、Verified7200秒/工具1200秒、temperature1/top_p.95/top_k20、thinking/preserve/xhigh。Pro保留官方50分钟、Terminal原生时限，其余沿Verified；移除10000轮/1M输出自定保护。增加逐请求vLLM Anthropic转换策略与引擎采样证据、独立前缀262K容量和新Pro sampling回执。训练131K/全局batch8不变；旧资产/运行不原地迁移。见EXP001_SDK_EVALUATION_PROTOCOL_ZH.md。
+
+250轮SDK对齐最终CPU验收：17项参数/转换/预算检查、7项独立前缀及Pro错误回执拒绝、完整EXP001 K4四支三阶段、3×5嵌套恢复和两份ZIP CRC通过。证据runs/sdk250-verification/summary.json；不代表真实vLLM/262K GPU容量或官方判分已通过。
+
+2026-11-15用户批准一题多轨迹：新增版本task_key、开发题关联资产与M1关系标签、按完整输入/输出预算分组（默认2条）、逐成员证据校验/复核/恢复、pilot与正式流程同规划器；m2-v3新增可选TaskLimitSelect和Lopt任务覆盖统计。NICE/梯度/指标保持原轨迹及模型/上下文身份，不传播为任务分数，Random未强制限额。本轮只CPU模拟，无新增付费API。见TASK_TRAJECTORY_LINKS_ZH.md。
+
+任务关联交付CPU验收：31项既有Teacher契约、27项关联/分组/乱序ID匹配/部分恢复/预算拆组/引用隔离/TaskLimitSelect检查、300题资产零调用复用、EXP001四支三阶段K4及完成后恢复、3×5嵌套跨进程恢复和两份ZIP CRC通过。证据runs/task-links-verification-20261115/summary.json。本轮新增付费API为0；真实合批语义一致性和节费幅度仍待小规模API试标。
+
+
+2026-11-15 Teacher 复核：新增 off/flagged/sampled/all，新模板默认 off；保留证据/身份/格式校验与逐条审计，兼容旧直接集成。真实单对样本复核两次均 approve，费用受缓存影响；本次未新增付费请求。详见 TEACHER_REVIEW_POLICY_ZH.md。
+
+
+2026-11-15：官方元数据核验后固定 Pro HF 2d52cb3df914a3fcf80c7f66738b3a88ae37fc50、Pro tooling 66f92766bba642462d4bbe5479e83f91f9211862、Terminal4.1.0 4070d6cef56a7d20cb5dc98d5e10ada88a6b9440。开发集移除固定16worker瓶颈，随可用服务槽调度，8卡×4槽目标32并发；保留长上下文容量门槛和Terminal GPU预留。详见 EXP001_FROZEN_BENCHMARKS_ZH.md，未执行GPU/容器验收。
+
+
+2026-11-15 EXP001测评调整：保留每分支三个开发测评，最终benchmark从initial＋12阶段权重改为initial＋四个stage3，按固定训练末节点，不按测评分数选模。旧结果不改写，新run执行。
+
+
+2026-11-16：按用户要求Coding默认task-required标签，成功任务一次标注并关联轨迹；开发取无成功覆盖任务；不生成轨迹证据及占比，missing保留，旧模式兼容。General专门IF方案仅文档待实施。见CODING_TASK_LABELS_ONLY_ZH.md与GENERAL_IF_PLAN_ZH.md。未调用付费API。
+
+
+2026-11-16：当前EXP001使用任务继承标签与M1v4（不发布技能证据片段/比例字段）；EvidenceSelect及evidence_batch删除，operator版本m2-v4。旧M1类型只作历史读取兼容，不能将旧程序当新算子版本恢复。详见CODING_TASK_LABELS_ONLY_ZH.md。
