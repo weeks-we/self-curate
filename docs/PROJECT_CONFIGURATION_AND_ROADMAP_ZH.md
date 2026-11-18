@@ -193,19 +193,19 @@ Terminal标识 `terminal-bench/terminal-bench@4.1.0`；registry entry5不代表�
 
 自动生成项不手造：training_count、正式Teacher max_calls、模型fingerprint、objective、角色sampling、serving pool、source registry和development_asset。正式必须通过Rebench流程生成server.preflight.json，再完成容量验收形成server.resolved.json；**server.template.json仍含历史SWE-smith默认，不能直接启动。**
 
-## 10. 后续实验计划（简版）
+## 10. 后续实验计划（2026-11-18更新）
 
-| 阶段 | 增加的机制 | 主要比较 |
-| --- | --- | --- |
-| EXP001 / V0 | Random vs 固定M0策略，三段训练 | 建立基线，验证数据/训练/测评链条 |
-| V1 动态评分 | 模型更新后刷新指标，程序和参数固定 | 当前模型信号是否带来增益 |
-| V2 动态参数 | Lopt根据开发反馈改阈值/权重/配比 | 自主调参是否有效 |
-| V3 动态程序 | 开放算子组合、顺序和分支修改 | 程序结构搜索是否有效 |
-| V4 控制学习 | 加入合格筛选/策略修订轨迹SFT | 更新后的target是否更会选数据 |
-| 成本与稳健性 | 精确/方向性刷新、重要对照多seed、外部DS基线 | 质量—成本、随机性与优势来源 |
-| 扩展 | 冻结方法后开展跨数据/General验证 | 结论是否可迁移 |
+| 实验 | 分支/内容 | 固定约定 |
+|---|---|---|
+| EXP001 | Random与固定M0策略 | 原三阶段训练与开发验证，最终benchmark |
+| EXP002 | V1动态评分 | 程序及参数固定，仅按下一轮Lopt技能方向刷新相关、未参与外层真实更新的数据NLL/entropy |
+| EXP002 | V3动态程序，不含筛选轨迹训练 | 三外层×五内层；NICE或候选SFT验证待定；刷新与V1相同 |
+| EXP003 | V4控制学习 | 完整架构；筛选轨迹学习方法待定 |
+| EXP003 | 外部baseline | 待用户提供对比work脚本后接入 |
+| EXP003 | 筛选轨迹有效性补充测试 | 在已训练checkpoint上按用户后续设计测试 |
+| EXP003 | 单agent消融 | 一个agent承担三角色，prompt与history统一、不隔离 |
 
-NICE是否作为V2/V3内层估值器依独立验证结果决定；实验一不依赖它。后续内层停止、外层接受/回退、控制语料准入与多轮预算须在对应实验启动前另行冻结，不把这些待定规则混入当前实验一。旧递进计划中的SWE-smith和“两次尝试”保留作历史思路，当前执行以本页Rebench和EXP001三段协议为准；后续阶段次数需各自新配置明确。
+复用合法的M0分技能开发测评、全池M0 NLL/entropy及首次策略。V2暂不单独安排。具体刷新时序、分支公平性、版本读取、待定项和执行顺序见 [实验二计划](EXP002_PLAN_ZH.md)和[实验三计划](EXP003_PLAN_ZH.md)。这些是后续实验规划，不表示正式workflow已实现。General另行配置。
 
 ## 11. 文件入口
 

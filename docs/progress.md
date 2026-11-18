@@ -173,3 +173,9 @@ Teacher V1 本地交付验收（2026-11-14）：31 项临时 CPU 检查通过；
 
 
 2026-11-18追加修复：持久SWE判分重试、Pro分阶段、Terminal禁止自动重放、最终全目录seal、压缩时序验证/持久server探针、阶段成本、每槽容量失败证据。25项专项CPU、3×5 mock及EXP001四分支通过。Terminal跨进程verifier-only仍需冻结Harbor适配；真实GPU/SDK/Docker未验收。详见SDK_REPAIR_20261118_ZH.md。
+
+
+2026-11-18实验安排：EXP002比较V1固定程序动态信号与V3动态程序（3外层×5内层，无控制轨迹SFT，NICE/SFT验证待定）；二者共用Lopt方向驱动、排除真实外层曝光数据的定向刷新。EXP003加入V4控制学习、用户提供的baseline、已训checkpoint补充测试、统一prompt/history的单agent消融。详见EXP002_EXP003_PLAN_ZH.md；本次仅文档，未启动或宣称实现新workflow。
+
+
+2026-11-18文档组织纠正：实验二与三拆为EXP002_PLAN_ZH.md、EXP003_PLAN_ZH.md，删除上轮新建的合并计划EXP002_EXP003_PLAN_ZH.md。旧记录中的合并文件引用仅为历史；当前分别独立配置/workflow/handoff/run与验收，共享核验后的只读资产。
