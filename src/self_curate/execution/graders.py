@@ -14,6 +14,13 @@ class SWEJudge:
         self.pythons = dict(pythons or {})
 
     def grade(self, request, instance, patch, harness, output, *, timeout):
+        from .phases import phase
+        identity={'request_hash':request.record_hash,'patch':patch,'harness':harness,'timeout':timeout}
+        return phase(output,identity,
+            lambda work:self._grade_once(request,instance,patch,harness,work/'grading',timeout=timeout),
+            valid=lambda row:type(row.get('reward')) in (int,float) and row['reward'] in (0,1))
+
+    def _grade_once(self, request, instance, patch, harness, output, *, timeout):
         output = Path(output)
         output.mkdir(parents=True, exist_ok=False)
         prediction = {
@@ -77,6 +84,12 @@ class HarborJudge:
         self.installed_root = Path(installed_root) if installed_root else None
 
     def run(self, request, task_path, binding, output, *, timeout):
+        from .phases import phase
+        return phase(output,{'request_hash':request.record_hash,'task_path':str(Path(task_path).resolve())},
+            lambda work:self._run_once(request,task_path,binding,work/'native',timeout=timeout),
+            valid=lambda value:value.get('status')=='completed',retries=0)
+
+    def _run_once(self, request, task_path, binding, output, *, timeout):
         output = Path(output)
         output.mkdir(parents=True, exist_ok=False)
         require(binding.get("relay_grant_root"), "Harbor SDK requires a scoped inference relay")

@@ -42,7 +42,7 @@ class ProV2Judge:
         from self_curate.training.artifacts import checkpoint_fingerprint
         from self_curate.contracts.parsing import artifact
         task_path=Path(task_path).resolve()
-        output=Path(output).resolve(); output.mkdir(parents=True,exist_ok=False)
+        output=Path(output).resolve(); output.mkdir(parents=True,exist_ok=True)
         require(self.tooling is not None and (self.tooling/"patch_replay.py").is_file(),"Pinned official Pro V2 tooling missing")
         environment=read_artifact(request.task.environment)
         protocol=read_artifact(artifact(environment["pro_protocol_receipt"]))
@@ -87,9 +87,18 @@ class ProV2Judge:
                      "extra_docker_compose":[str(overlay),str(network_overlay)]},"verifier":{"disable":False}}
             path=output/(stage+"-trial.json")
             atomic_json(path,cfg)
-            result=self.process([self.executable,"trials","start","--config",str(path)],
-                                cwd=output,output=output/(stage+"-process"),timeout=timeout,env=env)
-            require(result.get("returncode")==0 and not result.get("timed_out"),"Official Pro phase failed")
+            from .phases import phase
+            def once(work):
+                stage_config={**cfg,'trials_dir':str((work/'trials').resolve())}
+                stage_path=work/'trial.json';atomic_json(stage_path,stage_config)
+                receipt=self.process([self.executable,"trials","start","--config",str(stage_path)],
+                                     cwd=output,output=work/'process',timeout=timeout,env=env)
+                # Official result is authoritative even if later cleanup made the CLI fail.
+                file,row=single_result(work/'trials',task_path.name)
+                return {'job':str((work/'trials').resolve()),'result':row,'process':receipt}
+            return phase(output/(stage+'-phase'),
+                {'request_hash':request.record_hash,'stage':stage,'protocol':protocol},once,
+                valid=lambda value:isinstance(value.get('result'),dict),retries=0 if stage=='agent' else 2)
         from .claude_sdk import policy_config,native_agent_seconds
         agent={"import_path":"self_curate.execution.harbor_claude:ClaudeSDKAgent",
                "model_name":binding["model_name"],"base_url":endpoint,
@@ -103,12 +112,14 @@ class ProV2Judge:
                "env":{"UV_OFFLINE":"1"}}
         atomic_json(output/"dispatch.json",{"request_hash":request.record_hash,
                     "task":task_path.name,"protocol":protocol,"stages":["agent","pristine_regrade"]})
-        trial("agent",agent)
+        agent_phase=trial("agent",agent)
+        agent_job=Path(agent_phase['job'])
         agent_file,agent_result=single_result(agent_job,task_path.name)
         patch=agent_file.parent/"agent"/"model.patch"
         require(patch.is_file(),"Missing captured patch is infrastructure failure")
-        trial("regrade",{"import_path":"patch_replay:PatchReplayAgent","model_name":"replay",
+        regrade_phase=trial("regrade",{"import_path":"patch_replay:PatchReplayAgent","model_name":"replay",
                           "kwargs":{"source_job":str(agent_job)}})
+        regrade_job=Path(regrade_phase['job'])
         final_file,result=single_result(regrade_job,task_path.name)
         replay_path=final_file.parent/"agent"/"replay.json"
         require(replay_path.is_file(),"Missing official replay receipt")

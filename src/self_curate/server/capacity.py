@@ -287,6 +287,25 @@ def check_inference(router, model, *, max_context, max_output, output, service_s
     barrier=threading.Barrier(count) if not all(completed) else None
 
     def run(index):
+        from datetime import datetime, timezone
+        work=root/('slot-'+str(index));work.mkdir(exist_ok=True)
+        started=time.perf_counter()
+        def stamp():return datetime.now(timezone.utc).isoformat()
+        if not (work/'started.json').exists():
+            atomic_json(work/'started.json',{'slot':index,'started_at':stamp(),'intent':intent})
+        try:
+            value=run_once(index)
+            atomic_json(work/'finished.json',{'slot':index,'finished_at':stamp(),
+                'wall_seconds':time.perf_counter()-started,'returned_and_validated':True})
+            return value
+        except BaseException as exc:
+            if barrier is not None:barrier.abort()
+            atomic_json(work/'failure.json',{'slot':index,'finished_at':stamp(),
+                'wall_seconds':time.perf_counter()-started,'error_type':type(exc).__name__,
+                'message':str(exc),'returned_and_validated':False})
+            raise
+
+    def run_once(index):
         work = root / ("slot-" + str(index))
         work.mkdir(exist_ok=True)
         if (work / "result.json").exists():

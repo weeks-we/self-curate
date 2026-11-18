@@ -16,12 +16,16 @@ from urllib.parse import urlsplit, parse_qs
 from self_curate.training.recovery import atomic_json as save
 
 
-def http_json(url, data=None, timeout=60, key=None, generation=None):
+def http_json(url, data=None, timeout=60, key=None, generation=None, budget=None):
     request = urllib.request.Request(url, data=None if data is None else json.dumps(data).encode(),
                                     headers={'Content-Type':'application/json', **({'Authorization':'Bearer '+key} if key else {}),
                                              **({'X-Self-Curate-Generation':json.dumps(generation,separators=(',',':'))} if generation is not None else {})})
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(request, timeout=timeout) as response:
+    from .supervised_http import upstream_response
+    context=(upstream_response(url,request.data,dict(request.header_items()),
+                cancel=budget.cancel, deadline=budget.started+budget.cfg['agent']['wall_seconds'])
+             if budget is not None else opener.open(request,timeout=timeout))
+    with context as response:
         content=response.read()
         return json.loads(content) if content else {}
 
@@ -36,6 +40,7 @@ class Budget:
         self.cancel = threading.Event()
         self.incomplete_usage = False
         self.records = []
+        self.session_id = uuid.uuid4().hex
 
     def prepare(self, body, input_tokens):
         if body.get('model') != self.model:
@@ -73,7 +78,8 @@ class Budget:
         self.requests += 1
         if self.output_tokens >= self.cfg['agent']['total_output_tokens']:
             self.stop_reason = 'TOKEN_LIMIT'
-        self.records.append({'input_tokens':input_tokens, 'output_tokens':output_tokens,
+        self.records.append({'session_id':self.session_id,'request_sequence':self.requests,
+             'started_monotonic':getattr(self,'current_started',None), 'finished_monotonic':time.monotonic(), 'input_tokens':input_tokens, 'output_tokens':output_tokens,
              'max_tokens':body['max_tokens'], 'model':body['model'],
              'temperature':body['temperature'], 'top_p':body['top_p'], 'top_k':body['top_k'],
              'chat_template_kwargs':body['chat_template_kwargs'],
@@ -93,7 +99,7 @@ class Budget:
             self.lock.release()
 
     def persist(self):
-        save(self.path, {'model':self.model, 'input_tokens':self.input_tokens,
+        save(self.path, {'session_id':self.session_id,'model':self.model, 'input_tokens':self.input_tokens,
              'output_tokens':self.output_tokens, 'requests':self.requests,
              'stop_reason':self.stop_reason, 'records':self.records,
              'incomplete_usage':self.incomplete_usage})
@@ -142,7 +148,7 @@ class Gateway:
                             'preserve_thinking':owner.cfg['generation']['preserve_thinking'],
                             'reasoning_effort':owner.cfg['generation']['reasoning_effort']}
                         count_body = {k:v for k,v in body.items() if k in {'model','messages','system','tools','tool_choice','chat_template_kwargs'}}
-                        count = http_json(owner.upstream+'/v1/messages/count_tokens', count_body, key=owner.upstream_key,generation=owner.cfg['generation'])['input_tokens']
+                        count = http_json(owner.upstream+'/v1/messages/count_tokens', count_body, key=owner.upstream_key,generation=owner.cfg['generation'],budget=budget)['input_tokens']
                         if type(count) is not int or count < 0:
                             raise ValueError('Invalid input token count')
                         if self.path.endswith('/count_tokens'):
@@ -150,13 +156,16 @@ class Gateway:
                             self.wfile.write(json.dumps({'input_tokens':count}).encode()); return
                         body = budget.prepare(body, count)
                         budget.current_capture_id = uuid.uuid4().hex
+                        budget.current_started = time.monotonic()
                         budget.persist()
                         save(budget.path.with_name('request-%06d.json' % budget.requests), body)
                         request = urllib.request.Request(owner.upstream+'/v1/messages',
                             data=json.dumps(body).encode(), headers={'Content-Type':'application/json', 'X-Request-Id':budget.current_capture_id, 'X-Self-Curate-Seed':str(owner.cfg['generation'].get('seed',0)+budget.requests), 'X-Self-Curate-Generation':json.dumps(owner.cfg['generation'],separators=(',',':')), **({'Authorization':'Bearer '+owner.upstream_key} if owner.upstream_key else {})})
                         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
                         budget.incomplete_usage=True
-                        with opener.open(request, timeout=owner.cfg['agent']['wall_seconds']) as response:
+                        from .supervised_http import upstream_response
+                        with upstream_response(request.full_url,request.data,dict(request.header_items()),
+                                cancel=budget.cancel, deadline=budget.started+owner.cfg['agent']['wall_seconds']) as response:
                             self.send_response(200)
                             raw_path=budget.path.with_name('response-%06d.raw' % budget.requests)
                             raw_log=raw_path.open('xb')
@@ -218,6 +227,8 @@ class Gateway:
         return token, budget
 
     def close(self):
+        for budget in self.sessions.values():
+            budget.cancel.set()
         self.server.shutdown()
         self.server.server_close()
         self.thread.join()

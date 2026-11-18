@@ -53,7 +53,21 @@ class CodingTaskRunner:
     def execute(self, request, output):
         require(request.backend == self.backend, "Task execution domain mismatch")
         output = Path(output)
-        output.mkdir(parents=True, exist_ok=False)
+        if (output/'RESULT_SEALED.json').exists():
+            from .sealed import load_result
+            return load_result(output,request.record_hash)
+        if output.exists():
+            from .sealed import load_sealed
+            if (output/'agent').exists():
+                load_sealed(output/'agent',request.record_hash)
+            else:
+                from self_curate.training.recovery import read_json
+                require((output/'request.json').is_file() and read_json(output/'request.json')==request.to_dict(),
+                        'Native recovery request identity mismatch')
+            # A failed grader must be reconciled before its directory is reused.
+            # SWEJudge owns bounded, persisted grade-only retries.
+        else:
+            output.mkdir(parents=True, exist_ok=False)
         started = perf_counter()
         calls = []
         generated = None
@@ -100,7 +114,9 @@ class CodingTaskRunner:
                         environment["preserve_native_resources"] is True,
                         "Do not replace Harbor native task resources",
                     )
-                    row = (self.pro if kind == "swe_pro_v2" else self.harbor).run(
+                    from .phases import timed_call
+                    row = timed_call(output/'timing-segments','native_trial',
+                        (self.pro if kind == "swe_pro_v2" else self.harbor).run,
                         request,
                         payload["task_path"],
                         binding,
@@ -157,7 +173,8 @@ class CodingTaskRunner:
                             "Invalid task execution budget",
                         )
                     client = self.client_factory(binding, output / "model-calls")
-                    row = self.mini(
+                    from .phases import timed_call
+                    row = timed_call(output/'timing-segments','agent',self.mini,
                         client,
                         self.tokenizer_factory(request.model_ref),
                         request,
@@ -186,6 +203,13 @@ class CodingTaskRunner:
                     require(
                         generated is not None, "Task has unaccounted inference work"
                     )
+                    cleanup=output/'agent'/'cleanup.json'
+                    require(self.mini is not run_claude or cleanup.is_file(),
+                            'Sealed answer has unknown cleanup state; reconcile resources before continuing')
+                    if cleanup.is_file():
+                        from self_curate.training.recovery import read_json
+                        require(read_json(cleanup)['status']=='ok',
+                                'Answer sealed; cleanup pending: quarantine slot and reconcile without inference')
                     reason = row["exit_status"]
                     tokenization, mask = (
                         row["tokenization_hash"],
@@ -196,7 +220,7 @@ class CodingTaskRunner:
                     elif not row["patch"].strip():
                         reward, status = 0.0, "task_failed"
                     else:
-                        judged = self.swe_judge.grade(
+                        judged = timed_call(output/'timing-segments','grading',self.swe_judge.grade,
                             request,
                             instance,
                             row["patch"],
@@ -255,8 +279,14 @@ class CodingTaskRunner:
                     "native_gradient_masks_available": False,
                 },
             )
+            from .phases import lifecycle
+            atomic_json(output/'lifecycle-costs.json',lifecycle(output))
+            from .sealed import seal_result
+            seal_result(output,request.record_hash)
             return result
         except Exception as exc:
+            from .phases import lifecycle
+            atomic_json(output/'lifecycle-costs.json',lifecycle(output))
             atomic_json(
                 output / "failure.json",
                 {

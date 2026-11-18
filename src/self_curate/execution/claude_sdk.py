@@ -93,7 +93,7 @@ async def session(prompt, model, cwd, env, config, output, *, system_prompt=None
                 async for message in messages:
                     name=type(message).__name__
                     row=asdict(message) if is_dataclass(message) else vars(message)
-                    log.write(json.dumps({'sdk_type':name,'data':row},ensure_ascii=False)+'\n');log.flush()
+                    log.write(json.dumps({'sdk_type':name,'data':row,'monotonic':time.monotonic()},ensure_ascii=False)+'\n');log.flush()
                     if name=='AssistantMessage':
                         require(not row.get('error'),'Assistant API error')
                         actions.append({'role':'assistant',**row})

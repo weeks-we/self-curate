@@ -355,3 +355,9 @@ Teacher V1 本地交付验收（2026-11-14）：31 项临时 CPU 检查通过；
 
 
 2026-11-16：当前EXP001使用任务继承标签与M1v4（不发布技能证据片段/比例字段）；EvidenceSelect及evidence_batch删除，operator版本m2-v4。旧M1类型只作历史读取兼容，不能将旧程序当新算子版本恢复。详见CODING_TASK_LABELS_ONLY_ZH.md。
+
+
+2026-11-18：SDK结果封存、清理解耦、网关静默读取取消的部分修复；6项CPU及3×5 mock通过。完整逐项状态和未完成项见 SDK_REPAIR_20261118_ZH.md，尚未正式GPU/容器验收。
+
+
+2026-11-18追加修复：持久SWE判分重试、Pro分阶段、Terminal禁止自动重放、最终全目录seal、压缩时序验证/持久server探针、阶段成本、每槽容量失败证据。25项专项CPU、3×5 mock及EXP001四分支通过。Terminal跨进程verifier-only仍需冻结Harbor适配；真实GPU/SDK/Docker未验收。详见SDK_REPAIR_20261118_ZH.md。

@@ -16,7 +16,13 @@ def archive(name, data, uid=1000, gid=1000):
     return stream.getvalue()
 
 def run_claude(client,tokenizer,request,environment,policy,output,*,docker_factory=None):
-    output=Path(output).resolve();output.mkdir(parents=True,exist_ok=False)
+    output=Path(output).resolve()
+    if output.exists():
+        from .sealed import load_sealed
+        row=load_sealed(output,request.record_hash)
+        client.calls=[{'input_tokens':r['input_tokens'],'output_tokens':r['output_tokens']} for r in row['calls']]
+        return row
+    output.mkdir(parents=True,exist_ok=False)
     cfg=settings(client.binding.get('harness'))
     binding=client.binding
     require(environment['image'].find('@sha256:')>0,'Pin original grader image')
@@ -93,7 +99,21 @@ def run_claude(client,tokenizer,request,environment,policy,output,*,docker_facto
                                        'native_generated_token_mask_available':bool(capture_root),'capture':row.get('native_capture')})
         client.calls=[{'input_tokens':r['input_tokens'],'output_tokens':r['output_tokens']} for r in row['calls']]
         atomic_json(output/'patch.json',{'patch':row['patch'],'exit_status':row['exit_status']})
+        from .sealed import seal
+        seal(output, request.record_hash, row)
         return row
     finally:
-        if container is not None:container.remove(force=True)
-        docker.close()
+        # Cleanup is independent evidence: it must never erase a sealed answer.
+        failures=[]
+        if container is not None:
+            try: container.remove(force=True)
+            except Exception as exc:
+                if getattr(exc, 'status_code', None) != 404:
+                    failures.append({'resource':getattr(container,'id',None),
+                        'type':type(exc).__name__,'message':str(exc)})
+        try: docker.close()
+        except Exception as exc:
+            failures.append({'resource':'docker-client','type':type(exc).__name__,
+                             'message':str(exc)})
+        atomic_json(output/'cleanup.json',{'status':'pending' if failures else 'ok',
+                                         'failures':failures})
