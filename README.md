@@ -1,47 +1,20 @@
-当前 agent harness 已统一迁移到 Claude Agent SDK，见 [接入与验收说明](docs/HARNESS_CLAUDE_SDK_ZH.md)。
+> 2026-11-21：每个benchmark只测最终epoch3一次；仍保存3份训练checkpoint。EXP001共72组测评。最新执行见docs/HANDOFF.md与docs/BENCHMARK_OFFICIAL_CHECK_20261121_ZH.md。
+
+> 2026-11-20最新确认：Random50取消；Initial/Full/Random5/10/20/30，统一3 epoch，18分支/15训练/45 checkpoint/192测评。当前执行请读 docs/HANDOFF.md 与 docs/CHECKPOINT_ACCOUNTING_ZH.md；此前相反数字为历史说明。
 
 # Self-Curate
 
-数据筛选与自改进实验项目，版本 0.16.0。工作目录按正式实验运行维护；开发测试与旧模块演示已归档。
+普通任务上的反馈驱动数据筛选框架。当前主模型 Qwen3.5-9B，扩展模型 Qwen3.5-4B、Llama-3.1-8B-Instruct；thinking 关闭。
 
-- [SFT FSDP / recovery handoff](docs/handoffs/SFT_FSDP_RECOVERY_HANDOFF.md): eight GPU ranks, timestamped outputs, optimizer-state continuation.
-
-## 内外层 CPU 联调
-
-小规模 3×5 嵌套循环的配置和交接见 [CPU mock Handoff](docs/handoffs/NESTED_CPU_MOCK_HANDOFF.md)。
-它只调用合成 mock 后端，不加载真实模型、不使用 GPU；真实实验仍走各自正式入口。
+当前唯一实验方案：[普通任务选型与路线](docs/ORDINARY_EXPERIMENTS_ZH.md)。先做三领域免训、全量及 Random 5%/10%/20% 基线，详见 [EXP001](docs/EXP001_ORDINARY_ZH.md)；服务器 agent 从 [HANDOFF](docs/HANDOFF.md) 开始。
 
 ```bash
-PYTHONPATH=src python -m self_curate.smoke --config configs/smoke/nested_cpu_mock.json --output runs/nested-cpu-new
-PYTHONPATH=src python -m self_curate.smoke --output runs/nested-cpu-new --verify-only
+python -m pip install -e '.[ordinary]'
+python -m self_curate.experiments.ordinary smoke --output runs/ordinary-smoke-new
 ```
 
-## 运行入口
+该验收不用 GPU、目标权重或付费 API。正式配置为 `configs/ordinary/exp001.json`，尚待用户确认参数，默认禁止正式执行。来源 SHA 在 `configs/ordinary/sources.json`。
 
-- [当前 Rebench EXP001 Handoff](docs/handoffs/EXP001_REBENCH_WORKSTATION_V1.md)：唯一总交接入口。
-- [容器部署](docs/SERVER_CONTAINER_DEPLOYMENT_ZH.md)：无 GPU 联网准备、GPU 验收与执行。
-- [文档索引](docs/README.md)、[当前状态](docs/progress.md)、[运行链路](docs/CODE_READING_TUTORIAL_ZH.md)。
+数据原生标签接入 M1，三个角色使用 smolagents ToolCallingAgent；普通 benchmark 直接生成后由官方 checker 判分。工作站准备下载与镜像，集群断网训练/推理。旧 SWE 实验配置、交接及设计文档已退出，通用模块契约保留。
 
-当前使用 `rebench.workstation.json` 和 `workstation.bindings.template.json`，按总交接生成
-冻结的 `server.resolved.json`。`server_bootstrap.template.json`、`sources.json` 和旧 V3
-交接中的 SWE-smith 来源不是本次入口；不要直接执行旧 bootstrap 的 stage all。
-`server.template.json` 仅作为配置生成的底稿，必须由 Rebench 准备流程替换来源及真实回执。
-实际数据、权重、镜像和 GPU 容量必须在服务器核验；不能把模板当成已验收配置。
-
-```bash
-python -m self_curate.server --help
-python -m self_curate.experiments.exp001 --help
-python -m self_curate.experiments.exp001.status --output <run-directory> --watch
-```
-
-EXP001 的 mock.json 与整体 CPU 预演后端保留，用于部署前检查训练/验证/恢复/打包链路，
-不下载目标模型，不产生研究结论。五个旧模块级 *-demo 命令和测试工程已删除。
-
-## 目录和提交
-
-src/ 为运行模块，configs/ 为实验/角色配置，docker/ 为环境构建，docs/ 为需求、接口与交接。
-没有维护中的 tests/ 或 pytest 开发依赖。数据、模型、缓存、凭据、状态和结果不提交 Git。
-运行必需的版本/数据校验、任务验证、恢复检查、容量验收继续保留。
-
-开发测试和演示的完整源码备份在本地被忽略的 runs/runtime-only-20261109/；
-该备份不会随 Git 更新到师兄服务器。用户自行 commit/push，助手不代执行。
+源码、配置进入 Git；数据、权重、缓存、运行结果和个人会议材料不进入 Git。项目结构见 [阅读顺序](docs/CODE_READING_TUTORIAL_ZH.md)。

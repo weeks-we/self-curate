@@ -1,0 +1,11 @@
+smolagents==1.26.0
+openai==3.57.0
+transformers==5.23.0
+accelerate==1.16.0
+datasets==5.2.0
+peft==0.22.0
+pyarrow==26.0.1
+jsonschema>=4.20,<5
+nvidia-ml-py>=12
+PyYAML>=6,<7
+flash-linear-attention==0.6.0

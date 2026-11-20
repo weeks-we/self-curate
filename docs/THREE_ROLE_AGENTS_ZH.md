@@ -1,3 +1,5 @@
+> Current ordinary-task entrypoint and experiment parameters: ORDINARY_EXPERIMENTS_ZH.md and HANDOFF.md. Below describes reusable interfaces, not an active experiment configuration.
+
 # 三角色共享参数、Prompt 与 History 隔离（0.6.1）
 
 当前 0.9.0 增加 [两套 Leval 内核与历史反馈槽位](LEVAL_BACKENDS_ZH.md)。共享角色参数仍冻结；可选候选 SFT 只训练独立分支。Leval 的 `work.prompt_slots` 与 Lopt 的 `work.handoff.prompt_slots` 承接本次/同条件历史比较，旧角色接口保持兼容。以下角色协议本身不承担数值计算；数值计算由 valuation 包执行。

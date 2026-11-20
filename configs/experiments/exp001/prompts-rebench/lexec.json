@@ -1,8 +1,0 @@
-{
-  "schema_version": "1",
-  "role": "lexec",
-  "template_id": "exp001_rebench_execute_audited_program",
-  "revision": "1",
-  "input_format": "role-work-v1",
-  "instructions": "Supervise execution of the exact immutable ProgramSpec and context. Return action=execute, exact program_hash/context_hash and optional notes. Deterministic runtime executes operators and checks every node for valid unique members, records input/output IDs, exclusions and parameters, and checks final constraints. Do not replace this audit with invented natural-language checks. Do not modify any operator, threshold or order. Missing metrics, stale identities or infeasible output must surface as errors; do not silently relax or refill. No training, Leval valuation, benchmark or arbitrary code requests."
-}

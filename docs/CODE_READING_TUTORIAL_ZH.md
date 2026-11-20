@@ -1,19 +1,11 @@
-# 正式实验运行链路
+# 代码阅读顺序
 
-从 [V3 Handoff](handoffs/EXP001_SERVER_V3.md) 和 [服务器部署](SERVER_CONTAINER_DEPLOYMENT_ZH.md) 开始。
-旧的依赖测试目录和模块 demo 的开发教程已移除。以下对应实际运行代码。
+1. 先读 `ORDINARY_EXPERIMENTS_ZH.md` 与 `configs/ordinary/exp001.json`：明确实验一不调用 agent，训练和评测不是同一个进程职责。
+2. 看 `preparation/ordinary.py` 的 `adapt/prepare`：真实一条样本怎样成为固定 ID、原生标签与 user/assistant 对；再看 `ordinary_m1.py` 如何接既有 data/MetricView。
+3. 看 `experiments/ordinary/sources.py`、`workstation.py`、`benchmarks.py`：来源、下载、题单、隔离和校验如何冻结。
+4. 看 `experiments/ordinary/workflow.py` 的 `plan/execute`：一个领域如何产生五分支，哪个状态先落盘，中断后怎样避免重复执行。
+5. 看 `training/ordinary.py`：token 掩码 → HF Trainer → FSDP2/LoRA → checkpoint/final。与既有内外层训练契约分开看，不把协议实现误认为 GPU 已验收。
+6. 看 `evaluation.py` → `grade.py` → `backend.py`：模型只看题，标准答案只由判分读取，生成代码只在 CPU 隔离容器执行。
+7. 最后看 `agents/ordinary.py`、`smol_client.py`、`agents/runtime.py` 和三个 prompt：它们为实验二准备，保持已有 Lexec/Leval/Lopt 协议，不是实验一中的额外评测器。
 
-1. `server/bootstrap.py`：解析计划，核对来源与资源，连接数据准备、preflight 和实验入口。
-2. `server/assets.py`、`preparation/`：CPU 联网下载、任务镜像准备、准入/隔离、技能证据和数据清单。
-3. `experiments/exp001/initial.py`：共同 M0 测评、全池指标与一次固定策略；`assets/` 负责按身份复用。
-4. `operators/`、`data/`、`contracts/`：读取标签、确定性筛选、精确批次与版本校验。
-5. `experiments/exp001/runner.py`、`training/continuous.py`：四个独立分支、连续三波、checkpoint 和恢复。
-6. `execution/`、`validation/`：模型服务、工具/容器执行、官方判分、任务结果及费用。
-7. `experiments/exp001/delivery.py`：检查完成状态、导出和验证结果 ZIP。
-
-运行观察：`executions/<run_id>/progress` 与 services 保存阶段进度和服务利用率，
-`runs/<run_id>` 保存训练/逐题结果，`runs/deliverables/<run_id>/results.zip` 用于交付。
-
-EXP001 关闭 Leval、刷新和接收/退回；这些通用模块仍服务后续实验，接口见
-[内层搜索](INNER_SEARCH_ZH.md)、[Leval](LEVAL_BACKENDS_ZH.md)、[通用外层](OUTER_TRAINING_ZH.md)。
-业务任务验证和运行时校验属于运行依赖，不因名字含 validate/check 而删除。
+运行 `python -m self_curate.experiments.ordinary smoke --output runs/readthrough-new`，对照输出 plan/selections、state、events、角色 request/steps/usage、acceptance；所有示例明确 synthetic。

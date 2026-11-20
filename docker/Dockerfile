@@ -1,46 +1,34 @@
-# syntax=docker/dockerfile:1.7
-# Set BASE_IMAGE to a reviewed digest in the build plan; no credentials in ARG.
-ARG BASE_IMAGE=nvidia/cuda:12.8.1-devel-ubuntu24.04
-FROM ${BASE_IMAGE} AS runtime
-ENV DEBIAN_FRONTEND=noninteractive PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    VIRTUAL_ENV=/opt/venv PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-venv python3-dev git curl ca-certificates build-essential \
-    docker.io docker-compose-v2 && rm -rf /var/lib/apt/lists/*
-RUN python3 -m venv /opt/venv && pip install --upgrade pip setuptools wheel
-# Required full commits: resolve once in the network build environment, then
-# record and reuse them. Never resolve main again in the GPU job.
-ARG SWESMITH_COMMIT
-ARG SWEBENCH_COMMIT
-ARG HARBOR_COMMIT
-RUN python -c 'import os,re; values=[os.environ.get(n, "") for n in ("SWESMITH_COMMIT","SWEBENCH_COMMIT","HARBOR_COMMIT")]; assert all(re.fullmatch("[0-9a-f]{40}", x) for x in values), "Three full harness commit IDs are required"'
-WORKDIR /opt/self-curate
+# Build on the networked workstation; transfer with docker save/load.
+# Freeze built image digests and pip freeze before cluster execution.
+ARG GPU_BASE=vllm/vllm-openai:v0.34.0
+FROM python:3.12-slim AS prepare
+RUN apt-get update && apt-get install -y --no-install-recommends git git-lfs ca-certificates build-essential && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install -e '.[server]' \
-    "swesmith[validate] @ git+https://github.com/SWE-bench/SWE-smith.git@${SWESMITH_COMMIT}" \
-    "swebench @ git+https://github.com/SWE-bench/SWE-bench.git@${SWEBENCH_COMMIT}" \
-    "harbor @ git+https://github.com/harbor-framework/harbor.git@${HARBOR_COMMIT}"
-# Host roles use the same isolated SDK; this does not modify task/testbed interpreters.
-ARG CLAUDE_SHA256
-COPY docker/requirements-sdk.txt /opt/self-curate-sdk-requirements.txt
-RUN python3 -m venv /opt/self-curate-sdk \
-    && /opt/self-curate-sdk/bin/pip install -r /opt/self-curate-sdk-requirements.txt \
-    && /opt/self-curate-sdk/bin/pip install --no-deps /opt/self-curate
-COPY docker/install_claude.py /opt/self-curate-sdk/install_claude.py
-RUN CLAUDE_SHA256=${CLAUDE_SHA256} /opt/self-curate-sdk/bin/python /opt/self-curate-sdk/install_claude.py
-COPY configs ./configs
-COPY docs ./docs
-RUN mkdir -p /opt/build-evidence && pip freeze --all > /opt/build-evidence/requirements.lock.txt \
-    && python -c "import importlib.metadata as m,json; from pathlib import Path; Path('/opt/build-evidence/harnesses.json').write_text(json.dumps({n:m.distribution(n).read_text('direct_url.json') for n in ('swesmith','swebench','harbor')},indent=2))"
-# Writable, persistent storage is supplied by the platform; it is not a layer
-# containing credentials, experiment results or one more copy of every weight.
-CMD ["python", "-m", "self_curate.server", "--help"]
+COPY configs/ordinary ./configs/ordinary
+RUN pip install --no-cache-dir -e . huggingface_hub datasets==5.2.0 pyarrow==26.0.1 transformers==5.23.0 smolagents==1.26.0 openai==3.57.0 evalplus==0.3.1
+RUN pip check && pip freeze > /opt/environment.freeze.txt
+ENTRYPOINT ["python", "-m", "self_curate.experiments.ordinary"]
 
-# Optional large source image. No GPU and no Docker daemon are needed to build
-# this target. Task images are prepared separately against the execution daemon.
-FROM runtime AS with-sources
-RUN --mount=type=secret,id=hf_token,required=false \
-    if [ -f /run/secrets/hf_token ]; then export HF_TOKEN="$(cat /run/secrets/hf_token)"; fi; \
-    python -m self_curate.server --plan configs/experiments/exp001/server_bootstrap.template.json \
-        --stage download --execution server
+FROM prepare AS grader
+COPY docker/install_graders.py /tmp/install_graders.py
+RUN python /tmp/install_graders.py
+# Official Olympiad SymPy needs ANTLR 4.11; math-verify uses a separate stack.
+RUN python -m venv /opt/olympiad && /opt/olympiad/bin/pip install sympy==1.13.3 antlr4-python3-runtime==4.11.1
+ENV NLTK_DATA=/opt/nltk_data PYTHAINLP_DATA=/opt/pythainlp_data PYTHAINLP_READ_ONLY=1 PYTHAINLP_OFFLINE=1 SELF_CURATE_GRADER_SANDBOX=1 PYTHONPATH=/app/src
+RUN pip freeze > /opt/environment.freeze.txt
+ENTRYPOINT []
+
+FROM ${GPU_BASE} AS gpu
+RUN apt-get update && apt-get install -y --no-install-recommends docker.io git build-essential && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY configs/ordinary ./configs/ordinary
+COPY docker/ordinary-runtime.txt /tmp/ordinary-runtime.txt
+RUN python -m pip install --no-cache-dir -r /tmp/ordinary-runtime.txt -e . && python -m pip check && python -m pip freeze > /opt/environment.freeze.txt
+# This CUDA extension must be built/downloaded here, never on offline compute.
+RUN python -m pip install --no-build-isolation causal-conv1d==1.7.0 && python -m pip check && python -m pip freeze > /opt/environment.freeze.txt
+ENV HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 TOKENIZERS_PARALLELISM=false
+ENTRYPOINT ["python", "-m", "self_curate.experiments.ordinary"]

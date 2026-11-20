@@ -1,0 +1,234 @@
+{
+  "schema": "ordinary-exp001-v1",
+  "experiment": "exp001",
+  "status": "draft_parameters_require_confirmation",
+  "approved": false,
+  "model": "qwen9b",
+  "domains": [
+    "coding",
+    "math",
+    "if"
+  ],
+  "seed": 42,
+  "random_fractions": [
+    0.05,
+    0.1,
+    0.2,
+    0.3
+  ],
+  "nested_random": true,
+  "full_pool": "all_admissible_unique_problems_in_the_frozen_domain_candidate_pool",
+  "training": {
+    "method": "lora",
+    "epochs": 3,
+    "learning_rate": 2e-05,
+    "learning_rate_candidates": [
+      1e-05,
+      2e-05,
+      5e-05
+    ],
+    "max_length": 8192,
+    "micro_batch_size": 4,
+    "gradient_accumulation_steps": 1,
+    "world_size": 8,
+    "global_batch_size": 32,
+    "bf16": true,
+    "gradient_checkpointing": true,
+    "packing": false,
+    "warmup_ratio": 0.03,
+    "weight_decay": 0.0,
+    "lora_rank": 32,
+    "lora_alpha": 64,
+    "lora_dropout": 0.0,
+    "lora_target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj",
+      "in_proj_qkv",
+      "in_proj_z",
+      "in_proj_b",
+      "in_proj_a",
+      "out_proj"
+    ],
+    "logging_steps": 5,
+    "dataloader_num_workers": 4,
+    "fsdp": "native_transformers_fsdp2",
+    "length_grouping": true,
+    "require_optimized_linear_kernels": true,
+    "save_strategy": "epoch",
+    "save_total_limit": 3,
+    "save_only_model": false,
+    "optimizer": "adamw_torch_fused",
+    "fsdp_reshard_after_forward": false,
+    "pad_to_multiple_of": 8
+  },
+  "evaluation": {
+    "temperature": 0,
+    "top_p": 1,
+    "max_tokens": 4096,
+    "math_max_tokens": 8192,
+    "thinking": false,
+    "replicas": 8,
+    "tensor_parallel_size": 1,
+    "max_num_seqs_per_replica": 32,
+    "max_model_len": 16384,
+    "gpu_memory_utilization": 0.9,
+    "benchmarks": {
+      "coding": [
+        "livecodebench",
+        "humaneval_plus",
+        "mbpp_plus",
+        "bigcodebench"
+      ],
+      "math": [
+        "math500",
+        "aime25",
+        "aime26",
+        "olympiad",
+        "gsm_plus"
+      ],
+      "if": [
+        "ifeval",
+        "ifbench",
+        "multi_if"
+      ]
+    },
+    "selection_on_test": false,
+    "checkpoint": "final_epoch_after_training",
+    "code_execution": "network_disabled_container_required",
+    "epochs": [
+      3
+    ],
+    "primary_epoch": 3,
+    "select_best_on_benchmark": false,
+    "protocol_notes": {
+      "generation": "project-defined greedy single sample; budgets are not universal official defaults",
+      "ifeval": "official strict/loose prompt and instruction metrics",
+      "ifbench": "official loose prompt accuracy primary; strict secondary",
+      "multi_if": "official four-metric mean per turn and across turns; English-only, not multilingual paper aggregate",
+      "math500_aime_gsm_plus": "project Math-Verify answer-equivalence protocol, not a universal official script"
+    }
+  },
+  "development": {
+    "coding_source": "taco_train",
+    "per_skill": 50,
+    "allow_overlap": true,
+    "on_shortage": "fail_and_report",
+    "math": "finalize_after_exp001_50_per_skill",
+    "if": "finalize_after_exp001_50_per_skill",
+    "publication": "after_exp001",
+    "exp001_overlap": "record_exposure_not_independent_validation",
+    "coding": "finalize_after_exp001_from_train_50_per_skill",
+    "test_policy": "final_evaluation_only_never_development"
+  },
+  "hardware": {
+    "gpu_count": 8,
+    "gpu_memory_gb": 141,
+    "gpu_uuids": [],
+    "throughput_preflight": {
+      "required": true,
+      "fixed_global_batch_size": 32,
+      "micro_accumulation_candidates": [
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "warmup_steps": 2,
+      "measured_steps": 5,
+      "record": [
+        "valid_input_tokens_per_second",
+        "supervised_tokens_per_second",
+        "peak_memory_per_gpu",
+        "step_seconds"
+      ],
+      "select": "highest measured useful-token throughput passing full-length backward and resume",
+      "note": "server acceptance only; freeze one common setting before formal runs; do not auto-increase global batch"
+    }
+  },
+  "runtime": {
+    "execution": "server",
+    "offline": true,
+    "automatic_parameter_changes": false,
+    "require_server_smoke": true
+  },
+  "estimate": {
+    "aggregate_training_tokens_per_second": [
+      5000,
+      20000
+    ],
+    "aggregate_generation_tokens_per_second": [
+      500,
+      2500
+    ],
+    "status": "planning_assumptions_not_measured",
+    "random_plus_full_multiplier": 1.65
+  },
+  "domain_pool_policy": {
+    "coding": {
+      "method": "all_admissible"
+    },
+    "math": {
+      "method": "hierarchical_proportional_without_replacement",
+      "repo": "project-numina/NuminaMath-1.5",
+      "count": 50000,
+      "seed": 42,
+      "strata": [
+        "source",
+        "problem_type"
+      ],
+      "rounding": "largest_remainder_exact_total",
+      "sampling_stage": "before_admission",
+      "status": "confirmed",
+      "sft_enrichment_required": false,
+      "proof_policy": {
+        "sft": "include_if_other_admission_rules_pass",
+        "development": "exclude",
+        "automatic_evaluation": "exclude"
+      }
+    },
+    "if": {
+      "method": "all_admissible"
+    }
+  },
+  "postprocessing": {
+    "required": true,
+    "timing": "after_training_and_benchmark",
+    "skill_schema": "configs/ordinary/skills.json",
+    "math_labels": "inherit_native_problem_type_and_audit_mapping",
+    "task_split_per_skill": 50,
+    "length_primary": "answer_tokens",
+    "length_others": [
+      "answer_chars",
+      "prompt_tokens",
+      "length"
+    ],
+    "publication": "distribution_and_future_train_dev_manifests"
+  },
+  "admission_boundaries": {
+    "rerun_all_code_solutions": false,
+    "verify_math_derivations": false,
+    "verify_all_if_constraints": false,
+    "deduplication": "normalized_exact_question",
+    "missing_skill_labels": "retain_for_full_random_then_resolve_before_development",
+    "max_length_status": "8192_draft_pending_exclusion_rate"
+  },
+  "confirmed_parameters": {
+    "epochs": 3,
+    "checkpoint_saving": "each_epoch",
+    "benchmark_evaluation": "final_epoch_only",
+    "primary_report": "epoch3_only_keep_all_training_costs"
+  }
+}

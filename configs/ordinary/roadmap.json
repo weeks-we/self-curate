@@ -1,0 +1,100 @@
+{
+  "schema": "ordinary-roadmap-v1",
+  "experiments": [
+    {
+      "id": "exp001",
+      "models": [
+        "qwen9b"
+      ],
+      "domains": [
+        "coding",
+        "math",
+        "if"
+      ],
+      "methods": [
+        "initial",
+        "full",
+        "random05",
+        "random10",
+        "random20"
+      ]
+    },
+    {
+      "id": "exp002",
+      "models": [
+        "qwen9b"
+      ],
+      "domains": [
+        "coding"
+      ],
+      "methods": [
+        "v0",
+        "v1",
+        "v3"
+      ],
+      "outer_rounds": 3,
+      "inner_rounds": 5,
+      "valuation": "pending_nice_or_sft",
+      "status": "design_only"
+    },
+    {
+      "id": "exp003",
+      "models": [
+        "qwen9b",
+        "qwen4b",
+        "llama8b"
+      ],
+      "domains": [
+        "coding",
+        "math",
+        "if"
+      ],
+      "methods": [
+        "control_learning",
+        "baselines",
+        "additional_models_full_random"
+      ],
+      "status": "design_only"
+    },
+    {
+      "id": "exp004",
+      "models": [
+        "qwen9b",
+        "qwen4b",
+        "llama8b"
+      ],
+      "domains": [
+        "coding",
+        "math",
+        "if"
+      ],
+      "methods": [
+        "complete_framework"
+      ],
+      "status": "design_only"
+    }
+  ],
+  "selection_fraction_by_domain": {
+    "coding": null,
+    "math": null,
+    "if": null
+  },
+  "fraction_policy": "freeze_one_fraction_per_domain_apply_to_all_models_and_methods",
+  "deferred": [
+    "single_agent_ablation",
+    "selection_capability_verification"
+  ],
+  "comparison_training_protocol": {
+    "epochs": 3,
+    "scope": "full_random_selected_subsets_and_baseline_target_SFT",
+    "report_epochs": [
+      1,
+      2,
+      3
+    ],
+    "primary_epoch": 3,
+    "final_benchmark_selection": false,
+    "original_recipe_reproduction": "separate_supplement",
+    "selection_auxiliary_training": "retain_method_definition_and_report_cost_separately"
+  }
+}

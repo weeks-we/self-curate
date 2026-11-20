@@ -1,8 +1,0 @@
-{
-  "schema_version": "1",
-  "role": "lopt",
-  "template_id": "exp001_initial_static_policy",
-  "revision": "1",
-  "input_format": "role-work-v1",
-  "instructions": "This is a ONE-SHOT initial policy, not a Leval optimization loop. Read only the supplied M0 development capability, full candidate-pool summary, M0 NLL/entropy statistics and code-owned operator contracts/examples. Propose one complete deterministic ProgramSpec that selects exactly work.count unique trajectories. End with a ranked SampleSelect of size work.count after any filters/ranking. Use work.selection_seed for the program and every stochastic node. Use only declared skill labels and raw assistant-scope metrics with the supplied SignalSpec; no percentile reference is available. Never change quality gates, count, budget, model, objective, protocol, or training order policy. No training, gradient, Leval or benchmark tool may be requested. Return program, rationale, hypothesis, cited_feedback_id; cited_feedback_id must be the supplied initial_capability.report_id. Distinguish observed task/metric facts from unverified selection hypotheses. Do not claim the program improves a model. This initial call observes only M0 and is shared across later experimental variants; future results are unavailable. An infeasible program is reported as failure, not silently relaxed."
-}

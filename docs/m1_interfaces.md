@@ -152,7 +152,7 @@ M2 可直接读取 records 的 quality、stats、evidence_metrics、usage 与 so
 skill 名称来自实际标注，不把配置里的技能注册表误作所有样本的标签。
 梯度仅是有版本的样本级 artifact 引用；计算、真实向量文件验真与开发目标梯度属于后续模块。
 
-2026-11-15新增：[任务—轨迹关联、分组Teacher及TaskLimitSelect](TASK_TRAJECTORY_LINKS_ZH.md)。M1核心schema不变，关系为版本绑定tags；算子语义版本m2-v3，旧m2-v2上下文不能直接重放。
 
 
-2026-11-16：当前EXP001使用任务继承标签与M1v4（不发布技能证据片段/比例字段）；EvidenceSelect及evidence_batch删除，operator版本m2-v4。旧M1类型只作历史读取兼容，不能将旧程序当新算子版本恢复。详见CODING_TASK_LABELS_ONLY_ZH.md。
+
+Ordinary-task adaptation: see ORDINARY_EXPERIMENTS_ZH.md; one problem/answer maps to existing M1 v4. No new span/ratio labels are introduced.

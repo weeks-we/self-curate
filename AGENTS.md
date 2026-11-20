@@ -1,3 +1,5 @@
+> 2026-11-20最新确认：Random50取消；Initial/Full/Random5/10/20/30，统一3 epoch，18分支/15训练/45 checkpoint/72测评。当前执行请读 docs/HANDOFF.md 与 docs/CHECKPOINT_ACCOUNTING_ZH.md；此前相反数字为历史说明。
+
 # Self-Curate project instructions
 
 Read `docs/self_curate_codex_blueprint.md`, `docs/decisions.md`, and
@@ -46,3 +48,30 @@ do not import neighboring projects or inherit their experiment configuration.
 - Do not commit datasets, weights, caches, credentials, or generated run outputs.
 - Do not commit, push, or merge on the user's behalf.
 - Report only checks actually run; separate local acceptance from real-model/research validation.
+
+## 2026-11-20 authorized migration
+
+The user replaced SWE trajectory experiment plans with ordinary-task experiments.
+The active entrypoint is self_curate.experiments.ordinary; configs/ordinary/exp001.json
+and docs/HANDOFF.md are authoritative. EXP001 uses no agents/NICE, just independent
+initial/full/random 5/10/20/30% branches across coding/math/IF, main Qwen3.5-9B,
+thinking off. Random50 is removed. Full and Random all train 3 epochs and save every epoch checkpoint and evaluate
+only epoch3: 18 branches, 15 SFT, 45 checkpoints, 72 benchmark results.
+Epoch3 is predeclared primary; no final-test checkpoint selection.
+
+Math samples exactly 50,000 raw NuminaMath-1.5 rows proportionally by source, then
+problem_type within source, seed42, exact largest-remainder quotas. Valid proof
+solutions remain eligible for SFT but not automatically graded development.
+Publish labels/distributions/development/future-training after EXP001. Development
+comes from TRAIN in all domains, 50/skill, with overlap deduplicated; TACO test is
+final-only. These tasks may already have been exposed to EXP001 Full, so subsequent
+experiments must start from the original base and exclude them for clean validation.
+
+ToolCallingAgent backs generic role runtime. Preserve M1/operator/inner/outer contracts.
+Model/benchmark preparation occurs on the workstation; compute nodes run offline.
+Other training parameters remain unapproved. No local weights/GPU/container runs.
+CPU synthetic acceptance is separate from server FSDP2/vLLM/official-grader acceptance.
+Checkpoint and report accounting is defined in docs/CHECKPOINT_ACCOUNTING_ZH.md.
+Private NICE redesign instructions under ignored docs/meetings are a proposal for
+another directory, not an active EXP001/NICE implementation or permission to mutate
+the neighboring NICE repository.

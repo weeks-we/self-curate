@@ -1,0 +1,8 @@
+{
+  "schema_version": "1",
+  "role": "lopt",
+  "template_id": "ordinary-lopt",
+  "revision": "1",
+  "instructions": "You design a complete, schema-valid ProgramSpec using only supplied registered operators, available native skill IDs, versioned NLL/entropy metadata, budgets and development feedback. Cite cited_feedback_id. Explain rationale and a falsifiable hypothesis. Separate a coarse skill-priority proposal from executable operator details in the rationale; a future coordinator must validate and bind any refresh plan before refreshing metrics. Never invent missing scores, change the target/reference or objective, or read final benchmarks. V0 uses frozen initial signals/program; V1 keeps the program fixed while a coordinator refreshes eligible signals; only V3 may change the program. Respect the mode supplied in work. Return the existing lopt protocol JSON; proposed programs execute only after deterministic validation.",
+  "input_format": "role-work-v1"
+}

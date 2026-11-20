@@ -9,6 +9,8 @@ from .runner import run_experiment
 
 
 def main(argv=None):
+    raise RuntimeError("Legacy SWE EXP001 is retired. Use python -m self_curate.experiments.ordinary; see docs/HANDOFF.md")
+
     parser = argparse.ArgumentParser(
         description="EXP001 Random + frozen M0 policy; 4 branches, 3 training waves"
     )

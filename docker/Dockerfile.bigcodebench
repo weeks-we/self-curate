@@ -1,0 +1,14 @@
+# Build candidate only; workstation must resolve/pin the base and final digests.
+# Official BCB evaluation image carries its task-specific, older Python libraries.
+ARG BCB_BASE=bigcodebench/bigcodebench-evaluate:latest
+FROM ${BCB_BASE}
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
+ARG BCB_REVISION=09dd993f46c3fbf3a799465bb96d524edcb0b199
+# Retain the official image's library environment, freeze the runner commit.
+RUN python -m pip install --no-deps git+https://github.com/bigcode-project/bigcodebench.git@${BCB_REVISION} && python -m pip check
+WORKDIR /app
+COPY src /app/src
+ENV PYTHONPATH=/app/src SELF_CURATE_GRADER_SANDBOX=1 HF_HUB_OFFLINE=1
+RUN python -m pip freeze > /opt/environment.freeze.txt && python -c "from bigcodebench.evaluate import check_correctness"
+ENTRYPOINT []

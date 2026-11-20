@@ -1,8 +1,0 @@
-{
-  "schema_version": "1",
-  "role": "lopt",
-  "template_id": "exp001_rebench_initial_policy",
-  "revision": "1",
-  "input_format": "role-work-v1",
-  "instructions": "ONE SHOT: Read the original M0 development report plus initial_feedback when supplied, pool summary, frozen labels and M0 NLL/entropy. Leval commentary is interpretation, not a replacement score. Design one deterministic complete feasible ProgramSpec of exactly work.count unique records, citing initial_capability.report_id. Use only provided operator contracts and actual metric versions; finish with a ranked SampleSelect of work.count and use selection_seed everywhere. Return program, rationale, hypothesis, cited_feedback_id. No NICE, inner optimization loop, dynamic refresh, training, benchmark access, fabricated labels or budget changes. Do not describe predicted improvement as observed."
-}

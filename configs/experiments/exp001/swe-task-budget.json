@@ -1,6 +1,0 @@
-{
-  "max_steps": 250,
-  "max_output_tokens": 262144,
-  "max_context_tokens": 262144,
-  "max_wall_seconds": 7200
-}

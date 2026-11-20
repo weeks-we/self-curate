@@ -97,7 +97,6 @@ ModelStore 实现 load_branch、save_branch、load_checkpoint；必须加载确�
 
 通用 StateDictModelStore 接受 model_factory、initial_model、initial_state，加载现有本地 torch state_dict；初始 ModelRef.weights_hash 必须是初始文件 SHA256。factory 必须返回新实例。adapter store 声明 checkpoint_kind=adapter，起始模型必须有 adapter_hash；更新实际 adapter hash，保持基座 weights_hash。full store 处理无 adapter_hash 的完整模型。
 
-训练 loss 仅为拟合诊断，不用于声称能力提升。上述 Torch 后端说明保留其基础语义；正式 EXP001 已接入 Accelerate FSDP、BF16 LoRA 与训练断点恢复，见 SFT_FSDP_RECOVERY_HANDOFF.md。当前配方使用常数学习率，没有引入 scheduler。
 
 ## 任务验证与判断
 
@@ -138,3 +137,5 @@ OuterCycle 已支持新运行的进程恢复：使用 `OuterCycle.restore(search
 后续按项填入 model store、筛选轨迹生产者、真实 TaskRunner 和固定判断标准；真实权重与任务环境需服务器验收。
 
 未知判断器/轨迹生产调用恢复后以 pending_operation 标记等待，不能自动重发；可显式补交绑定上下文的决定或轨迹数据，或调用 retry(reason=...) 限次授权。
+
+Current EXP001 uses training/ordinary.py: native HF Trainer/Accelerate FSDP2, LoRA, scheduler/optimizer/RNG checkpoint recovery. See EXP001_ORDINARY_ZH.md. Earlier Torch backend descriptions above apply only to the generic legacy backend.

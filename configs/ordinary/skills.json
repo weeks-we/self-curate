@@ -1,0 +1,40 @@
+{
+  "version": "ordinary-skills-v2-proposal",
+  "domains": {
+    "coding": {
+      "amortized_analysis": "Amortized analysis",
+      "bit_manipulation": "Bit manipulation",
+      "complete_search": "Complete search",
+      "data_structures": "Data structures",
+      "dynamic_programming": "Dynamic programming",
+      "greedy_algorithms": "Greedy algorithms",
+      "range_queries": "Range queries",
+      "sorting": "Sorting"
+    },
+    "math": {
+      "algebra": "Algebra and inequalities",
+      "geometry": "Geometry",
+      "number_theory": "Number theory",
+      "combinatorics": "Combinatorics",
+      "probability": "Probability and statistics",
+      "calculus": "Calculus and limits",
+      "logic": "Logic"
+    },
+    "if": {
+      "lexical": "lexical",
+      "format": "format",
+      "length": "length",
+      "required_content": "required_content",
+      "boundary": "boundary",
+      "language": "language",
+      "case": "case",
+      "punctuation": "punctuation",
+      "composition": "composition",
+      "style": "style"
+    }
+  },
+  "multi_label": true,
+  "unknown": "review_required",
+  "per_skill_development": 50,
+  "status": "coverage_audit_required"
+}

@@ -1,0 +1,314 @@
+{
+  "schema": "ordinary-source-registry-v1",
+  "sources": {
+    "qwen9b": {
+      "kind": "model",
+      "repo": "Qwen/Qwen3.5-9B",
+      "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "url": "https://huggingface.co/Qwen/Qwen3.5-9B",
+      "family": "qwen3_5",
+      "loader": "AutoModelForImageTextToText",
+      "tool_parser": "qwen3_coder"
+    },
+    "qwen4b": {
+      "kind": "model",
+      "repo": "Qwen/Qwen3.5-4B",
+      "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+      "url": "https://huggingface.co/Qwen/Qwen3.5-4B",
+      "family": "qwen3_5",
+      "loader": "AutoModelForImageTextToText",
+      "tool_parser": "qwen3_coder"
+    },
+    "llama8b": {
+      "kind": "model",
+      "repo": "meta-llama/Llama-3.1-8B-Instruct",
+      "revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+      "url": "https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct",
+      "family": "llama",
+      "loader": "AutoModelForCausalLM",
+      "tool_parser": "llama3_json",
+      "gated": true
+    },
+    "taco_train": {
+      "kind": "dataset",
+      "repo": "BAAI/TACO",
+      "revision": "d593ed0a2becbbc952230bb89be09189bf1056dc",
+      "url": "https://huggingface.co/datasets/BAAI/TACO",
+      "config": "default",
+      "split": "train",
+      "parquet_glob": "ALL/train-*.parquet",
+      "allow_patterns": [
+        "README.md",
+        "ALL/train-*.parquet"
+      ]
+    },
+    "numina": {
+      "kind": "dataset",
+      "repo": "project-numina/NuminaMath-1.5",
+      "revision": "1b05109f9e5c1ad06c0663519502416c30b300f8",
+      "url": "https://huggingface.co/datasets/project-numina/NuminaMath-1.5",
+      "config": "default",
+      "split": "train",
+      "parquet_glob": "data/train-*.parquet",
+      "allow_patterns": [
+        "README.md",
+        "data/train-*.parquet"
+      ],
+      "sft_solution_available": true,
+      "native_skill_available": true
+    },
+    "personas_if": {
+      "kind": "dataset",
+      "repo": "allenai/tulu-3-sft-personas-instruction-following",
+      "revision": "fe0c7d350c9b4542b8d829a6f1daa1c259f0ba0e",
+      "url": "https://huggingface.co/datasets/allenai/tulu-3-sft-personas-instruction-following",
+      "config": "default",
+      "split": "train",
+      "parquet_glob": "data/train-*.parquet",
+      "allow_patterns": [
+        "README.md",
+        "data/train-*.parquet"
+      ]
+    },
+    "livecodebench": {
+      "kind": "dataset",
+      "repo": "livecodebench/code_generation_lite",
+      "revision": "0fe84c3912ea0c4d4a78037083943e8f0c4dd505",
+      "url": "https://huggingface.co/datasets/livecodebench/code_generation_lite",
+      "release": "release_v6",
+      "split": "test",
+      "purpose": "final_test",
+      "config": "release_v6",
+      "jsonl_files": [
+        "test.jsonl",
+        "test2.jsonl",
+        "test3.jsonl",
+        "test4.jsonl",
+        "test5.jsonl",
+        "test6.jsonl"
+      ],
+      "allow_patterns": [
+        "README.md",
+        "test.jsonl",
+        "test2.jsonl",
+        "test3.jsonl",
+        "test4.jsonl",
+        "test5.jsonl",
+        "test6.jsonl"
+      ]
+    },
+    "humaneval_plus": {
+      "kind": "dataset",
+      "repo": "evalplus/humanevalplus",
+      "revision": "d32357cf319e50e9c8d8dab5ea876c72b0fd321b",
+      "url": "https://huggingface.co/datasets/evalplus/humanevalplus",
+      "split": "test",
+      "purpose": "final_test",
+      "parquet_glob": "data/test-00000-of-00001-5973903632b82d40.parquet",
+      "allow_patterns": [
+        "README.md",
+        "data/test-00000-of-00001-5973903632b82d40.parquet"
+      ]
+    },
+    "mbpp_plus": {
+      "kind": "dataset",
+      "repo": "evalplus/mbppplus",
+      "revision": "b2d74c91837c3f2a20c1299ae98133cbe7cfa077",
+      "url": "https://huggingface.co/datasets/evalplus/mbppplus",
+      "split": "test",
+      "purpose": "final_test",
+      "note": "Freeze actual IDs; HF and EvalPlus releases have different counts",
+      "parquet_glob": "data/test-00000-of-00001-d5781c9c51e02795.parquet",
+      "allow_patterns": [
+        "README.md",
+        "data/test-00000-of-00001-d5781c9c51e02795.parquet"
+      ]
+    },
+    "bigcodebench": {
+      "kind": "dataset",
+      "repo": "bigcode/bigcodebench",
+      "revision": "b74c0d0bf70d2c0bc459be537895cca163007f1a",
+      "url": "https://huggingface.co/datasets/bigcode/bigcodebench",
+      "purpose": "final_test",
+      "variant": "instruct",
+      "subset": "full",
+      "parquet_glob": "data/v0.1.4-*.parquet",
+      "split": "v0.1.4",
+      "allow_patterns": [
+        "README.md",
+        "data/v0.1.4-*.parquet"
+      ]
+    },
+    "math500": {
+      "kind": "dataset",
+      "repo": "HuggingFaceH4/MATH-500",
+      "revision": "6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be",
+      "url": "https://huggingface.co/datasets/HuggingFaceH4/MATH-500",
+      "split": "test",
+      "purpose": "final_test",
+      "jsonl_files": [
+        "test.jsonl"
+      ],
+      "allow_patterns": [
+        "README.md",
+        "test.jsonl"
+      ]
+    },
+    "aime25": {
+      "kind": "dataset",
+      "repo": "math-ai/aime25",
+      "revision": "563bb8404243c5f09de6ec262f2db674fe5bce9b",
+      "url": "https://huggingface.co/datasets/math-ai/aime25",
+      "split": "test",
+      "purpose": "final_test",
+      "jsonl_files": [
+        "test.jsonl"
+      ],
+      "allow_patterns": [
+        "README.md",
+        "test.jsonl"
+      ]
+    },
+    "aime26": {
+      "kind": "dataset",
+      "repo": "math-ai/aime26",
+      "revision": "79037aebdb6580008fb960d17cb21fd3099083e3",
+      "url": "https://huggingface.co/datasets/math-ai/aime26",
+      "split": "test",
+      "purpose": "final_test",
+      "jsonl_files": [
+        "aime2026.jsonl"
+      ],
+      "allow_patterns": [
+        "README.md",
+        "aime2026.jsonl"
+      ]
+    },
+    "olympiad": {
+      "kind": "dataset",
+      "repo": "Hothan/OlympiadBench",
+      "revision": "91184b52131e7fc9455fef848035173aea8cc01a",
+      "url": "https://huggingface.co/datasets/Hothan/OlympiadBench",
+      "config": "OE_TO_maths_en_COMP",
+      "split": "train",
+      "purpose": "final_test",
+      "parquet_glob": "OlympiadBench/OE_TO_maths_en_COMP/*.parquet",
+      "allow_patterns": [
+        "README.md",
+        "OlympiadBench/OE_TO_maths_en_COMP/*.parquet"
+      ]
+    },
+    "gsm_plus": {
+      "kind": "dataset",
+      "repo": "qintongli/GSM-Plus",
+      "revision": "3b708db57b96a16e8e3368ed2956990c0809440e",
+      "url": "https://huggingface.co/datasets/qintongli/GSM-Plus",
+      "purpose": "final_test",
+      "jsonl_files": [
+        "data/test-00000-of-00001.jsonl"
+      ],
+      "allow_patterns": [
+        "README.md",
+        "data/test-00000-of-00001.jsonl"
+      ]
+    },
+    "ifeval": {
+      "kind": "dataset",
+      "repo": "google/IFEval",
+      "revision": "966cd89545d6b6acfd7638bc708b98261ca58e84",
+      "url": "https://huggingface.co/datasets/google/IFEval",
+      "split": "train",
+      "purpose": "final_test",
+      "jsonl_files": [
+        "ifeval_input_data.jsonl"
+      ],
+      "allow_patterns": [
+        "README.md",
+        "ifeval_input_data.jsonl"
+      ]
+    },
+    "ifbench": {
+      "kind": "dataset",
+      "repo": "allenai/IFBench_test",
+      "revision": "ed7c12452594b7028b15807b86d3938150b663ae",
+      "url": "https://huggingface.co/datasets/allenai/IFBench_test",
+      "split": "train",
+      "purpose": "final_test",
+      "parquet_glob": "data/train-*.parquet",
+      "allow_patterns": [
+        "README.md",
+        "data/train-*.parquet"
+      ]
+    },
+    "multi_if": {
+      "kind": "dataset",
+      "repo": "facebook/Multi-IF",
+      "revision": "0ab97ce0b45c7f57772e8ba2ac1616f4b00bd3aa",
+      "url": "https://huggingface.co/datasets/facebook/Multi-IF",
+      "language": "English",
+      "purpose": "final_test",
+      "csv_file": "multiIF_20241018.csv",
+      "allow_patterns": [
+        "README.md",
+        "multiIF_20241018.csv"
+      ]
+    },
+    "evalplus_grader": {
+      "kind": "git",
+      "url": "https://github.com/evalplus/evalplus.git",
+      "revision": "26d6d00bb1fd0fa37f39c99d5290da67891d1c5e"
+    },
+    "lcb_grader": {
+      "kind": "git",
+      "url": "https://github.com/LiveCodeBench/LiveCodeBench.git",
+      "revision": "28fef95ea8c9f7a547c8329f2cd3d32b92c1fa24"
+    },
+    "bcb_grader": {
+      "kind": "git",
+      "url": "https://github.com/bigcode-project/bigcodebench.git",
+      "revision": "09dd993f46c3fbf3a799465bb96d524edcb0b199"
+    },
+    "taco_grader": {
+      "kind": "git",
+      "url": "https://github.com/FlagOpen/TACO.git",
+      "revision": "245eba3beb2d23a07082307de303de2589e4321a"
+    },
+    "ifeval_grader": {
+      "kind": "git",
+      "url": "https://github.com/google-research/google-research.git",
+      "revision": "c878a53ec1764bcb91a6178dc5c315202a3b5fa2",
+      "sparse_paths": [
+        "instruction_following_eval"
+      ]
+    },
+    "ifbench_grader": {
+      "kind": "git",
+      "url": "https://github.com/allenai/IFBench.git",
+      "revision": "488918665d53f867fa908a293769ec6e71e74aec"
+    },
+    "multi_if_grader": {
+      "kind": "git",
+      "url": "https://github.com/facebookresearch/Multi-IF.git",
+      "revision": "1cdb53ed18499ad729e0766e5d3099dd5344406f"
+    },
+    "olympiad_grader": {
+      "kind": "git",
+      "url": "https://github.com/OpenBMB/OlympiadBench.git",
+      "revision": "ba5b26a7e2849940b598a9159c1190daa2b9175f"
+    },
+    "taco_test": {
+      "kind": "dataset",
+      "repo": "BAAI/TACO",
+      "revision": "d593ed0a2becbbc952230bb89be09189bf1056dc",
+      "url": "https://huggingface.co/datasets/BAAI/TACO",
+      "config": "default",
+      "split": "test",
+      "parquet_glob": "ALL/test-*.parquet",
+      "purpose": "final_test_reserved",
+      "allow_patterns": [
+        "README.md",
+        "ALL/test-*.parquet"
+      ]
+    }
+  }
+}

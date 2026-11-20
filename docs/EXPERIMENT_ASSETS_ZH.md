@@ -1,3 +1,5 @@
+> Current ordinary-task entrypoint and experiment parameters: ORDINARY_EXPERIMENTS_ZH.md and HANDOFF.md. Below describes reusable interfaces, not an active experiment configuration.
+
 # 共享实验资产与服务器更新（0.11.0）
 
 2026-11-07。用户确认本轮先落实资产保存/复用与更新规范；Coding 数据准备、Teacher 标注及首次真实测评在第一次实验时执行。附件是后续数据模块的实施规范，本轮没有执行其中的数据下载、API、任务环境或 benchmark 指令。
