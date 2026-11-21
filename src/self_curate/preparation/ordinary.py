@@ -6,6 +6,9 @@ from collections import Counter
 from pathlib import Path
 from self_curate.experiments.ordinary.common import digest, jsonl, rows, write
 
+CODING_SKILLS = {'amortized_analysis','bit_manipulation','complete_search','data_structures',
+                 'dynamic_programming','greedy_algorithms','range_queries','sorting'}
+
 MATH = {'Algebra': 'algebra', 'Geometry': 'geometry', 'Number Theory': 'number_theory',
         'Combinatorics': 'combinatorics', 'Calculus': 'calculus', 'Inequalities': 'algebra',
         'Logic and Puzzles': 'logic', 'Probability': 'probability', 'Statistics': 'probability'}
@@ -14,6 +17,24 @@ IF_GROUP = {'keywords': 'lexical', 'language': 'language', 'length_constraints':
             'combination': 'composition', 'startend': 'boundary', 'change_case': 'case',
             'punctuation': 'punctuation', 'format': 'format', 'length': 'length',
             'content': 'required_content', 'style': 'style'}
+
+
+# Native Personas IF constraint names differ from IFEval's underscored IDs.
+IF_ALIASES = {'case': ('case',), 'specific_ending': ('boundary',),
+              'give_two_responses': ('composition',), 'repeat_the_prompt': ('composition',),
+              'include_keywords': ('lexical',), 'use_quotation': ('format',),
+              'in_english_and_capital': ('language','case'), 'response_language': ('language',)}
+
+
+def native_if_skills(labels):
+    skills=set();unknown=[]
+    for label in labels:
+        prefix=re.sub(r'[\s_-]+','_',str(label).split(':',1)[0].strip().lower())
+        groups=IF_ALIASES.get(prefix)
+        if groups is None and prefix in IF_GROUP:groups=(IF_GROUP[prefix],)
+        if groups is None:unknown.append(str(label))
+        else:skills.update(groups)
+    return sorted(skills),unknown
 
 
 def sequence(value):
@@ -57,12 +78,16 @@ def adapt(domain, row, source):
         if not isinstance(tests, dict) or not tests.get('inputs') or len(tests['inputs']) != len(tests.get('outputs', [])):
             raise ValueError('invalid_tests')
         raw_labels = sequence(row.get('skill_types'))
-        skills = sorted({re.sub(r'[^a-z0-9]+', '_', str(s).lower()).strip('_') for s in raw_labels if str(s).strip()})
+        normalized={str(label):re.sub(r'[^a-z0-9]+','_',str(label).lower()).strip('_') for label in raw_labels if str(label).strip()}
+        skills=sorted({skill for skill in normalized.values() if skill in CODING_SKILLS})
+        unmapped=[label for label,skill in normalized.items() if skill not in CODING_SKILLS]
         starter = row.get('starter_code', '').strip()
         model_prompt = prompt + ('\n\nStarter code:\n' + starter if starter else '') + '\n\nReturn a complete Python solution in a fenced code block.'
         extra = {'url': row.get('url'), 'tags': sequence(row.get('tags')), 'tests': tests,
-                 'starter_code': starter, 'difficulty': row.get('difficulty')}
+                 'starter_code': starter, 'difficulty': row.get('difficulty'),'unmapped_skill_types':unmapped}
     elif domain == 'math':
+        if not isinstance(row.get('problem'),str) or not isinstance(row.get('solution'),str):
+            raise ValueError('empty_supervision')
         if row.get('problem_is_valid') not in (None, 'Yes', True) or row.get('solution_is_valid') not in (None, 'Yes', True):
             raise ValueError('source_invalid')
         final_answer=str(row.get('answer') or '').strip().lower()
@@ -83,11 +108,10 @@ def adapt(domain, row, source):
             raise ValueError('prompt_mismatch')
         raw_labels = sequence(row.get('constraints'))
         # These are taxonomy IDs, not reconstructed checker kwargs.
-        skills = sorted({IF_GROUP[str(label).split(':')[0]] for label in raw_labels
-                         if str(label).split(':')[0] in IF_GROUP})
+        skills,unmapped = native_if_skills(raw_labels)
         model_prompt = prompt
         extra = {'constraints': raw_labels, 'source_id': row.get('id'),
-                 'checker_kwargs_available': False}
+                 'checker_kwargs_available': False,'unmapped_constraints':unmapped}
     else:
         raise ValueError('Unknown domain')
     if not prompt or not answer:
@@ -97,13 +121,17 @@ def adapt(domain, row, source):
             'answer_chars':len(answer), 'prompt_chars':len(prompt),
             'domain': domain, 'question_hash': qhash, 'source': source,
             'content_hash': digest(row), 'skills': skills, 'raw_labels': raw_labels,
-            'label_status': 'native' if skills else 'missing', 'label_version': 'native-map-v1',
+            'label_status': 'native' if skills and not extra.get('unmapped_constraints') and not extra.get('unmapped_skill_types') else 'missing',
+            'label_version': 'native-map-v2' if domain in ('coding','if') else 'native-map-v1',
             'messages': [{'role': 'user', 'content': model_prompt}, {'role': 'assistant', 'content': answer}],
             'metadata': extra}
 
 
 def prepare(domain, raw_file, output, *, source, blocked_questions=(), tokenizer=None,
             max_length=None, preview=False):
+    if tokenizer is not None and (isinstance(max_length,bool) or not isinstance(max_length,int) or max_length<=0):
+        raise ValueError('Tokenized admission requires a positive integer max_length')
+    length_counts=Counter()
     output = Path(output)
     if output.exists():
         raise FileExistsError('Prepared pools are immutable; use a new output directory')
@@ -125,7 +153,9 @@ def prepare(domain, raw_file, output, *, source, blocked_questions=(), tokenizer
             if tokenizer is not None:
                 from self_curate.training.ordinary import encode_example
                 try:
-                    encoded = encode_example(record, tokenizer, max_length)
+                    encoded = encode_example(record, tokenizer, 2**63-1)
+                    length_counts[len(encoded['input_ids'])]+=1
+                    if len(encoded['input_ids'])>max_length:raise ValueError('over_length')
                 except ValueError as exc:
                     if str(exc) not in ('over_length','empty_supervision'):raise
                     excluded[str(exc)]+=1
@@ -150,5 +180,24 @@ def prepare(domain, raw_file, output, *, source, blocked_questions=(), tokenizer
                'tokenized': tokenizer is not None, 'max_length': max_length,
                'pool_sha256': sha(output/'pool.jsonl'), 'label_policy': 'retain_missing_for_random_and_full',
                'fresh_solution_execution': False}
+    if tokenizer is not None:
+        summary['length_audit_before_length_filter']=length_distribution(length_counts)
     write(output/'manifest.json', summary)
     return summary
+
+
+def length_distribution(counts):
+    """Exact whole-pool lengths after structural/isolation checks, before length rejection."""
+    total=sum(counts.values())
+    result={'count':total,'scope':'after structural and question-isolation checks, before max_length filtering',
+            'tokens':'full nonthinking chat template including prompt and answer',
+            'over_limit':{str(limit):sum(n for length,n in counts.items() if length>limit) for limit in (4096,8192,12288,16384,32768)}}
+    if not total:return {**result,'min':None,'max':None,'p50':None,'p95':None,'p99':None,'mean':None}
+    import math
+    def quantile(q):
+        cumulative=0
+        for length,n in sorted(counts.items()):
+            cumulative+=n
+            if cumulative>=math.ceil(q*total):return length
+    return {**result,'min':min(counts),'max':max(counts),'p50':quantile(.5),'p95':quantile(.95),'p99':quantile(.99),
+            'mean':sum(length*n for length,n in counts.items())/total}

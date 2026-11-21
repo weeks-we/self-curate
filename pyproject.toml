@@ -15,8 +15,8 @@ valuation = ["numpy>=1.24", "torch>=2.1"]
 signals = ["numpy>=1.24"]
 preparation = ["jsonschema>=4.20"]
 agent = ["smolagents==1.26.0", "openai==3.57.0"]
-ordinary = ["smolagents==1.26.0", "openai==3.57.0", "transformers==5.23.0", "datasets==5.2.0", "pyarrow==26.0.1", "math-verify==0.9.0"]
-server = ["jsonschema>=4.20", "numpy>=1.24", "torch>=2.1", "transformers==5.23.0", "peft==0.22.0", "accelerate==1.16.0", "nvidia-ml-py>=12", "pyarrow==26.0.1", "huggingface_hub>=0.35", "PyYAML>=6", "vllm==0.34.0", "smolagents==1.26.0", "openai==3.57.0"]
+ordinary = ["smolagents==1.26.0", "openai==3.57.0", "transformers==5.22.0", "datasets==5.2.0", "pyarrow==26.0.1", "math-verify==0.9.0"]
+server = ["jsonschema>=4.20", "numpy>=1.24", "torch>=2.1", "transformers==5.22.0", "peft==0.22.0", "accelerate==1.16.0", "nvidia-ml-py>=12", "pyarrow==26.0.1", "huggingface_hub>=0.35", "PyYAML>=6", "vllm==0.34.0", "smolagents==1.26.0", "openai==3.57.0"]
 # Official graders/Harbor may use separately locked server environments.
 
 [project.scripts]

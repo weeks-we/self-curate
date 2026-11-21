@@ -55,7 +55,7 @@ def publish(output, plan, state):
     bench=list(dict.fromkeys(r['benchmark'] for r in long))
     table(output/'scores_wide.csv',wide,list(wide[0])+[b for b in bench if b not in wide[0]])
     lines=['# EXP001 results','',
-        'Only epoch 3 is evaluated; epochs 1/2 remain saved with training cost receipts.',
+        'Epochs 1/2/3 are evaluated; epoch3 is primary. Never select checkpoints using benchmark scores.',
         'Blank = unmeasured, never zero. Synthetic scores/costs are not research measurements.',
         'Training costs are cumulative at checkpoint. Do not sum them across benchmarks or epochs.',
         'Per-epoch deltas: training_costs.csv. Generation/CPU grading costs: summary.csv.',

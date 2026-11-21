@@ -27,7 +27,8 @@ def smoke(output):
         write(folder/'manifest.json',{'pool_sha256':sha(folder/'pool.jsonl'),'preview':True,'tokenized':False})
         pools[domain]=str(folder)
     cfg=read(Path(__file__).parents[4]/'configs/ordinary/exp001.json')
-    value=plan(cfg,pools,root/'plan')
+    cfg=copy.deepcopy(cfg);cfg['nice']['enabled']=False;cfg['training']['learning_rates']=[cfg['training']['learning_rate']]
+    value=plan(cfg,pools,root/'plan',synthetic=True)
     check('eighteen independent branches',len(value['jobs'])==18)
     for domain in pools:
         jobs={j['method']:set(j['ids']) for j in value['jobs'] if j['domain']==domain}
@@ -44,11 +45,11 @@ def smoke(output):
     else:raise AssertionError('Interruption was not exercised')
     result=execute(root/'plan/plan.json',MockBackend(),resume=True)
     check('all branches recovered',read(result/'complete.json')['jobs']==18)
-    check('all 72 checkpoint-benchmark results',read(result/'complete.json')['evaluation_results']==72)
+    check('all 192 checkpoint-benchmark results',read(result/'complete.json')['evaluation_results']==192)
     state=read(result/'state.json')
     for job in value['jobs']:
         completed=state['completed'][job['job_id']]
-        expected=1
+        expected=1 if job['method']=='initial' else len(value['config']['evaluation']['epochs'])
         check(job['job_id']+' checkpoint isolation',len(completed['evaluations'])==expected*len(job['benchmarks']))
     before=sha(result/'complete.json')
     execute(root/'plan/plan.json',MockBackend(),resume=True)
@@ -58,7 +59,7 @@ def smoke(output):
     else:raise AssertionError('Shortage silently duplicated tasks')
     import csv
     table=list(csv.DictReader((result/'summary.csv').open(encoding='utf-8')))
-    check('72 score/cost rows',len(table)==72)
+    check('192 score/cost rows',len(table)==192)
     check('missing mock costs are blank',all(not r['train_input_tokens'] for r in table if r['checkpoint']!='initial'))
     check('45 checkpoint training rows',len(list(csv.DictReader((result/'training_costs.csv').open(encoding='utf-8'))))==45)
     check('report tables published',(result/'REPORT.md').exists() and (result/'scores_wide.csv').exists())

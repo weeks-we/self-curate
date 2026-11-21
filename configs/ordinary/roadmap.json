@@ -16,8 +16,20 @@
         "full",
         "random05",
         "random10",
-        "random20"
-      ]
+        "random20",
+        "random30"
+      ],
+      "auxiliary_experiment": {
+        "id": "nice_validation",
+        "config": "configs/ordinary/exp001_nice.json",
+        "independent_protocol": true
+      },
+      "benchmark_epochs": [
+        1,
+        2,
+        3
+      ],
+      "primary_epoch": 3
     },
     {
       "id": "exp002",
@@ -88,13 +100,22 @@
     "epochs": 3,
     "scope": "full_random_selected_subsets_and_baseline_target_SFT",
     "report_epochs": [
-      1,
-      2,
       3
     ],
     "primary_epoch": 3,
     "final_benchmark_selection": false,
     "original_recipe_reproduction": "separate_supplement",
-    "selection_auxiliary_training": "retain_method_definition_and_report_cost_separately"
+    "selection_auxiliary_training": "retain_method_definition_and_report_cost_separately",
+    "save_epochs": [
+      1,
+      2,
+      3
+    ],
+    "nice_exception": "one epoch; evaluate all three optimizer-progress checkpoints",
+    "exp001_report_epochs_override": [
+      1,
+      2,
+      3
+    ]
   }
 }

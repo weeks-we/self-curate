@@ -100,7 +100,7 @@ def bcb_grade(tasks,predictions,output):
 def summarize(key,results):
     n=len(results)
     summary={'benchmark':key,'metric':'strict_prompt_accuracy' if key in ('ifeval','ifbench','multi_if') else
-             'pass@1' if key in ('livecodebench','humaneval_plus','mbpp_plus','bigcodebench') else 'math_verify_accuracy',
+             'pass@1' if key in ('livecodebench','humaneval_plus','mbpp_plus','bigcodebench','taco_dev') else 'math_verify_accuracy',
              'count':n,'correct':sum(bool(r['correct']) for r in results),
              'score':sum(bool(r['correct']) for r in results)/n,'per_task':results}
     if key=='olympiad':summary['metric']='official_mathjudger_accuracy'
@@ -135,9 +135,23 @@ def summarize(key,results):
     return summary
 
 
+def lcb_parallel(tasks,predictions,grader_root):
+    sys.path.insert(0,str(grader_root))
+    from lcb_runner.benchmarks.code_generation import CodeGenerationProblem
+    from lcb_runner.evaluation.compute_code_generation_metrics import evaluate_generations
+    samples=[CodeGenerationProblem(**t['raw']).get_evaluation_sample() for t in tasks]
+    generated=[[code(read(Path(predictions)/(digest(t['id'])+'.json'))['answers'][0])] for t in tasks]
+    results,metadata=evaluate_generations(samples,generated,debug=False,num_process_evaluate=8,timeout=6)
+    output=[]
+    for i,t in enumerate(tasks):
+        tests=results[i][0];info=metadata[i][0]
+        if info.get('error_code')==-5:raise RuntimeError('Official LCB grader infrastructure failed: '+str(info))
+        output.append({'id':t['id'],'correct':bool(tests) and all(v is True or v==1 for v in tests),
+                       'tests':[bool(v is True or v==1) for v in tests],'metadata':info})
+    return output
+
+
 def grade(key,tasks_file,predictions,output,*,grader_root=None,evalplus_data=None):
-    if key=='taco_dev':
-        raise NotImplementedError('TACO official special-judge rules must be integrated before development evaluation; do not substitute LiveCodeBench judging')
     tasks=list(rows(tasks_file))
     predictions=Path(predictions)
     if key in ('livecodebench','humaneval_plus','mbpp_plus','bigcodebench','taco_dev'):
@@ -148,7 +162,9 @@ def grade(key,tasks_file,predictions,output,*,grader_root=None,evalplus_data=Non
         prediction=read(predictions/(digest(task['id'])+'.json'))
         if prediction.get('proxy_test') or prediction.get('task_id')!=task['id']:
             raise ValueError('Proxy or mismatched prediction cannot enter formal metrics')
-    if key=='bigcodebench':
+    if key=='livecodebench':
+        results=lcb_parallel(tasks,predictions,grader_root)
+    elif key=='bigcodebench':
         results=bcb_grade(tasks,predictions,output)
     elif key in ('humaneval_plus','mbpp_plus'):
         if not evalplus_data:
@@ -173,7 +189,10 @@ def grade(key,tasks_file,predictions,output,*,grader_root=None,evalplus_data=Non
             answers=prediction['answers']
             if key in ('ifeval','ifbench','multi_if'):
                 value=if_grade(key,task,answers,grader_root)
-            elif key in ('livecodebench','taco_dev'):
+            elif key=='taco_dev':
+                from .taco_grade import check
+                value=check(task,code(answers[0]),grader_root)
+            elif key=='livecodebench':
                 sys.path.insert(0,str(grader_root))
                 from lcb_runner.evaluation.compute_code_generation_metrics import check_correctness
                 if key=='livecodebench':

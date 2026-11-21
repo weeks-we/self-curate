@@ -1,6 +1,6 @@
 smolagents==1.26.0
 openai==3.57.0
-transformers==5.23.0
+transformers==5.22.0
 accelerate==1.16.0
 datasets==5.2.0
 peft==0.22.0

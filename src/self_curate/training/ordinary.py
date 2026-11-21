@@ -33,10 +33,11 @@ def train(job, *, resume=False):
     job = read(job) if not isinstance(job, dict) else job
     if job.get('execution') != 'server' or not job.get('approved'):
         raise ValueError('Formal training requires approved parameters and execution=server')
-    if not torch.cuda.is_available() or int(os.environ.get('WORLD_SIZE','1')) != 8:
-        raise ValueError('Use torchrun with eight explicitly authorized GPUs; no CPU fallback')
+    world=job['training'].get('world_size',8)
+    if world not in (4,8) or not torch.cuda.is_available() or int(os.environ.get('WORLD_SIZE','1')) != world:
+        raise ValueError('Use torchrun with the explicitly authorized four/eight-GPU group; no CPU fallback')
     visible = os.environ.get('CUDA_VISIBLE_DEVICES','').split(',')
-    if len(visible) != 8 or visible != job['gpu_uuids'] or not all(x.startswith('GPU-') for x in visible):
+    if len(visible) != world or visible != job['gpu_uuids'] or not all(x.startswith('GPU-') for x in visible):
         raise ValueError('GPU UUID authorization mismatch')
     cfg, output = job['training'], Path(job['output'])
     if job['loader']=='AutoModelForImageTextToText' and cfg.get('require_optimized_linear_kernels',True):
@@ -46,7 +47,7 @@ def train(job, *, resume=False):
             raise ValueError('Optimized Qwen3.5 linear-attention kernels are unavailable')
     if sha(job['data']) != job['data_sha256']:
         raise ValueError('Selected training data changed')
-    effective = cfg['micro_batch_size']*cfg['gradient_accumulation_steps']*8
+    effective = cfg['micro_batch_size']*cfg['gradient_accumulation_steps']*world
     if effective != cfg['global_batch_size']:
         raise ValueError('micro × accumulation × world != global batch')
     output.mkdir(parents=True, exist_ok=True)
@@ -57,6 +58,11 @@ def train(job, *, resume=False):
         if (output/'job.json').exists() and read(output/'job.json') != identity:
             raise ValueError('Resume model/data/config identity mismatch')
         write(output/'job.json',identity)
+    state=PartialState()
+    if resume and rank==0:
+        from self_curate.experiments.ordinary.epoch_checkpoints import resumable_checkpoint
+        resumable_checkpoint(output,world_size=world)
+    state.wait_for_everyone()
     checkpoint = get_last_checkpoint(str(output)) if resume else None
     if resume and checkpoint is None:
         raise ValueError('No HF training checkpoint to resume; never silently restart')
@@ -80,18 +86,8 @@ def train(job, *, resume=False):
              cache_file_name=str((cache/'encoded.arrow').resolve()),
              num_proc=cfg['dataloader_num_workers'],load_from_cache_file=True,
              desc='Encode frozen ordinary subset')
-    model_cls = AutoModelForImageTextToText if job['loader']=='AutoModelForImageTextToText' else AutoModelForCausalLM
-    model = model_cls.from_pretrained(job['model_path'],local_files_only=True,dtype=torch.bfloat16)
-    model.config.use_cache = False
-    # Explicit text-linear targets; exclude vision/projector modules from multimodal Qwen.
-    suffixes=set(cfg['lora_target_modules'])
-    targets=[name for name,module in model.named_modules()
-             if isinstance(module,torch.nn.Linear) and name.rsplit('.',1)[-1] in suffixes
-             and not any(p in name.lower() for p in ('visual','vision','projector'))]
-    if not targets:
-        raise ValueError('No compatible LoRA targets in pinned model architecture')
-    model = get_peft_model(model,LoraConfig(r=cfg['lora_rank'],lora_alpha=cfg['lora_alpha'],
-                  lora_dropout=cfg['lora_dropout'],target_modules=targets,bias='none',task_type='CAUSAL_LM'))
+    from self_curate.training.lora import build
+    model,targets=build(job)
     if rank==0:write(output/'lora-targets.json',{'names':targets,'count':len(targets),
         'trainable_parameters':sum(p.numel() for p in model.parameters() if p.requires_grad)})
     if cfg['gradient_checkpointing']:
@@ -113,7 +109,23 @@ def train(job, *, resume=False):
     receipt_base={k:int(previous.get(k,0)) for k in
                   ('sample_exposures','input_tokens','supervised_tokens','micro_batches')}
     previous_elapsed=float(previous.get('train_wall_seconds',0))
+    from self_curate.experiments.ordinary.epoch_checkpoints import progress_steps
+    planned_steps=progress_steps(len(encoded),cfg['global_batch_size'],cfg.get('save_at_fractions',[]))
     class AccountedTrainer(Trainer):
+        def compute_loss(self,model,inputs,return_outputs=False,num_items_in_batch=None):
+            if cfg.get('loss_reduction')!='sample_mean':
+                return super().compute_loss(model,inputs,return_outputs=return_outputs,num_items_in_batch=num_items_in_batch)
+            import torch.nn.functional as F
+            labels=inputs['labels']
+            outputs=model(**{k:v for k,v in inputs.items() if k!='labels'})
+            shifted=labels[:,1:]
+            losses=F.cross_entropy(outputs.logits[:,:-1].float().reshape(-1,outputs.logits.shape[-1]),
+                                   shifted.reshape(-1),ignore_index=-100,reduction='none').reshape_as(shifted)
+            valid=(shifted!=-100).sum(-1)
+            if (valid==0).any():raise ValueError('Empty sample supervision')
+            loss=(losses.sum(-1)/valid).mean()
+            return (loss,outputs) if return_outputs else loss
+
         def training_step(self, model, inputs, *args, **kwargs):
             # The first label cannot be predicted by causal shift; count loss targets.
             loss=super().training_step(model,inputs,*args,**kwargs)
@@ -123,6 +135,10 @@ def train(job, *, resume=False):
             counts[3]+=1
             return loss
     class Logging(TrainerCallback):
+        def on_step_end(self,args,state,control,**kwargs):
+            if state.global_step in planned_steps:control.should_save=True
+            return control
+
         def on_save(self,args,state,control,**kwargs):
             totals=counts.clone()
             torch.distributed.all_reduce(totals,op=torch.distributed.ReduceOp.SUM)
@@ -133,7 +149,7 @@ def train(job, *, resume=False):
                 value={**values,'schema':'checkpoint-training-cost-v1','synthetic':False,
                     'session_id':session_id,'epoch':state.epoch,'global_step':state.global_step,
                     'unique_examples':len(encoded),'train_wall_seconds':previous_elapsed+elapsed.item(),
-                    'gpu_count':8,'gpu_hours':8*(previous_elapsed+elapsed.item())/3600,
+                    'gpu_count':world,'gpu_hours':world*(previous_elapsed+elapsed.item())/3600,
                     'native_input_tokens_seen':state.num_input_tokens_seen,
                     'counting':'successful consumed training microbatches across all ranks; includes sampler repeats',
                     'wall_scope':'trainer.train plus native epoch checkpoint IO; excludes model/tokenizer startup',
@@ -155,7 +171,9 @@ def train(job, *, resume=False):
                       gpu_peak_bytes=torch.cuda.max_memory_allocated(),elapsed_seconds=time.monotonic()-started)
     args=TrainingArguments(output_dir=str(output),num_train_epochs=cfg['epochs'],learning_rate=cfg['learning_rate'],
          per_device_train_batch_size=cfg['micro_batch_size'],gradient_accumulation_steps=cfg['gradient_accumulation_steps'],
-         bf16=True,gradient_checkpointing=False,
+         bf16=True,gradient_checkpointing=False,lr_scheduler_type=cfg.get('lr_scheduler_type','linear'),
+         adam_beta1=cfg.get('adam_beta1',.9),adam_beta2=cfg.get('adam_beta2',.999),adam_epsilon=cfg.get('adam_epsilon',1e-8),
+         max_grad_norm=cfg.get('max_grad_norm',1.0),
          fsdp=True,fsdp_config={'version':2,'reshard_after_forward':cfg.get('fsdp_reshard_after_forward',False),
               'auto_wrap_policy':'TRANSFORMER_BASED_WRAP','state_dict_type':'FULL_STATE_DICT',
               'cpu_ram_efficient_loading':False,'activation_checkpointing':cfg['gradient_checkpointing']},
@@ -166,9 +184,12 @@ def train(job, *, resume=False):
          warmup_steps=cfg['warmup_ratio'],weight_decay=cfg['weight_decay'],dataloader_drop_last=False,
          train_sampling_strategy='group_by_length',include_num_input_tokens_seen='non_padding',
          length_column_name='length',
-         dataloader_num_workers=cfg['dataloader_num_workers'],remove_unused_columns=False)
+         dataloader_num_workers=cfg['dataloader_num_workers'],
+         dataloader_prefetch_factor=cfg.get('dataloader_prefetch_factor',2) if cfg['dataloader_num_workers'] else None,
+         remove_unused_columns=False)
     started=time.monotonic()
     trainer=AccountedTrainer(model=model,args=args,train_dataset=encoded,data_collator=Collator(),callbacks=[Logging()])
+    if cfg.get('loss_reduction')=='sample_mean':trainer.model_accepts_loss_kwargs=False
     event(output/'ranks'/str(rank),'train_session_start',session_id=session_id,resume_checkpoint=checkpoint)
     try:
         result=trainer.train(resume_from_checkpoint=checkpoint)
@@ -181,7 +202,8 @@ def train(job, *, resume=False):
     if rank == 0:
         tokenizer.save_pretrained(output/'final')
         from self_curate.experiments.ordinary.epoch_checkpoints import collect
-        checkpoints=collect(output,int(cfg['epochs']))
+        from self_curate.experiments.ordinary.epoch_checkpoints import collect_progress
+        checkpoints=collect_progress(output,planned_steps) if planned_steps else collect(output,int(cfg['epochs']))
         write(output/'complete.json',{'epochs':cfg['epochs'],'epoch_checkpoints':checkpoints,'job_hash':digest(identity),'examples':len(encoded),
               'supervised_tokens_per_epoch':supervised,'input_tokens_per_epoch':sum(encoded['length']),
               'elapsed_seconds':time.monotonic()-started,'metrics':result.metrics,'adapter':str((output/'final').resolve()),

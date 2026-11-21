@@ -1,3 +1,5 @@
+> 最新2026-11-21：NICE已并入EXP001；A完整交接见docs/HANDOFF_A_EXP001_ZH.md，B测试交接见docs/HANDOFF_B_ENV_ACCEPTANCE_ZH.md。普通两LR草案33分支/132结果，NICE另加4分支/60结果；旧单LR/旧单独NICE目录文字由新交接覆盖。
+
 # Checkpoint统计与实验一汇总
 
 最新确认：Initial、Full、Random5/10/20/30%，三个领域；Full/Random全部3 epoch，保存每个epoch但仅测评epoch3。18分支、15次训练、45 checkpoint、72 benchmark结果。Random50不再执行；旧run不可改写为新协议，必须新plan/run_id。

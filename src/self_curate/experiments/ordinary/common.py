@@ -25,6 +25,19 @@ def read(path):
     return json.loads(Path(path).read_text(encoding='utf-8'))
 
 
+def atomic_replace(source,target):
+    """Preserve atomic publication while tolerating short Windows reader/indexer locks."""
+    import time
+    for attempt in range(6):
+        try:
+            os.replace(source,target)
+            return
+        except PermissionError as exc:
+            if os.name!='nt' or getattr(exc,'winerror',None) not in (5,32,33) or attempt==5:
+                raise
+            time.sleep(.025*(2**attempt))
+
+
 def write(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -32,7 +45,7 @@ def write(path, value):
     with temporary.open('w',encoding='utf-8') as stream:
         stream.write(json.dumps(value,ensure_ascii=False,indent=2,allow_nan=False))
         stream.flush();os.fsync(stream.fileno())
-    os.replace(temporary, path)
+    atomic_replace(temporary, path)
 
 
 def rows(path):
@@ -50,7 +63,7 @@ def jsonl(path, values):
         for value in values:
             stream.write(json.dumps(value, ensure_ascii=False, allow_nan=False) + '\n')
         stream.flush();os.fsync(stream.fileno())
-    os.replace(temp, path)
+    atomic_replace(temp, path)
 
 
 def run_id():

@@ -17,5 +17,7 @@
     "skills",
     "needs_review"
   ],
-  "model_binding": "caller must record actual teacher model and revision; no automatic paid calls"
+  "model_binding": "caller must record actual teacher model and revision; no automatic paid calls",
+  "enabled_for_exp001": false,
+  "note": "Reserved interface only. User confirms native labels and defers unmapped records; no teacher calls in EXP001."
 }

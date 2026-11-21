@@ -1,5 +1,8 @@
 # Benchmark与八卡配置复核（2026-11-21）
 
+> 最新长度与逐benchmark预算见[长度/预算核查](TRAINING_LENGTH_AND_BENCHMARK_BUDGETS_ZH.md)。原文统一4096/8192输出仅为旧设置；当前执行exp001.evaluation.benchmark_budgets。三个epoch测评及A/B范围遵循HANDOFF。
+
+
 ## 当前测评次数
 
 每个训练分支只用第3 epoch权重，对其领域每个benchmark生成一次、判分一次。仍保存三个epoch checkpoint和每份训练成本，不再测epoch1/2。Initial仍按每个benchmark一次。正式EXP001为18分支、15次训练、45训练checkpoint、72组最终测评；师兄B的三领域短训只需12组最终测评，不要求Initial。换协议须新plan/run_id，不能改旧run。

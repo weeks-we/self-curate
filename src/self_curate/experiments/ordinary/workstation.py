@@ -84,7 +84,7 @@ def bindings(lock_file,source_bindings,benchmarks_file,storage,project,run_root,
     value={'schema':'ordinary-server-bindings-v1','lock_hash':lock['lock_hash'],
         'models':models,'benchmarks':prepared,'storage':str(Path(storage).resolve()),
         'project':str(Path(project).resolve()),'run_root':str(Path(run_root).resolve()),
-        'grader_image':grader_image,'grader_images':{'bigcodebench':None},'server_smoke_passed':False,
+        'nice_grader_root':sources['paths'].get('taco_grader'),'grader_image':grader_image,'grader_images':{'bigcodebench':None},'server_smoke_passed':False,
         'asset_seal_hash':read(Path(storage)/'asset-seal.json')['seal_hash']}
     write(output,value)
     return value

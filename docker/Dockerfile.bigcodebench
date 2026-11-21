@@ -1,6 +1,6 @@
 # Build candidate only; workstation must resolve/pin the base and final digests.
 # Official BCB evaluation image carries its task-specific, older Python libraries.
-ARG BCB_BASE=bigcodebench/bigcodebench-evaluate:latest
+ARG BCB_BASE=bigcodebench/bigcodebench-evaluate@sha256:1327bddf60be9bc241648c59e6060cac4ca50248a0588ab735cd0200b17cc8c2
 FROM ${BCB_BASE}
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*

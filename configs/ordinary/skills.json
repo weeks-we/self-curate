@@ -1,5 +1,5 @@
 {
-  "version": "ordinary-skills-v2-proposal",
+  "version": "ordinary-skills-v2",
   "domains": {
     "coding": {
       "amortized_analysis": "Amortized analysis",
@@ -34,7 +34,14 @@
     }
   },
   "multi_label": true,
-  "unknown": "review_required",
+  "unknown": "retain_unlabeled_defer_annotation",
   "per_skill_development": 50,
-  "status": "coverage_audit_required"
+  "status": "taxonomy_confirmed_coverage_audit_required",
+  "annotation_policy": {
+    "mode": "native_only",
+    "automatic_teacher_calls": false,
+    "unmapped": "retain_in_training_pool_exclude_from_skill_development",
+    "empty_skill_categories": "preserve_and_report_zero_do_not_infer",
+    "development_shortage": "fail_and_report_do_not_duplicate"
+  }
 }

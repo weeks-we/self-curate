@@ -1,13 +1,13 @@
 # Build on the networked workstation; transfer with docker save/load.
 # Freeze built image digests and pip freeze before cluster execution.
-ARG GPU_BASE=vllm/vllm-openai:v0.34.0
-FROM python:3.12-slim AS prepare
+ARG GPU_BASE=vllm/vllm-openai@sha256:cf5b2fdd087eb4f6d261736967cc5cde974bd22ff4df50365f8fa419b6b4c484
+FROM python@sha256:05a994d2344eb364cc186910f4fc8786a38215f39f00d0acc25bff33a08f4177 AS prepare
 RUN apt-get update && apt-get install -y --no-install-recommends git git-lfs ca-certificates build-essential && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY configs/ordinary ./configs/ordinary
-RUN pip install --no-cache-dir -e . huggingface_hub datasets==5.2.0 pyarrow==26.0.1 transformers==5.23.0 smolagents==1.26.0 openai==3.57.0 evalplus==0.3.1
+RUN pip install --no-cache-dir -e . huggingface_hub datasets==5.2.0 pyarrow==26.0.1 transformers==5.22.0 smolagents==1.26.0 openai==3.57.0 evalplus==0.3.1
 RUN pip check && pip freeze > /opt/environment.freeze.txt
 ENTRYPOINT ["python", "-m", "self_curate.experiments.ordinary"]
 

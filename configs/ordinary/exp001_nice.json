@@ -1,0 +1,81 @@
+{
+  "schema": "ordinary-nice-v1",
+  "model": "qwen9b",
+  "domain": "coding",
+  "seed": 42,
+  "tasks": 20,
+  "rollouts_per_task": 4,
+  "candidates": 3000,
+  "select_per_group": 1000,
+  "selection": "bottom_and_top_no_middle",
+  "epochs": 1,
+  "learning_rates_from": "exp001.training.learning_rates",
+  "checkpoint_fractions": [
+    0.3333333333333333,
+    0.6666666666666666,
+    1.0
+  ],
+  "training_overrides": {
+    "epochs": 1,
+    "global_batch_size": 8,
+    "micro_batch_size": 2,
+    "gradient_accumulation_steps": 1,
+    "save_strategy": "no",
+    "save_total_limit": 3,
+    "save_at_fractions": [
+      0.3333333333333333,
+      0.6666666666666666,
+      1.0
+    ],
+    "loss_reduction": "sample_mean",
+    "adam_epsilon": 1e-08,
+    "max_grad_norm": 1.0,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.0,
+    "world_size": 4,
+    "lr_scheduler_type": "cosine",
+    "warmup_ratio": 0.03
+  },
+  "rollout": {
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "top_k": 0,
+    "max_new_tokens": 4096,
+    "max_model_len": 16384,
+    "thinking": false,
+    "engine": "local_huggingface_exact_token_ids"
+  },
+  "score": {
+    "projection_dimension": 8192,
+    "projection_seed": 42,
+    "adam_epsilon": 1e-08,
+    "max_grad_norm": 1.0,
+    "candidate_reduction": "assistant_token_mean",
+    "target_reduction": "generated_token_sum_reward_divided_by_4",
+    "zero_target": "keep_zero_in_fixed_20_task_denominator",
+    "optimizer_step": false
+  },
+  "evaluation": {
+    "checkpoints": "all_three_progress_points",
+    "task_set": "same_20_development_tasks_diagnostic_only",
+    "benchmarks": [
+      "livecodebench",
+      "humaneval_plus",
+      "mbpp_plus",
+      "bigcodebench"
+    ],
+    "checkpoint_selection": "none_report_all_final_primary"
+  },
+  "gradient_smoke": {
+    "tasks": 2,
+    "candidates": 8,
+    "rollouts_per_task": 1,
+    "max_new_tokens": 64,
+    "reward": "unit_weight_for_backward_probe_not_task_success",
+    "train": false,
+    "evaluate": false
+  },
+  "training_reference_note": "one epoch/r16/alpha32/global8 preserved; two shared LR5e-5/1e-4; 4-GPU lane micro2; same125 updates",
+  "recipe_scope": "EXP001 NICE only; no inheritance to future algorithm experiments"
+}

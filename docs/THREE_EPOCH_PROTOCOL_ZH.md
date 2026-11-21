@@ -1,3 +1,5 @@
+> 最新2026-11-21：NICE已并入EXP001；A完整交接见docs/HANDOFF_A_EXP001_ZH.md，B测试交接见docs/HANDOFF_B_ENV_ACCEPTANCE_ZH.md。普通两LR草案33分支/132结果，NICE另加4分支/60结果；旧单LR/旧单独NICE目录文字由新交接覆盖。
+
 > 2026-11-21用户变更：保存全部3个epoch，只测epoch3；72组测评。以下旧逐epoch测评叙述由 [最新核查](BENCHMARK_OFFICIAL_CHECK_20261121_ZH.md) 覆盖。
 
 # 实验一：统一3 epoch及逐checkpoint测评

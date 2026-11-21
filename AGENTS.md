@@ -1,3 +1,7 @@
+> 2026-11-21 length/budget update: EXP001 evaluates every epoch. Per-benchmark budget authority is exp001.evaluation.benchmark_budgets; see docs/TRAINING_LENGTH_AND_BENCHMARK_BUDGETS_ZH.md. Keep training8192 pending final50k pre-filter length audit.
+
+> 2026-11-21 active recipe: EXP001 only LR5e-5/1e-4, two disjoint four-GPU FSDP2 lanes, main global32 and NICE global8, async CPU grading. See docs/EXP001_QWEN35_9B_RECIPE_AND_ENV_ZH.md. Old one-LR counts below are superseded.
+
 > 2026-11-20最新确认：Random50取消；Initial/Full/Random5/10/20/30，统一3 epoch，18分支/15训练/45 checkpoint/72测评。当前执行请读 docs/HANDOFF.md 与 docs/CHECKPOINT_ACCOUNTING_ZH.md；此前相反数字为历史说明。
 
 # Self-Curate project instructions
@@ -49,29 +53,39 @@ do not import neighboring projects or inherit their experiment configuration.
 - Do not commit, push, or merge on the user's behalf.
 - Report only checks actually run; separate local acceptance from real-model/research validation.
 
-## 2026-11-20 authorized migration
+## Current ordinary-task experiment (2026-11-21)
 
-The user replaced SWE trajectory experiment plans with ordinary-task experiments.
-The active entrypoint is self_curate.experiments.ordinary; configs/ordinary/exp001.json
-and docs/HANDOFF.md are authoritative. EXP001 uses no agents/NICE, just independent
-initial/full/random 5/10/20/30% branches across coding/math/IF, main Qwen3.5-9B,
-thinking off. Random50 is removed. Full and Random all train 3 epochs and save every epoch checkpoint and evaluate
-only epoch3: 18 branches, 15 SFT, 45 checkpoints, 72 benchmark results.
-Epoch3 is predeclared primary; no final-test checkpoint selection.
+This is the independent self-curate project. Do not import the neighboring NICE
+repository. Active entrypoint: self_curate.experiments.ordinary; authority:
+configs/ordinary/exp001.json and docs/HANDOFF.md. The user added NICE validation
+inside EXP001; its config is configs/ordinary/exp001_nice.json and documentation
+docs/EXP001_NICE_ZH.md. Old meetings/NICE redo proposals are retired.
 
-Math samples exactly 50,000 raw NuminaMath-1.5 rows proportionally by source, then
-problem_type within source, seed42, exact largest-remainder quotas. Valid proof
-solutions remain eligible for SFT but not automatically graded development.
-Publish labels/distributions/development/future-training after EXP001. Development
-comes from TRAIN in all domains, 50/skill, with overlap deduplicated; TACO test is
-final-only. These tasks may already have been exposed to EXP001 Full, so subsequent
-experiments must start from the original base and exclude them for clean validation.
+Ordinary branches: Qwen3.5-9B, thinking off, coding/math/IF; Initial once, Full and
+Random5/10/20/30 at both shared LR values. Values 1e-5/2e-5 are proposals pending
+user check, approved=false. Target SFT 3 epochs, save each epoch, evaluate only3.
+With two rates: 33 ordinary branches, 30 SFT, 90 checkpoints, 132 evaluations.
 
-ToolCallingAgent backs generic role runtime. Preserve M1/operator/inner/outer contracts.
-Model/benchmark preparation occurs on the workstation; compute nodes run offline.
-Other training parameters remain unapproved. No local weights/GPU/container runs.
-CPU synthetic acceptance is separate from server FSDP2/vLLM/official-grader acceptance.
-Checkpoint and report accounting is defined in docs/CHECKPOINT_ACCOUNTING_ZH.md.
-Private NICE redesign instructions under ignored docs/meetings are a proposal for
-another directory, not an active EXP001/NICE implementation or permission to mutate
-the neighboring NICE repository.
+NICE: 20 TACO TRAIN tasks excluded from 3000 candidates, four rollouts/task,
+fixed reward-weighted token-SUM direction /4; candidate assistant CE token-MEAN.
+LoRA only, no optimizer step during gradients. Top/bottom1000, two shared LR,
+four independent one-epoch SFT branches, original effective batch8 and r16/alpha32,
+three native progress checkpoints42/84/125. Evaluate each on the same20 diagnostic
+tasks plus four coding benchmarks: 12 checkpoints/60 result groups. Keep zero
+directions in the fixed20 denominator; never select checkpoints by final benchmark.
+
+A executes full task. B executes ordinary environment/short-training acceptance
+plus NICE backward-only probe (2 target/8 candidates, no NICE grading/SFT/evaluation).
+Formal execution requires B's identity-bound receipt. Preserve source/model/data/
+tokenizer/template/adapter/coordinates/RNG/exposure/cost provenance. Native checkpoints
+must have optimizer/scheduler/matching-rank RNG (four ranks per EXP001 lane), not just adapter weights.
+
+Math uses native NuminaMath1.5 stratified50k by source then problem_type, seed42.
+Proofs may train but not auto-grade. Development50/skill is published after EXP001,
+from TRAIN only in all domains; TACO test remains final-only. Record EXP001 exposure
+and start future experiments from the original base for independent dev evaluation.
+
+Workstation prepares fixed model/data/checker/image assets; cluster runs offline.
+No local target weights/GPU/container runs. CPU synthetic acceptance is distinct
+from real server backward, capacity, FSDP2 resume and official container grading.
+Do not commit datasets/credentials/weights/results or private meetings. User commits.

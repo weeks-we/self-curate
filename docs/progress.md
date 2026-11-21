@@ -51,3 +51,31 @@ Proof-policy CPU acceptance: seven synthetic math skills, 60 evaluable + 5 proof
 2026-11-21：benchmark只测最终epoch3，保存3份训练成本，EXP001为72结果，B短训12结果。官方审计修正IFBench loose主分、Multi-IF逐轮四指标均值、BCB调用完整官方evaluate并使用冻结本地题单。训练保留global32、启用fused AdamW/8对齐/固定global吞吐预检与FSDP2少重分片；真实GPU与容器待服务器验证。
 
 本轮验收：12/12 HF固定revision/文件在线存在；CPU全流程33项通过（72测评、45训练成本行、断点与幂等）；IFBench/IFEval/Multi-IF指标数值fixture及BCB完整evaluate接入参数、离线注入、异常后恢复的mock检查通过。BCB真实执行、官方容器构建、GPU吞吐与FSDP2恢复仍待服务器。凭据：runs/benchmark-official-audit-20261121。
+
+2026-11-21新增用户授权：NICE并入EXP001，20×4/3000/top-bottom1000、两档共享LR、1epoch、42/84/125保存。参考旧NICE r16/alpha32/batch8；通用SFT仍r32/alpha64/global32/3epoch。新增真实HF回放/独立GPU梯度、官方TACO沙箱适配、四分支全链路及B梯度probe凭据。A执行完整实验，B仅环境/短训和NICE梯度检查。主LR草案1e-5/2e-5统一配置，未批准。
+
+
+## 内置NICE本轮验收（2026-11-21）
+
+22项完整CPU显式mock集成检查通过：共享两档LR、20/3000隔离、高低各1000、4分支/12节点/60评测、B只反向、普通132+NICE60、90+12训练成本行、断点/幂等与选样篡改拒绝。保留的普通基线/三角色隔离33项回归通过。
+
+真实CPU小模型完成反向/有限差分、sum-vs-mean、流式投影对照已有NICE数学实现、base/LoRA权重不变、19零题仍计入20分母、sample-mean Trainer扩展与42/84/125保存回调。恢复/凭据用明确的文件fixture验证，非真实FSDP恢复。
+
+发现并修复Windows短时文件占用造成原子替换失败：只对指定Win错误限次重试，故障注入验证旧状态不损坏，随后全流程重跑通过。结果zip含普通与NICE的报告/表格并通过CRC（247文件）。凭据见忽略的runs/integrated-nice-acceptance-20261121。
+
+本机没有下载目标权重或运行GPU/Docker/真实TACO代码判分。B负责真实9B梯度和既有环境验收，A负责正式TACO参考解自检、80rollout与全量梯度、FSDP保存/恢复和所有节点真实测评；不能拿本地mock成绩作研究结论。
+
+2026-11-21最终配置核查：[当前配置与待填项](CONFIGURATION_AUDIT_20261121_ZH.md)。修正roadmap Random30/NICE、NICE进度协议元数据和配置一致性校验；当前仍为未批准草案，真实容量/镜像/凭据由B/A验收。
+
+本轮最终验收：26项配置一致性/非法覆写检查、22项NICE整合集成、33项原基线回归通过；CPU数值和恢复凭据校验复查通过。配置快照和凭据位于忽略的runs/final-configuration-audit-20261121。仍未在本机执行真实9B/GPU/Docker；科研超参整体保持draft/approved=false。当前launcher为单机8卡，多节点部署需单独适配。
+
+
+2026-11-21：用户授权按经验选择EXP001/NICE专用配方：LR5e-5/1e-4，两路各4卡FSDP2；global32/8不变；异步CPU判分、LoRA热切与owned进程取消。三个base镜像锁linux/amd64 digest。CPU33项smoke、22项全矩阵/恢复、26项配置检查和真实微型CPU反向通过；真实GPU/Docker仍需B验收。详细依据和全参数见EXP001_QWEN35_9B_RECIPE_AND_ENV_ZH.md。
+
+2026-11-21用户更新：EXP001三个epoch checkpoint均测benchmark，epoch3主报告；不改变训练超参或NICE节点。常规372＋NICE60＝432测评记录。
+
+2026-11-21长度与预算核查：真实Qwen tokenizer测TACO/IF全池与Numina2000窗口样本；8192先保留，prepare新增长度排除前精确分布。12个benchmark分项预算，区分官方runner默认、模型示例和项目fallback；真实生成检查每轮全历史窗口。缺Numina监督文本明确排除。见TRAINING_LENGTH_AND_BENCHMARK_BUDGETS_ZH.md。
+
+2026-11-21再次配置核对：18项必需HF来源有URL/revision。修复finalize对三epoch矩阵的数量适配；修复原生IF约束空格／别名、复合标签与未知标签显式复核。IF29980全量映射九类、无缺标；math probability／IF style及少量数学Other补标仍需口径确定，尚未修改taxonomy提案。见EXP001_READINESS_CHECKLIST_ZH.md。
+
+2026-11-21用户最终标签口径：保留预设Coding8／数学7／IF10，未映射先不补标。配置native_only、teacher禁用；finalize把未映射排除出按技能开发集并保留训练池，零覆盖技能保留、50题不足仍显式报告。9项专项CPU检查通过；对应关系见NATIVE_SKILL_MAPPING_ZH.md。

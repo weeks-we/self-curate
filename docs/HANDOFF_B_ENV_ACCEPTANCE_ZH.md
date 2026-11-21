@@ -1,6 +1,12 @@
 # 师兄B：普通任务环境与短训验收交接
 
-本次只验证服务器能否完成“下载准备→数学抽样→三领域LoRA短训→checkpoint恢复/加载→全部benchmark判分”。不启动正式EXP001的Full/Random矩阵，不运行NICE或三个筛选agent，不付费调用teacher。短训分数只作环境诊断，不能作为正式实验结果。
+> 最新长度与逐benchmark预算见[长度/预算核查](TRAINING_LENGTH_AND_BENCHMARK_BUDGETS_ZH.md)。原文统一4096/8192输出仅为旧设置；当前执行exp001.evaluation.benchmark_budgets。三个epoch测评及A/B范围遵循HANDOFF。
+
+
+> 本轮生效配置与研究依据见[训练和环境总表](EXP001_QWEN35_9B_RECIPE_AND_ENV_ZH.md)。LR已选5e-5/1e-4；两路各4卡，主实验global32、NICE global8；异步CPU判分。approved=false仅是服务器验收门。后文历史“草案/待用户check”不再作为科研参数待办。
+
+
+本次只验证服务器能否完成“下载准备→数学抽样→三领域LoRA短训→checkpoint恢复/加载→全部benchmark判分”。不启动正式EXP001的Full/Random矩阵，NICE仅新增梯度probe，不运行其筛选/SFT/测评，也不运行三个筛选agent，不付费调用teacher。短训分数只作环境诊断，不能作为正式实验结果。
 
 请让执行agent先读本文件、AGENTS.md、docs/BENCHMARK_ENV_AUDIT_ZH.md。正式实验另见docs/HANDOFF.md。本交接针对self-curate普通任务项目，与邻近NICE项目分开。
 
@@ -49,7 +55,7 @@ python -m self_curate.experiments.ordinary sample-math --raw /shared/self-curate
 
 ## 3. Qwen3.5-9B三次独立LoRA短训
 
-本次短训参数作为独立环境验收配置保存；不能把正式configs/ordinary/exp001.json改成已批准，也不能让现有plan默认启动18分支。
+本次短训参数作为独立环境验收配置保存；不能把正式configs/ordinary/exp001.json改成已批准，也不能让正式plan启动33分支。
 
 | 项目 | 本次验收设置 |
 |---|---|
@@ -57,12 +63,12 @@ python -m self_curate.experiments.ordinary sample-math --raw /shared/self-curate
 | 模型 | 固定revision的Qwen3.5-9B，AutoModelForImageTextToText；thinking关闭 |
 | 训练 | HF Trainer + Accelerate FSDP2 + PEFT，BF16；底座冻结 |
 | LoRA | r32、alpha64、dropout0；目标投影沿用现有training配置，包含Qwen3.5线性注意力、排除视觉模块 |
-| LR/epoch | LR2e-5，3 epoch，warmup3%、weight_decay0；只为环境验收，不定稿正式科研超参 |
-| Batch | 8×H200（141G），每卡micro4×累积1，global32；每epoch约4次optimizer更新，共约12次/领域 |
+| LR/epoch | LR1e-4（正式两档之一），3 epoch，cosine、warmup3%、weight_decay0；这里只作短训验收 |
+| Batch | 8×H200（141G）分两路；每分支4卡×micro4×累积2，global32；每epoch约4次optimizer更新，共约12次/领域 |
 | 长度 | 完整输入≤8192，答案位置监督，不监督题面/模板/padding |
 | 保存 | 每epoch原生checkpoint，共3份/领域、9份；保留optimizer/scheduler/RNG，不只存LoRA |
 
-先用真实授权GPU UUID进行容量预检；无GPU时不执行，不允许静默CPU/mock替代。使用已有Qwen3.5优化kernel。若micro4不可行，保留报错和显存证据，再将本次验收改成micro2×累积2保持global32，记录新配置；不能暗改正式实验参数。
+先用真实授权GPU UUID进行容量预检；无GPU时不执行，不允许静默CPU/mock替代。使用已有Qwen3.5优化kernel。若micro4不可行，保留报错和显存证据，再将本次验收改成4卡×micro2×累积4保持global32，记录新配置；不能暗改正式实验参数。
 
 至少一个分支在epoch1保存后、epoch2期间模拟中断，再从同一run_id恢复，确认global_step/optimizer/scheduler/RNG/累计token与曝光继续衔接。避免主动中断checkpoint写入过程；另外验证已完成评测恢复时不重复生成。所有恢复都保留原始日志。
 
@@ -72,7 +78,7 @@ python -m self_curate.experiments.ordinary sample-math --raw /shared/self-curate
 
 然后三个领域只加载最后一份epoch3 checkpoint，跑**对应领域完整固定题单**：代码4、数学5、IF3，共12组测评。epoch1/2只保存和统计成本，不测benchmark。不是让代码checkpoint跑数学/IF，不是只导入12个数据集，本次只测最终一份。Initial全量复测和Full/Random矩阵本次不要求。
 
-普通任务直接生成答案，不需要Claude Code/SWE仓库环境。测评建议8个单卡vLLM副本、TP1、每副本并发32起测、GPU memory0.9；temperature0、top_p1、thinking关闭、context16384；代码/IF输出4096、数学8192。先确认adapter加载及多轮IF交互正确，再测吞吐。不因判分慢放开不安全执行权限。
+普通任务直接生成答案，不需要Claude Code/SWE仓库环境。测评建议8个单卡vLLM副本、TP1、每副本并发64起测、GPU memory0.9；temperature0、top_p1、thinking关闭、context16384；输出与有效上下文按benchmark_budgets分项配置。先确认adapter加载及多轮IF交互正确，再测吞吐。不因判分慢放开不安全执行权限。
 
 代码必须无网络、无凭据、无宿主home/GPU挂载的CPU沙箱，限制进程/内存/时间。BigCodeBench绑定独立grader镜像digest。数学/IF用各自官方checker；Multi-IF保留三轮上下文，不能扁平化成三道独立题。
 
@@ -100,3 +106,31 @@ ServerBackend要求真实server_smoke_receipt及asset seal：先独立完成真�
 只有三个模型资产完整、三领域短训/恢复成功、9个adapter可加载、12个benchmark真实判分及12组结果齐全，才能说本次验收完成；有未执行项就如实列出。不要据这些短训分数讨论数据筛选效果，也不要自动继续正式实验。
 
 2026-11-21更新：只测最终checkpoint；官方判分修正及八卡优化见 [复核记录](BENCHMARK_OFFICIAL_CHECK_20261121_ZH.md)。
+
+
+## 2026-11-21新增：NICE只做梯度短测
+
+NICE已并入本项目，**B不执行A的完整实验一入口**。先按上面完成既有环境/三领域短训与12个benchmark，再加以下独立probe；此处不再增加测评。
+
+```bash
+python -m self_curate.experiments.ordinary.nice_experiment prepare --config configs/ordinary/exp001.json --pool /shared/assets/coding-pool --output /shared/runs/B-nice-plan
+python -m self_curate.experiments.ordinary.nice_experiment gradient-smoke --plan /shared/runs/B-nice-plan/plan.json --bindings /shared/server-bindings.json --output /shared/runs/B-nice-gradient
+# 仅在中断后追加 --resume，不能改写原计划
+```
+
+传完整的合格TACO train pool，不是128条短训池。prepare只固定20题及3,000候选清单；probe实际只算2题×1次真实HF生成（最多64token）的sum-NLL梯度、8条候选的mean-CE梯度，优先覆盖最长候选。LoRA参考旧NICE为r16/alpha32；同一共享构建器用于后续SFT。
+
+probe使用单位权重强制覆盖回放反向，**不表示模型成功，不跑TACO判分、不选高低组、不训练、不做额外benchmark**。确认权重checksum前后不变、梯度有限且非零、坐标与初始adapter在各GPU分片一致，返回每项实际输入/监督长度、时间、峰值显存与日志。
+
+成功后自动写gradient-acceptance.json，并更新server-bindings里的nice_gradient_smoke_receipt和SHA。把凭据、环境seal、共享资产位置一起交给A；A的完整任务见HANDOFF_A_EXP001_ZH.md。B只证明已覆盖长度下的数值链路，不证明正式80rollout有成功奖励或更长回放一定不OOM；A启动时另做TACO参考解判分自检。
+
+最终B验收包增加NICE probe的配置、2题/8候选ID、实际生成token回放、梯度/坐标/权重不变证据、GPU信息和receipt；大模型和梯度投影文件可留服务器，包内保留索引及checksum。不得自动继续正式实验。
+
+
+## 本轮追加验收：双路调度与依赖
+
+采用Transformers5.22.0（旧5.23.0不满足vLLM0.34.0的<5.23约束）。三领域短训可先逐项定位环境问题，再至少两条并发验证：分别使用前四/后四UUID、独立4rank FSDP2、端口8000–8003和8100–8103；GPU生成结束后CPU判分异步运行。不得把root的8个UUID原样传给单个4rank训练job。测试每卡64序列及同底座adapter热切，验证某一路失败/取消只终止本次拥有的进程，另一批用户任务不受影响。保留一次4rank完整checkpoint中断恢复记录；NICE反向probe仍单独占用8卡。所有真实资源检查通过后重新出具与新源码/环境身份匹配的receipt，旧receipt不能跨版本放行。
+
+2026-11-21最新确认：EXP001普通基线epoch1/2/3全部跑benchmark；Initial仍只测一次。epoch3为主要报告，不按benchmark挑权重。两LR正式矩阵372组benchmark；NICE保持48组benchmark＋12组原题诊断，总432组测评记录（420 benchmark＋12诊断）。师兄B仍保持独立短测：每个benchmark只测一次，不扩大验收规模。此前相反节点说明以本条为准。
+
+B仍是独立短测：每个benchmark只测一次；上述EXP001三epoch测评仅约束A的正式矩阵，不要求B扩大测评。

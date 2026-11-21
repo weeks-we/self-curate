@@ -16,7 +16,7 @@ def main(argv=None):
     p=sub.add_parser('benchmarks');p.add_argument('--lock',required=True);p.add_argument('--bindings',required=True);p.add_argument('--output',required=True)
     p=sub.add_parser('prepare');p.add_argument('--domain',choices=('coding','math','if'),required=True);p.add_argument('--raw',required=True);p.add_argument('--output',required=True)
     p.add_argument('--tokenizer');p.add_argument('--max-length',type=int,default=8192);p.add_argument('--blocked',action='append',default=[]);p.add_argument('--preview',action='store_true')
-    p=sub.add_parser('plan');p.add_argument('--config',default='configs/ordinary/exp001.json');p.add_argument('--pools',required=True);p.add_argument('--output',required=True)
+    p=sub.add_parser('plan');p.add_argument('--config',default='configs/ordinary/exp001.json');p.add_argument('--pools',required=True);p.add_argument('--output',required=True);p.add_argument('--synthetic',action='store_true')
     p=sub.add_parser('run');p.add_argument('--plan',required=True);p.add_argument('--bindings');p.add_argument('--mock',action='store_true');p.add_argument('--resume',action='store_true')
     p=sub.add_parser('estimate');p.add_argument('--plan',required=True)
     p=sub.add_parser('development');p.add_argument('--pool',required=True);p.add_argument('--per-skill',type=int,default=50);p.add_argument('--seed',type=int,default=42);p.add_argument('--output',required=True)
@@ -100,7 +100,7 @@ def main(argv=None):
                 tokenizer=tokenizer,max_length=args.max_length,preview=args.preview)
     elif args.command=='plan':
         from .workflow import plan
-        plan(read(args.config),read(args.pools),args.output)
+        plan(read(args.config),read(args.pools),args.output,synthetic=args.synthetic)
     elif args.command=='run':
         from .workflow import execute
         from .backend import MockBackend,ServerBackend

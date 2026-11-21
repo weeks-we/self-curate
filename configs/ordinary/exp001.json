@@ -1,7 +1,7 @@
 {
   "schema": "ordinary-exp001-v1",
   "experiment": "exp001",
-  "status": "draft_parameters_require_confirmation",
+  "status": "research_recipe_selected_server_acceptance_pending",
   "approved": false,
   "model": "qwen9b",
   "domains": [
@@ -21,16 +21,11 @@
   "training": {
     "method": "lora",
     "epochs": 3,
-    "learning_rate": 2e-05,
-    "learning_rate_candidates": [
-      1e-05,
-      2e-05,
-      5e-05
-    ],
+    "learning_rate": 0.0001,
     "max_length": 8192,
     "micro_batch_size": 4,
-    "gradient_accumulation_steps": 1,
-    "world_size": 8,
+    "gradient_accumulation_steps": 2,
+    "world_size": 4,
     "global_batch_size": 32,
     "bf16": true,
     "gradient_checkpointing": true,
@@ -64,7 +59,18 @@
     "save_only_model": false,
     "optimizer": "adamw_torch_fused",
     "fsdp_reshard_after_forward": false,
-    "pad_to_multiple_of": 8
+    "pad_to_multiple_of": 8,
+    "learning_rates": [
+      5e-05,
+      0.0001
+    ],
+    "learning_rates_status": "selected_by_user_authorized_empirical_design",
+    "lr_scheduler_type": "cosine",
+    "adam_beta1": 0.9,
+    "adam_beta2": 0.999,
+    "adam_epsilon": 1e-08,
+    "max_grad_norm": 1.0,
+    "dataloader_prefetch_factor": 2
   },
   "evaluation": {
     "temperature": 0,
@@ -74,7 +80,7 @@
     "thinking": false,
     "replicas": 8,
     "tensor_parallel_size": 1,
-    "max_num_seqs_per_replica": 32,
+    "max_num_seqs_per_replica": 64,
     "max_model_len": 16384,
     "gpu_memory_utilization": 0.9,
     "benchmarks": {
@@ -98,9 +104,11 @@
       ]
     },
     "selection_on_test": false,
-    "checkpoint": "final_epoch_after_training",
+    "checkpoint": "each_epoch_after_training",
     "code_execution": "network_disabled_container_required",
     "epochs": [
+      1,
+      2,
       3
     ],
     "primary_epoch": 3,
@@ -111,7 +119,102 @@
       "ifbench": "official loose prompt accuracy primary; strict secondary",
       "multi_if": "official four-metric mean per turn and across turns; English-only, not multilingual paper aggregate",
       "math500_aime_gsm_plus": "project Math-Verify answer-equivalence protocol, not a universal official script"
-    }
+    },
+    "max_num_batched_tokens": 8192,
+    "enable_chunked_prefill": true,
+    "runtime_lora_switching": true,
+    "max_lora_rank": 64,
+    "benchmark_budgets": {
+      "livecodebench": {
+        "max_output_tokens": 2000,
+        "context_tokens": 16384,
+        "output_basis": "official_locked_runner_default",
+        "source_url": "https://raw.githubusercontent.com/LiveCodeBench/LiveCodeBench/28fef95ea8c9f7a547c8329f2cd3d32b92c1fa24/lcb_runner/runner/parser.py",
+        "notes": "Official output default2000; no common context limit specified. Context16384 is project capacity, not official requirement."
+      },
+      "humaneval_plus": {
+        "max_output_tokens": 768,
+        "context_tokens": 2048,
+        "output_basis": "official_locked_vllm_default",
+        "source_url": "https://raw.githubusercontent.com/evalplus/evalplus/26d6d00bb1fd0fa37f39c99d5290da67891d1c5e/evalplus/provider/base.py",
+        "notes": "Output768; context2048 from the same commit provider/vllm.py. Historical runner defaults, not a benchmark-wide mandatory rule.",
+        "context_source_url": "https://raw.githubusercontent.com/evalplus/evalplus/26d6d00bb1fd0fa37f39c99d5290da67891d1c5e/evalplus/provider/vllm.py"
+      },
+      "mbpp_plus": {
+        "max_output_tokens": 768,
+        "context_tokens": 2048,
+        "output_basis": "official_locked_vllm_default",
+        "source_url": "https://raw.githubusercontent.com/evalplus/evalplus/26d6d00bb1fd0fa37f39c99d5290da67891d1c5e/evalplus/provider/base.py",
+        "notes": "Same EvalPlus vLLM context2048 default.",
+        "context_source_url": "https://raw.githubusercontent.com/evalplus/evalplus/26d6d00bb1fd0fa37f39c99d5290da67891d1c5e/evalplus/provider/vllm.py"
+      },
+      "bigcodebench": {
+        "max_output_tokens": 1280,
+        "context_tokens": 12800,
+        "output_basis": "official_locked_runner_default",
+        "source_url": "https://raw.githubusercontent.com/bigcode-project/bigcodebench/09dd993f46c3fbf3a799465bb96d524edcb0b199/bigcodebench/generate.py",
+        "notes": "Official run_codegen output1280/context12800."
+      },
+      "math500": {
+        "max_output_tokens": 8192,
+        "context_tokens": 16384,
+        "output_basis": "project_fallback_no_universal_official_budget",
+        "source_url": "https://huggingface.co/datasets/HuggingFaceH4/MATH-500",
+        "notes": "Data split does not prescribe one universal LLM generation/context budget."
+      },
+      "aime25": {
+        "max_output_tokens": 8192,
+        "context_tokens": 16384,
+        "output_basis": "project_fallback_no_universal_official_budget",
+        "source_url": "https://huggingface.co/datasets/math-ai/aime25",
+        "notes": "Competition questions do not define LLM token budgets."
+      },
+      "aime26": {
+        "max_output_tokens": 8192,
+        "context_tokens": 16384,
+        "output_basis": "project_fallback_no_universal_official_budget",
+        "source_url": "https://huggingface.co/datasets/math-ai/aime26",
+        "notes": "Competition questions do not define LLM token budgets."
+      },
+      "olympiad": {
+        "max_output_tokens": 2048,
+        "context_tokens": 16384,
+        "output_basis": "official_locked_text_model_example",
+        "source_url": "https://raw.githubusercontent.com/OpenBMB/OlympiadBench/ba5b26a7e2849940b598a9159c1190daa2b9175f/inference/code/evaluators/deepseek_evaluator.py",
+        "notes": "Author DeepSeekMath text example and GPT4 text example use2048; not mandatory for every model. No universal context cap;16384 is project choice."
+      },
+      "gsm_plus": {
+        "max_output_tokens": 2048,
+        "context_tokens": 16384,
+        "output_basis": "official_local_runner_default",
+        "source_url": "https://raw.githubusercontent.com/qtli/GSM-Plus/3474129ec12fcd3e8ac08cb037aca1928efca98c/scripts/general_model_inference.py",
+        "notes": "Author local vLLM CLI default2048; project uses own zero-shot prompt/MathVerify, not exact few-shot paper reproduction.",
+        "source_revision": "3474129ec12fcd3e8ac08cb037aca1928efca98c",
+        "source_sha256": "114333d4f751d0eeb4726ca419e69bf4c00e46c048375d86ef0cf1fcec1fc0a2"
+      },
+      "ifeval": {
+        "max_output_tokens": 4096,
+        "context_tokens": 16384,
+        "output_basis": "project_fallback_official_checker_only",
+        "source_url": "https://github.com/google-research/google-research/tree/c878a53ec1764bcb91a6178dc5c315202a3b5fa2/instruction_following_eval",
+        "notes": "Official checker consumes already-generated responses; no universal generation/context budget."
+      },
+      "ifbench": {
+        "max_output_tokens": 4096,
+        "context_tokens": 16384,
+        "output_basis": "project_fallback_official_model_dependent",
+        "source_url": "https://github.com/allenai/IFBench/tree/488918665d53f867fa908a293769ec6e71e74aec",
+        "notes": "Authors specify temp0 but vary generated-token cap by model;4096/16384 are explicit nonthinking project choices."
+      },
+      "multi_if": {
+        "max_output_tokens": 1024,
+        "context_tokens": 16384,
+        "output_basis": "official_locked_local_vllm_default",
+        "source_url": "https://raw.githubusercontent.com/facebookresearch/Multi-IF/1cdb53ed18499ad729e0766e5d3099dd5344406f/multi_turn_instruct_following_eval_vllm.py",
+        "notes": "1024 per turn, cumulative user+assistant history must fit context. Keep project greedy protocol; author example sampling differs."
+      }
+    },
+    "budget_policy": "per_benchmark_official_runner_defaults_where_published_explicit_project_fallback_otherwise"
   },
   "development": {
     "coding_source": "taco_train",
@@ -134,15 +237,15 @@
       "fixed_global_batch_size": 32,
       "micro_accumulation_candidates": [
         [
-          1,
+          2,
           4
         ],
         [
-          2,
+          4,
           2
         ],
         [
-          4,
+          8,
           1
         ]
       ],
@@ -155,14 +258,33 @@
         "step_seconds"
       ],
       "select": "highest measured useful-token throughput passing full-length backward and resume",
-      "note": "server acceptance only; freeze one common setting before formal runs; do not auto-increase global batch"
+      "note": "server acceptance only; freeze one common setting before formal runs; do not auto-increase global batch",
+      "execution": "server_agent_manual_measurement_required_not_automatic_tuner",
+      "fixed_world_size": 4
     }
   },
   "runtime": {
     "execution": "server",
     "offline": true,
     "automatic_parameter_changes": false,
-    "require_server_smoke": true
+    "require_server_smoke": true,
+    "pipeline": {
+      "enabled": true,
+      "lanes": 2,
+      "gpus_per_lane": 4,
+      "cpu_grading_workers": 2,
+      "grader_cpus_per_job": 8,
+      "grader_memory_gb": 48,
+      "base_port": 8000,
+      "port_stride": 100,
+      "stable_job_assignment": "index_mod_2",
+      "overlap": "two_gpu_lanes_with_asynchronous_cpu_grading",
+      "applies_to": [
+        "ordinary_branches",
+        "nice_sft_branches"
+      ],
+      "nice_gradient_phase": "exclusive_all_8_gpus"
+    }
   },
   "estimate": {
     "aggregate_training_tokens_per_second": [
@@ -215,20 +337,27 @@
       "prompt_tokens",
       "length"
     ],
-    "publication": "distribution_and_future_train_dev_manifests"
+    "publication": "distribution_and_future_train_dev_manifests",
+    "label_policy": "native_only_defer_unmapped_no_teacher"
   },
   "admission_boundaries": {
     "rerun_all_code_solutions": false,
     "verify_math_derivations": false,
     "verify_all_if_constraints": false,
     "deduplication": "normalized_exact_question",
-    "missing_skill_labels": "retain_for_full_random_then_resolve_before_development",
-    "max_length_status": "8192_draft_pending_exclusion_rate"
+    "missing_skill_labels": "retain_unlabeled_defer_annotation_exclude_from_skill_development",
+    "max_length_status": "8192_retained_pending_final50k_full_pool_length_audit_no_silent_truncation"
   },
   "confirmed_parameters": {
     "epochs": 3,
     "checkpoint_saving": "each_epoch",
-    "benchmark_evaluation": "final_epoch_only",
-    "primary_report": "epoch3_only_keep_all_training_costs"
-  }
+    "benchmark_evaluation": "all_three_epochs",
+    "primary_report": "epoch3_primary_report_all_epochs_and_costs"
+  },
+  "nice": {
+    "enabled": true,
+    "config": "configs/ordinary/exp001_nice.json",
+    "order": "before_ordinary_baseline_training"
+  },
+  "recipe_scope": "exp001_and_its_nice_only_not_future_experiment_defaults"
 }
