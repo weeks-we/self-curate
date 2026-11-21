@@ -40,14 +40,14 @@
 
 12 benchmark：LCB release_v6、HumanEval+、MBPP+、BCB instruct/full、MATH500、AIME25、AIME26、Olympiad英文纯文本开放数学、GSM-Plus、IFEval、IFBench、Multi-IF英文三轮。EvalPlus正式增强测试另由官方release缓存；官方Git checker、NLTK资源和容器也须工作站提前准备，不仅下载HF题面。
 
-## 不需用户决定、由B在服务器填入／验收
+## 不需用户决定、由A在自己的服务器填入／验收
 
 - 8个独占GPU UUID（当前[]）、共享模型／数据／运行根绝对路径、CPU配额、Docker daemon或公司容器执行能力。
 - 工作站实际构建的最终项目镜像digest（当前null），pip freeze、源码与资产seal。三套base image摘要已有。
 - Llama访问授权、模型完整分片、全部增强测试／checker资源、本地离线加载。
 - 最长8192反向、4rank FSDP2完整保存／中断恢复；global32固定，micro×累积可在已列候选中实测后冻结。
 - vLLM真实LoRA加载／热切、每卡64序列容量、官方容器判分、双路进程隔离；NICE真实反向probe与正式20题参考解自检。
-- 新源码对应的server_smoke_receipt和nice_gradient_smoke_receipt。approved=false是这些验收的门，不需要用户把它当作额外科研超参。
+- A本机新源码对应的server_smoke_receipt和nice_gradient_smoke_receipt；不导入B凭据。approved=false是这些验收的门，不需要用户把它当作额外科研超参。
 
 ## 本轮实际修复
 
@@ -69,3 +69,5 @@ IF原始29,980条全部可映射到九类，无未标样本，原生多标签分
 | boundary | 2486 |
 
 代码／配置语法、HF入口字段、IF复合／未知约束、标签发布计数专项检查通过；GPU与容器仍未本地验收。本轮不调用付费teacher。
+
+2026-11-21部署口径：A/B异地独立。A从零下载资产、构建镜像并本机验收；B仅提前测试反馈，B的目录、缓存、镜像或凭据不是A的运行依赖。A内工作站与集群之间可共享／迁移A自己的资产。

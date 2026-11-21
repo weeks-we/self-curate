@@ -196,7 +196,7 @@ def validate_gradient_receipt(plan,backend):
     bindings=backend.bindings
     path=bindings.get('nice_gradient_smoke_receipt')
     if not path or sha(path)!=bindings.get('nice_gradient_smoke_sha256'):
-        raise ValueError('NICE requires B gradient-smoke receipt with matching checksum')
+        raise ValueError('NICE requires a local-environment gradient-smoke receipt with matching checksum')
     receipt=read(path)
     if not receipt.get('passed') or receipt.get('synthetic') or receipt.get('probe_identity')!=probe_identity(plan,backend):
         raise ValueError('NICE gradient-smoke did not verify these model/data/LoRA/source identities')

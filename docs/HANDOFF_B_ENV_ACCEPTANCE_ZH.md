@@ -1,5 +1,8 @@
 # 师兄B：普通任务环境与短训验收交接
 
+> A与B异地、环境与资产互不共享。B只提前发现代码／依赖问题；本文件生成的凭据只属于B。A按HANDOFF_A_EXP001_ZH.md从零准备并独立验收。
+
+
 > 最新长度与逐benchmark预算见[长度/预算核查](TRAINING_LENGTH_AND_BENCHMARK_BUDGETS_ZH.md)。原文统一4096/8192输出仅为旧设置；当前执行exp001.evaluation.benchmark_budgets。三个epoch测评及A/B范围遵循HANDOFF。
 
 
@@ -122,7 +125,7 @@ python -m self_curate.experiments.ordinary.nice_experiment gradient-smoke --plan
 
 probe使用单位权重强制覆盖回放反向，**不表示模型成功，不跑TACO判分、不选高低组、不训练、不做额外benchmark**。确认权重checksum前后不变、梯度有限且非零、坐标与初始adapter在各GPU分片一致，返回每项实际输入/监督长度、时间、峰值显存与日志。
 
-成功后自动写gradient-acceptance.json，并更新server-bindings里的nice_gradient_smoke_receipt和SHA。把凭据、环境seal、共享资产位置一起交给A；A的完整任务见HANDOFF_A_EXP001_ZH.md。B只证明已覆盖长度下的数值链路，不证明正式80rollout有成功奖励或更长回放一定不OOM；A启动时另做TACO参考解判分自检。
+成功后自动写gradient-acceptance.json，并更新server-bindings里的nice_gradient_smoke_receipt和SHA。向A反馈问题清单、修复补丁、版本／命令和实测信息；B凭据、seal、路径仅描述B本机，不能用于放行A。A自行下载、构建并生成本机凭据；A的完整任务见HANDOFF_A_EXP001_ZH.md。B只证明已覆盖长度下的数值链路，不证明正式80rollout有成功奖励或更长回放一定不OOM；A启动时另做TACO参考解判分自检。
 
 最终B验收包增加NICE probe的配置、2题/8候选ID、实际生成token回放、梯度/坐标/权重不变证据、GPU信息和receipt；大模型和梯度投影文件可留服务器，包内保留索引及checksum。不得自动继续正式实验。
 

@@ -54,7 +54,7 @@ python -m self_curate.experiments.ordinary.nice_experiment prepare --config conf
 python -m self_curate.experiments.ordinary.nice_experiment gradient-smoke --plan /shared/runs/B-nice-plan/plan.json --bindings /shared/server-bindings.json --output /shared/runs/B-nice-gradient
 ```
 
-B使用完整合格coding池准备20/3000的冻结清单，不用128条短训池。实际只对2道任务各生成1次最多64token，单位权重检查sum-NLL backward，并对8条候选（优先覆盖最长样本）检查mean-CE backward；不判分、不排名、不SFT、不跑NICE benchmark。单位权重不是模型成功奖励，不发布科学分数。全部成功后命令自动把receipt路径和SHA写入server-bindings，A正式运行会验证同模型/池/LoRA/打分方法/源码/资产身份。
+B使用完整合格coding池准备20/3000的冻结清单，不用128条短训池。实际只对2道任务各生成1次最多64token，单位权重检查sum-NLL backward，并对8条候选（优先覆盖最长样本）检查mean-CE backward；不判分、不排名、不SFT、不跑NICE benchmark。单位权重不是模型成功奖励，不发布科学分数。全部成功后命令自动把receipt路径和SHA写入server-bindings，B凭据只用于B本机；A需在自己的环境独立执行同一probe，正式运行验证A本机的模型/池/LoRA/打分方法/源码/资产身份。
 
 正式全流程通过普通EXP001的plan/run自动进入NICE；也支持nice_experiment run单独执行，但**不要独立跑完后再另起一份重复任务**。A统一入口见HANDOFF_A_EXP001_ZH.md。B检查不能代替A正式80次rollout、TACO参考解判分及最长生成回放容量验收。
 
@@ -66,7 +66,7 @@ B使用完整合格coding池准备20/3000的冻结清单，不用128条短训池
 
 --resume只复用身份和checksum一致的记录；完整checkpoint才恢复optimizer/scheduler/8rank RNG，半写checkpoint另存incomplete目录，已发布checkpoint缺状态则拒绝续训。所有20个目标方向为0时停止，不凭任意排序声称NICE有效；出现非有限值、来源/坐标/adapter变化也停止。
 
-代码/模型/模板/方法变化需新plan；已有B凭据会因身份不符失效。CPU mock/小模型数值验证与真实9B、GPU容量、官方容器判分严格区分。
+代码/模型/模板/方法变化需新plan；执行地已有凭据会因身份不符失效。CPU mock/小模型数值验证与真实9B、GPU容量、官方容器判分严格区分。
 
 执行顺序：环境验收后，统一run先执行NICE，再跑常规基线；避免TACO新适配或零方向问题到大规模Full训练完成后才暴露。各分支起点独立，执行顺序不改变比较定义。
 
@@ -82,3 +82,5 @@ B使用完整合格coding池准备20/3000的冻结清单，不用128条短训池
 本机没有下载目标权重或运行GPU/Docker/真实TACO代码判分。B负责真实9B梯度和既有环境验收，A负责正式TACO参考解自检、80rollout与全量梯度、FSDP保存/恢复和所有节点真实测评；不能拿本地mock成绩作研究结论。
 
 2026-11-21最新确认：EXP001普通基线epoch1/2/3全部跑benchmark；Initial仍只测一次。epoch3为主要报告，不按benchmark挑权重。两LR正式矩阵372组benchmark；NICE保持48组benchmark＋12组原题诊断，总432组测评记录（420 benchmark＋12诊断）。师兄B仍保持独立短测：每个benchmark只测一次，不扩大验收规模。此前相反节点说明以本条为准。
+
+2026-11-21部署口径：A/B异地独立。A从零下载资产、构建镜像并本机验收；B仅提前测试反馈，B的目录、缓存、镜像或凭据不是A的运行依赖。A内工作站与集群之间可共享／迁移A自己的资产。

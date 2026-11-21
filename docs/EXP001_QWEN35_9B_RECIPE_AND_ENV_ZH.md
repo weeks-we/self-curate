@@ -137,7 +137,7 @@ GPU项目显式版本：Transformers5.22.0、Accelerate1.16.0、PEFT0.22.0、dat
 4. 两路并行训练/生成、每卡64序列、4副本热切adapter、CPU判分取消均真实smoke；确认适配器模块兼容、显存不溢出、进程互不清理。CPU至少留2×8核/2×48GB给判分，并给训练dataloader和服务额外余量。
 5. NICE八卡真实反向和原生TACO参考解自检；不得把单位奖励probe当成成功率验收。
 
-B通过后填齐bindings/receipt并放行approved；A只启动冻结后的新计划。现有本地CPU结果证明流程及数值实现，不证明真实8卡速度。本轮不承诺未测得的运行小时数：记录预热后有效token/s和生成token/s，用总实际token预算换算，再加官方判分和加载时间。避免以GPU显存大小推导虚假的完成时间。
+A在自己的环境完成下载、构建和预检后，填齐A的bindings/receipt并放行approved，再启动冻结后的新计划。B通过仅提供提前测试参考。现有本地CPU结果证明流程及数值实现，不证明真实8卡速度。本轮不承诺未测得的运行小时数：记录预热后有效token/s和生成token/s，用总实际token预算换算，再加官方判分和加载时间。避免以GPU显存大小推导虚假的完成时间。
 
 依赖核查实际发现并修复：vLLM0.34.0声明Transformers>=5.16.1,<5.23.0，旧pin5.23.0越界；已统一改5.22.0，亦满足FLA>=5.6.2,<6。vLLM要求Torch2.14.0，实际Torch仍由base提供并在工作站pip check确认。
 
@@ -158,3 +158,5 @@ B通过后填齐bindings/receipt并放行approved；A只启动冻结后的新计
 2026-11-21最新确认：EXP001普通基线epoch1/2/3全部跑benchmark；Initial仍只测一次。epoch3为主要报告，不按benchmark挑权重。两LR正式矩阵372组benchmark；NICE保持48组benchmark＋12组原题诊断，总432组测评记录（420 benchmark＋12诊断）。师兄B仍保持独立短测：每个benchmark只测一次，不扩大验收规模。此前相反节点说明以本条为准。
 
 2026-11-21用户确认标签：保留8/7/10类；未映射样本先不标、保留训练池、不自动调用teacher；按技能开发集暂不使用未映射记录，缺额如实报告。原生对应关系见[NATIVE_SKILL_MAPPING_ZH.md](NATIVE_SKILL_MAPPING_ZH.md)。
+
+2026-11-21部署口径：A/B异地独立。A从零下载资产、构建镜像并本机验收；B仅提前测试反馈，B的目录、缓存、镜像或凭据不是A的运行依赖。A内工作站与集群之间可共享／迁移A自己的资产。

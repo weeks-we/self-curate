@@ -39,3 +39,5 @@
 2026-11-21再次配置核对：18项必需HF来源有URL/revision。修复finalize对三epoch矩阵的数量适配；修复原生IF约束空格／别名、复合标签与未知标签显式复核。IF29980全量映射九类、无缺标；math probability／IF style及少量数学Other补标仍需口径确定，尚未修改taxonomy提案。见EXP001_READINESS_CHECKLIST_ZH.md。
 
 2026-11-21用户最终标签口径：保留预设Coding8／数学7／IF10，未映射先不补标。配置native_only、teacher禁用；finalize把未映射排除出按技能开发集并保留训练池，零覆盖技能保留、50题不足仍显式报告。9项专项CPU检查通过；对应关系见NATIVE_SKILL_MAPPING_ZH.md。
+
+2026-11-21用户纠正部署：A与B异地；A独立从零准备工作站／集群环境及本机验收，B只提前测试／反馈。重写A完整交接，移除跨地点共享资产／B凭据前置要求；实际验收门继续保留但由运行地点自身生成，接口字段不变。

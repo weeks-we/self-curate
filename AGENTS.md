@@ -1,3 +1,5 @@
+> 2026-11-21 deployment: A starts from scratch on its own workstation/cluster and produces its own acceptance receipts. B only provides advance testing feedback; no shared physical assets or cross-site receipt reuse.
+
 > 2026-11-21 length/budget update: EXP001 evaluates every epoch. Per-benchmark budget authority is exp001.evaluation.benchmark_budgets; see docs/TRAINING_LENGTH_AND_BENCHMARK_BUDGETS_ZH.md. Keep training8192 pending final50k pre-filter length audit.
 
 > 2026-11-21 active recipe: EXP001 only LR5e-5/1e-4, two disjoint four-GPU FSDP2 lanes, main global32 and NICE global8, async CPU grading. See docs/EXP001_QWEN35_9B_RECIPE_AND_ENV_ZH.md. Old one-LR counts below are superseded.
@@ -76,7 +78,7 @@ directions in the fixed20 denominator; never select checkpoints by final benchma
 
 A executes full task. B executes ordinary environment/short-training acceptance
 plus NICE backward-only probe (2 target/8 candidates, no NICE grading/SFT/evaluation).
-Formal execution requires B's identity-bound receipt. Preserve source/model/data/
+Formal execution requires the executing site's own identity-bound receipt; A and B are independent sites. Preserve source/model/data/
 tokenizer/template/adapter/coordinates/RNG/exposure/cost provenance. Native checkpoints
 must have optimizer/scheduler/matching-rank RNG (four ranks per EXP001 lane), not just adapter weights.
 
